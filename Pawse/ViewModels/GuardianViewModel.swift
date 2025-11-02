@@ -1,5 +1,12 @@
+import Foundation
 import SwiftUI
 import Combine
+//
+//  GuardianViewModel.swift
+//  Pawse
+//
+//  ViewModel for managing pet co-owners/guardians
+//
 
 @MainActor
 class GuardianViewModel: ObservableObject {
@@ -35,16 +42,9 @@ class GuardianViewModel: ObservableObject {
         isLoading = false
     }
     
-    // MARK: - Send Co-owner Request
-    
-    func requestCoOwner(for petId: String, guardianUID: String) async {
-        isLoading = true
-        error = nil
-        successMessage = nil
-        
-        guard let currentUserId = getCurrentUserId() else {
+    func requestGuardian(petId: String, guardianEmail: String) async {
+        guard let uid = authController.currentUID() else {
             error = "No user logged in"
-            isLoading = false
             return
         }
         

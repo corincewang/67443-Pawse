@@ -19,9 +19,7 @@ struct PawseApp: App {
     
     var body: some Scene {
         WindowGroup {
-            NavigationView {
-                AppView()
-            }
+            RootView()
         }
     }
 }

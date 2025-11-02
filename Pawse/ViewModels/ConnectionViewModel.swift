@@ -1,5 +1,13 @@
 import SwiftUI
 import Combine
+//
+//  ConnectionViewModel.swift
+//  Pawse
+//
+//  ViewModel for managing friend connections
+//
+
+import Foundation
 
 @MainActor
 class ConnectionViewModel: ObservableObject {

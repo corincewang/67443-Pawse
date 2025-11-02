@@ -1,5 +1,14 @@
+import Foundation
 import SwiftUI
 import Combine
+
+// MARK: - ContestViewModel
+//
+//  ContestViewModel.swift
+//  Pawse
+//
+//  ViewModel for managing contests
+//
 
 // MARK: - Leaderboard Models (from API response)
 
@@ -42,8 +51,6 @@ struct ContestFeedItem: Codable, Identifiable {
         case pet_name, votes_from_contest, submitted_at, score
     }
 }
-
-// MARK: - ContestViewModel
 
 @MainActor
 class ContestViewModel: ObservableObject {

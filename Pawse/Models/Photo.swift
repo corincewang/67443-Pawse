@@ -1,4 +1,4 @@
-import FirebaseFirestoreSwift
+import FirebaseFirestore
 
 struct Photo: Codable, Identifiable {
     @DocumentID var id: String?

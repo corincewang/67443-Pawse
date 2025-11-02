@@ -129,6 +129,7 @@
 				123B95002EB118BF002F62A9 /* Pawse */,
 				123B95122EB118C4002F62A9 /* PawseTests */,
 				123B951C2EB118C4002F62A9 /* PawseUITests */,
+				125DF2782EB7EB5C00D07F2A /* Frameworks */,
 				123B94FF2EB118BF002F62A9 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -141,6 +142,13 @@
 				123B95192EB118C4002F62A9 /* PawseUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		125DF2782EB7EB5C00D07F2A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
