@@ -12,41 +12,108 @@ struct BottomBarView: View {
     
     var body: some View {
         HStack(spacing: 0) {
+            // Profile Tab
+            TabButton(
+                tab: .profile,
+                selectedTab: $selectedTab
+            )
+            
+            Spacer()
+            
+            // Camera Tab
+            TabButton(
+                tab: .camera,
+                selectedTab: $selectedTab
+            )
+            
+            Spacer()
             // Community Tab
             TabButton(
                 tab: .community,
                 selectedTab: $selectedTab
             )
             
-            Spacer()
-            
-            // Camera Tab (Center with special styling)
-            CameraTabButton(
-                selectedTab: $selectedTab
-            )
-            
-            Spacer()
-            
-            // Profile Tab
-            TabButton(
-                tab: .profile,
-                selectedTab: $selectedTab
-            )
         }
-        .padding(.horizontal, 64)
-        .padding(.top, 38)
-        .frame(height: 115)
+        .padding(.horizontal, 60)
+        .padding(.top, 20)
+        .padding(.bottom, 25)
         .background(
-            UnevenRoundedRectangle(
-                cornerRadii: .init(
-                    topLeading: 0,
-                    bottomLeading: 60,
-                    bottomTrailing: 60,
-                    topTrailing: 0
-                )
-            )
-            .fill(Color(hex: "F6DDB2"))
+            CurvedBottomBarShape()
+                .fill(Color.bottomBarBackground)
         )
+    }
+}
+
+// MARK: - Curved Bottom Bar Shape
+struct CurvedBottomBarShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        
+        let width = rect.width
+        let height = rect.height
+        let peakHeight: CGFloat = 18  // Height of each peak
+        let valleyDepth: CGFloat = 12  // Depth of valleys between peaks
+        
+        // Start from top-left
+        path.move(to: CGPoint(x: 0, y: valleyDepth))
+        
+        // First peak (left side) - more semi-circular
+        path.addCurve(
+            to: CGPoint(x: width * 0.33, y: valleyDepth),
+            control1: CGPoint(x: width * 0.08, y: valleyDepth - peakHeight),
+            control2: CGPoint(x: width * 0.25, y: valleyDepth - peakHeight)
+        )
+        
+        // Valley between first and second peak
+        path.addCurve(
+            to: CGPoint(x: width * 0.42, y: valleyDepth * 0.7),
+            control1: CGPoint(x: width * 0.36, y: valleyDepth),
+            control2: CGPoint(x: width * 0.39, y: valleyDepth * 0.85)
+        )
+        
+        // Second peak (center) - highest and most prominent
+        path.addCurve(
+            to: CGPoint(x: width * 0.58, y: valleyDepth * 0.7),
+            control1: CGPoint(x: width * 0.47, y: valleyDepth * 0.2),
+            control2: CGPoint(x: width * 0.53, y: valleyDepth * 0.2)
+        )
+        
+        // Valley between second and third peak
+        path.addCurve(
+            to: CGPoint(x: width * 0.67, y: valleyDepth),
+            control1: CGPoint(x: width * 0.61, y: valleyDepth * 0.85),
+            control2: CGPoint(x: width * 0.64, y: valleyDepth)
+        )
+        
+        // Third peak (right side) - mirror of first peak
+        path.addCurve(
+            to: CGPoint(x: width, y: valleyDepth),
+            control1: CGPoint(x: width * 0.75, y: valleyDepth - peakHeight),
+            control2: CGPoint(x: width * 0.92, y: valleyDepth - peakHeight)
+        )
+        
+        // Right side down
+        path.addLine(to: CGPoint(x: width, y: height - 60))
+        
+        // Bottom right rounded corner
+        path.addQuadCurve(
+            to: CGPoint(x: width - 60, y: height),
+            control: CGPoint(x: width, y: height)
+        )
+        
+        // Bottom line
+        path.addLine(to: CGPoint(x: 60, y: height))
+        
+        // Bottom left rounded corner
+        path.addQuadCurve(
+            to: CGPoint(x: 0, y: height - 60),
+            control: CGPoint(x: 0, y: height)
+        )
+        
+        // Close the path
+        path.closeSubpath()
+        
+        return path
     }
 }
 
@@ -55,60 +122,27 @@ struct TabButton: View {
     let tab: TabItem
     @Binding var selectedTab: TabItem
     
+    var isSelected: Bool {
+        selectedTab == tab
+    }
+    
     var body: some View {
         Button(action: {
             selectedTab = tab
         }) {
-            Image(systemName: tab.iconName)
-                .font(.system(size: 30))
-                .foregroundColor(Color(hex: "84665C"))
-                .frame(width: 50, height: 50)
-        }
-    }
-}
-
-// MARK: - Camera Tab Button (Special Center Button)
-struct CameraTabButton: View {
-    @Binding var selectedTab: TabItem
-    
-    var body: some View {
-        Button(action: {
-            selectedTab = .camera
-        }) {
             ZStack {
-                Circle()
-                    .fill(Color(hex: "F7B455"))
-                    .frame(width: 50, height: 50)
+                if isSelected {
+                    Circle()
+                        .fill(Color.pawseOrange)
+                        .frame(width: 56, height: 56)
+                }
                 
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 30))
-                    .foregroundColor(.white)
+                Image(systemName: tab.iconName)
+                    .font(.system(size: 25, weight: .medium))
+                    .foregroundColor(isSelected ? .white : Color.pawseBrown)  // Muted brown for unselected
             }
+            .frame(width: 60, height: 60)
         }
-        .offset(y: -10) // Slightly elevated
-    }
-}
-
-// MARK: - Color Extension (for hex colors)
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 6: // RGB
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (255, 0, 0, 0)
-        }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue:  Double(b) / 255,
-            opacity: Double(a) / 255
-        )
     }
 }
 
