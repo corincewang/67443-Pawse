@@ -1,31 +1,31 @@
 //
-//  ProfileView.swift
+//  CameraView.swift
 //  Pawse
 //
-//  Profile page - user and pet profiles
+//  Camera page - take and share pet photos
 //
 
 import SwiftUI
 
-struct ProfileView: View {
+struct CameraView: View {
     var body: some View {
         ZStack {
             Color(hex: "FAF7EB")
                 .ignoresSafeArea()
             
             VStack {
-                Text("Profile")
+                Text("Camera")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                Image(systemName: "person.fill")
+                Image(systemName: "camera.fill")
                     .font(.system(size: 60))
-                    .foregroundColor(Color(hex: "84665C"))
+                    .foregroundColor(Color(hex: "F7B455"))
             }
         }
     }
 }
 
 #Preview {
-    ProfileView()
+    CameraView()
 }
 

@@ -1,0 +1,81 @@
+# Xcode Version-Specific Settings (User & Build Specific)
+xcuserdata/
+*.xcuserstate
+build/
+DerivedData/
+
+# Xcode Project Files - INCLUDE THESE!
+# *.xcodeproj - DON'T ignore project files!
+# *.xcworkspace - DON'T ignore workspace files!
+
+# But DO ignore user-specific project data
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Xcode Version Compatibility
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.hmap
+
+# Build Products
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.abi.json
+*.swiftdoc
+*.swiftmodule
+*.swiftsourceinfo
+
+# Swift Package Manager
+Packages/
+Package.pins
+Package.resolved
+.swiftpm/
+.build/
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build/
+
+# Accio
+Dependencies/
+.accio/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Code Injection
+iOSInjectionProject/
+
+# System Files
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+
+# Firebase - Keep GoogleService-Info.plist for team collaboration
+

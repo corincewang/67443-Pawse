@@ -1,23 +1,23 @@
 //
-//  ProfileView.swift
+//  CommunityView.swift
 //  Pawse
 //
-//  Profile page - user and pet profiles
+//  Community page - main feed for pet posts
 //
 
 import SwiftUI
 
-struct ProfileView: View {
+struct CommunityView: View {
     var body: some View {
         ZStack {
             Color(hex: "FAF7EB")
                 .ignoresSafeArea()
             
             VStack {
-                Text("Profile")
+                Text("Community")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                Image(systemName: "person.fill")
+                Image(systemName: "person.3.fill")
                     .font(.system(size: 60))
                     .foregroundColor(Color(hex: "84665C"))
             }
@@ -26,6 +26,6 @@ struct ProfileView: View {
 }
 
 #Preview {
-    ProfileView()
+    CommunityView()
 }
 
