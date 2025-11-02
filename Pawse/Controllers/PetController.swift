@@ -13,6 +13,17 @@ final class PetController {
             .whereField("owner", isEqualTo: "users/\(user)").getDocuments()
         return try snap.documents.compactMap { try $0.data(as: Pet.self) }
     }
+    
+    func fetchPet(petId: String) async throws -> Pet {
+        let snap = try await db.collection(Collection.pets).document(petId).getDocument()
+        return try snap.data(as: Pet.self)
+    }
+
+    func updatePet(_ pet: Pet) async throws {
+        guard let petId = pet.id else { throw AppError.noUser }
+        try await db.collection(Collection.pets).document(petId)
+            .setData(try Firestore.Encoder().encode(pet), merge: true)
+    }
 
     func deletePet(petId: String) async throws {
         try await db.collection(Collection.pets).document(petId).delete()
