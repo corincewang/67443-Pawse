@@ -5,7 +5,7 @@ final class PetController {
     private let db = FirebaseManager.shared.db
 
     func createPet(_ pet: Pet) async throws {
-        try await db.collection(Collection.pets).addDocument(from: pet)
+        _ = try await db.collection(Collection.pets).addDocument(from: pet)
     }
 
     func fetchPets(for user: String) async throws -> [Pet] {

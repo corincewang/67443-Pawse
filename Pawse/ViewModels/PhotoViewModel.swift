@@ -34,16 +34,12 @@ class PhotoViewModel: ObservableObject {
                 ext: "jpg"
             )
             
-            // Upload to S3 (simplified - you'll need URLSession upload)
-            var request = URLRequest(url: uploadURL)
-            request.httpMethod = "PUT"
-            request.httpBody = imageData
-            request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
-            
-            let (_, response) = try await URLSession.shared.data(for: request)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-                throw NSError(domain: "Upload failed", code: 0)
-            }
+            // Upload to S3 using AWSManager
+            try await AWSManager.shared.uploadToS3(
+                presignedURL: uploadURL,
+                data: imageData,
+                mimeType: "image/jpeg"
+            )
             
             // Save photo record
             let photo = Photo(

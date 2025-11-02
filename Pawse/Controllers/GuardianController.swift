@@ -7,7 +7,7 @@ final class GuardianController {
     func requestGuardian(for petId: String, guardianRef: String, ownerRef: String) async throws {
         let doc = Guardian(date_added: Date(), guardian: guardianRef, owner: ownerRef,
                           pet: "pets/\(petId)", status: "pending")
-        try await db.collection(Collection.Guardians).addDocument(from: doc)
+        _ = try await db.collection(Collection.Guardians).addDocument(from: doc)
     }
 
     func approveGuardian(requestId: String) async throws {

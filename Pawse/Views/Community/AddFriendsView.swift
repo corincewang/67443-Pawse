@@ -76,7 +76,7 @@ struct AddFriendsView: View {
                                             onApprove: {
                                                 if let connectionId = connection.id {
                                                     Task {
-                                                        await connectionViewModel.approveRequest(connectionId: connectionId)
+                                                        await connectionViewModel.approveFriendRequest(connectionId: connectionId)
                                                     }
                                                 }
                                             }

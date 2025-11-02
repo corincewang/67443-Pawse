@@ -14,7 +14,7 @@ final class PhotoController {
     }
 
     func savePhotoRecord(photo: Photo) async throws {
-        try await db.collection(Collection.photos).addDocument(from: photo)
+        _ = try await db.collection(Collection.photos).addDocument(from: photo)
     }
 
     func fetchPhotos(for petId: String) async throws -> [Photo] {

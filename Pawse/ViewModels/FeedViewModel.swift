@@ -1,20 +1,6 @@
 import SwiftUI
 import Combine
 
-// MARK: - Friends Feed Models (from API response)
-
-struct FriendsFeedItem: Codable, Identifiable {
-    let id: UUID = UUID()
-    let pet_name: String
-    let votes_from_friends: Int
-    let posted_at: String
-    let score: Double
-    
-    enum CodingKeys: String, CodingKey {
-        case pet_name, votes_from_friends, posted_at, score
-    }
-}
-
 // MARK: - FeedViewModel
 
 @MainActor
@@ -79,11 +65,11 @@ class FeedViewModel: ObservableObject {
     // MARK: - Refresh All Feeds
     
     func refreshAllFeeds() async {
-        async let friendsTask = fetchFriendsFeed()
-        async let contestTask = fetchContestFeed()
-        async let leaderboardTask = fetchLeaderboard()
+        async let friendsTask: Void = fetchFriendsFeed()
+        async let contestTask: Void = fetchContestFeed()
+        async let leaderboardTask: Void = fetchLeaderboard()
         
-        let _ = await (friendsTask, contestTask, leaderboardTask)
+        _ = await (friendsTask, contestTask, leaderboardTask)
     }
     
     // MARK: - Auto Refresh Setup
@@ -124,6 +110,7 @@ class FeedViewModel: ObservableObject {
     }
     
     deinit {
-        stopAutoRefresh()
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
 }

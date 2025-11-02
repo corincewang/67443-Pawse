@@ -78,7 +78,7 @@ class ConnectionViewModel: ObservableObject {
         error = nil
         successMessage = nil
         
-        guard let currentUserId = getCurrentUserId() else {
+        guard getCurrentUserId() != nil else {
             error = "No user logged in"
             isLoading = false
             return
@@ -125,18 +125,13 @@ class ConnectionViewModel: ObservableObject {
         error = nil
         successMessage = nil
         
-        do {
-            // Add rejection method to ConnectionController if needed
-            // For now, we could update status or delete
-            successMessage = "Friend request rejected"
-            
-            // Refresh connections
-            await fetchConnections()
-            
-            error = nil
-        } catch {
-            self.error = error.localizedDescription
-        }
+        // Add rejection method to ConnectionController if needed
+        // For now, we could update status or delete
+        successMessage = "Friend request rejected"
+        
+        // Refresh connections
+        await fetchConnections()
+        
         isLoading = false
     }
     

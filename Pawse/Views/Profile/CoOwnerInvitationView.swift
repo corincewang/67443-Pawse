@@ -66,7 +66,7 @@ struct CoOwnerInvitationView: View {
                             Button(action: {
                                 Task {
                                     if let guardianId = guardian.id, let petId = extractId(from: guardian.pet) {
-                                        await guardianViewModel.approveGuardian(requestId: guardianId, petId: petId)
+                                        await guardianViewModel.approveGuardianRequest(requestId: guardianId, petId: petId)
                                         showingAcceptAlert = true
                                     }
                                 }

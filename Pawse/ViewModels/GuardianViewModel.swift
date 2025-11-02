@@ -19,6 +19,8 @@ class GuardianViewModel: ObservableObject {
     @Published var successMessage: String?
     
     private let guardianController = GuardianController()
+    private let authController = AuthController()
+    private let userController = UserController()
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Fetch Operations
@@ -48,11 +50,18 @@ class GuardianViewModel: ObservableObject {
             return
         }
         
+        isLoading = true
+        error = nil
+        successMessage = nil
+        
         do {
+            // Look up guardian user by email
+            let guardianUID = try await lookupUserByEmail(guardianEmail)
+            
             try await guardianController.requestGuardian(
                 for: petId,
                 guardianRef: "users/\(guardianUID)",
-                ownerRef: "users/\(currentUserId)"
+                ownerRef: "users/\(uid)"
             )
             successMessage = "Co-owner invitation sent"
             
@@ -94,21 +103,29 @@ class GuardianViewModel: ObservableObject {
         error = nil
         successMessage = nil
         
-        do {
-            // Add rejection method to GuardianController if needed
-            successMessage = "Co-owner request rejected"
-            
-            // Refresh guardians
-            await fetchGuardians(for: petId)
-            
-            error = nil
-        } catch {
-            self.error = error.localizedDescription
-        }
+        // Add rejection method to GuardianController if needed
+        successMessage = "Co-owner request rejected"
+        
+        // Refresh guardians
+        await fetchGuardians(for: petId)
+        
         isLoading = false
     }
     
     // MARK: - Helper Methods
+    
+    private func lookupUserByEmail(_ email: String) async throws -> String {
+        let db = FirebaseManager.shared.db
+        let snap = try await db.collection(Collection.users)
+            .whereField("email", isEqualTo: email)
+            .getDocuments()
+        
+        guard let firstDoc = snap.documents.first else {
+            throw AppError.noUser
+        }
+        
+        return firstDoc.documentID
+    }
     
     private func getCurrentUserId() -> String? {
         FirebaseManager.shared.auth.currentUser?.uid

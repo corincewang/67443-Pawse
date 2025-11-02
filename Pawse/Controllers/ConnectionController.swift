@@ -5,7 +5,7 @@ final class ConnectionController {
     private let db = FirebaseManager.shared.db
 
     func sendFriendRequest(to uid2: String, ref2: String) async throws {
-        guard let uid1 = FirebaseManager.shared.auth.currentUser?.uid else { throw AppError.noUser }
+        guard FirebaseManager.shared.auth.currentUser?.uid != nil else { throw AppError.noUser }
         let conn = Connection(connection_date: Date(), status: "pending", uid2: uid2, user2: ref2)
         try await db.collection(Collection.connections).addDocument(from: conn)
     }
