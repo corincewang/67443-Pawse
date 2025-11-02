@@ -6,6 +6,7 @@ enum Collection {
     static let contestPhotos = "contest_photos"
     static let connections = "connections"
     static let coowners = "coowners"
+    static let Guardians = "coowners" // Maps to same Firebase collection as coowners
 }
 
 enum AppError: Error {

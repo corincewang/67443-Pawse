@@ -1,5 +1,6 @@
 // for handling sign in/out, register
 import FirebaseAuth
+import FirebaseFirestore
 
 final class AuthController {
     private let auth = FirebaseManager.shared.auth

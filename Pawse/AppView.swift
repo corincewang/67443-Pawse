@@ -8,29 +8,36 @@
 import SwiftUI
 
 struct AppView: View {
-    @State private var selectedTab: TabItem = .community
+    @State private var selectedTab: TabItem = .profile
     
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack {
             // Main content area
-            TabView(selection: $selectedTab) {
-                CommunityView()
-                    .tag(TabItem.community)
-                
-                CameraView()
-                    .tag(TabItem.camera)
-                
-                ProfileView()
-                    .tag(TabItem.profile)
+            Group {
+                switch selectedTab {
+                case .profile:
+                    NavigationStack {
+                        ProfilePageView()
+                    }
+                case .camera:
+                    NavigationStack {
+                        CameraView()
+                    }
+                case .community:
+                    NavigationStack {
+                        ContestParticipantsView()
+                    }
+                }
             }
-            #if os(iOS)
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            #endif
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // Bottom navigation bar
-            BottomBarView(selectedTab: $selectedTab)
+            // Bottom navigation bar overlay
+            VStack {
+                Spacer()
+                BottomBarView(selectedTab: $selectedTab)
+            }
+            .ignoresSafeArea(.all, edges: .bottom)
         }
-        .ignoresSafeArea(.all, edges: .bottom)
     }
 }
 
