@@ -79,24 +79,22 @@ struct UploadPhotoView: View {
                     .font(.system(size: 24))
                     .foregroundColor(.pawseOliveGreen)
             }
-            .padding(.leading, 20)
+            
+            Text("Upload Photo")
+                .font(.system(size: 48, weight: .bold))
+                .foregroundColor(.pawseOliveGreen)
+            
             Spacer()
         }
-        .padding(.top, 60)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
     }
     
     private var contentSection: some View {
         VStack(spacing: 30) {
-            titleView
             photoSelectionView
             privacySettingsView
         }
-    }
-    
-    private var titleView: some View {
-        Text("Upload Photo")
-            .font(.system(size: 48, weight: .bold))
-            .foregroundColor(.pawseOliveGreen)
     }
     
     private var photoSelectionView: some View {
