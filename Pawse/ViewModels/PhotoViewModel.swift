@@ -19,6 +19,16 @@ class PhotoViewModel: ObservableObject {
     private let photoController = PhotoController()
     private let authController = AuthController()
     
+    func fetchPhotos(for petId: String) async {
+        isLoading = true
+        do {
+            photos = try await photoController.fetchPhotos(for: petId)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+    
     func uploadPhoto(petId: String, privacy: String, imageData: Data) async {
         guard let uid = authController.currentUID() else {
             errorMessage = "No user logged in"
@@ -26,22 +36,24 @@ class PhotoViewModel: ObservableObject {
         }
         
         isUploading = true
+        errorMessage = nil
+        
         do {
-            // Request presigned URL
+            // Request presigned URL from Firebase Functions
             let (uploadURL, s3Key) = try await photoController.requestPresignedURL(
                 petId: petId,
                 mimeType: "image/jpeg",
                 ext: "jpg"
             )
             
-            // Upload to S3 using AWSManager
+            // Upload to S3 using enhanced AWSManager
             try await AWSManager.shared.uploadToS3(
                 presignedURL: uploadURL,
                 data: imageData,
                 mimeType: "image/jpeg"
             )
             
-            // Save photo record
+            // Save photo record to Firestore
             let photo = Photo(
                 image_link: s3Key,
                 pet: "pets/\(petId)",
@@ -52,9 +64,16 @@ class PhotoViewModel: ObservableObject {
             )
             try await photoController.savePhotoRecord(photo: photo)
             
+            print("✅ Photo uploaded successfully: \(s3Key)")
+            
+        } catch let error as AWSError {
+            errorMessage = error.errorDescription
+            print("❌ AWS Error: \(error)")
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = "Upload failed: \(error.localizedDescription)"
+            print("❌ Upload Error: \(error)")
         }
+        
         isUploading = false
     }
     

@@ -9,9 +9,17 @@ import SwiftUI
 
 struct PhotoGalleryView: View {
     let petId: String
+    let petName: String? // Add pet name parameter
     @StateObject private var photoViewModel = PhotoViewModel()
+    @StateObject private var petViewModel = PetViewModel()
     @State private var showingDeleteConfirmation = false
     @State private var selectedPhotoForDelete: Photo? = nil
+    @Environment(\.dismiss) var dismiss
+    
+    // Computed property to find the current pet
+    private var currentPet: Pet? {
+        petViewModel.pets.first { $0.id == petId }
+    }
     
     var body: some View {
         ZStack {
@@ -24,15 +32,41 @@ struct PhotoGalleryView: View {
                 
                 ScrollView {
                     VStack(spacing: 30) {
-                        // Pet name (you might want to pass this or fetch it)
-                        Text("Photo Gallery")
-                            .font(.system(size: 48, weight: .bold))
-                            .foregroundColor(.pawseOliveGreen)
-                            .padding(.top, 20)
+                        // Pet name header with edit button
+                        HStack {
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                Image(systemName: "chevron.backward")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.pawseOliveGreen)
+                            }
+                            
+                            Text(petName ?? "Unknown Pet")
+                                .font(.system(size: 48, weight: .bold))
+                                .foregroundColor(.pawseOliveGreen)
+                            
+                            Spacer()
+                            
+                            // Edit button that goes to Pet Detail View
+                            if let pet = currentPet {
+                                NavigationLink(destination: ViewPetDetailView(pet: pet)) {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.pawseOliveGreen)
+                                        .frame(width: 40, height: 40)
+                                        .background(Color.white)
+                                        .clipShape(Circle())
+                                        .shadow(radius: 2)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
                         
                         // Contest photos section
                         VStack(alignment: .leading, spacing: 15) {
-                            Text("Contest Photos")
+                            Text("Contests")
                                 .font(.custom("Gabarito", size: 36))
                                 .fontWeight(.semibold)
                                 .foregroundColor(Color(hex: "FB8053"))
@@ -81,12 +115,13 @@ struct PhotoGalleryView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 30)
+                    }
                 }
             }
-        }
             
             // Floating buttons overlay
             VStack {
+                Spacer()
                 HStack {
                     Spacer()
                     VStack(spacing: 15) {
@@ -98,24 +133,8 @@ struct PhotoGalleryView: View {
                         }
                     }
                     .padding(.trailing, 30)
+                    .padding(.bottom, 100) // Position above bottom bar
                 }
-                Spacer()
-            }
-            .padding(.top, 150)
-            
-            // Back button
-            VStack {
-                HStack {
-                    Button(action: {}) {
-                        Image(systemName: "chevron.backward")
-                            .font(.system(size: 24))
-                            .foregroundColor(.pawseOliveGreen)
-                    }
-                    .padding(.leading, 20)
-                    Spacer()
-                }
-                .padding(.top, 60)
-                Spacer()
             }
         }
         .alert("Delete Photo", isPresented: $showingDeleteConfirmation) {
@@ -131,6 +150,10 @@ struct PhotoGalleryView: View {
             Text("Are you sure you want to delete this photo?")
         }
         .navigationBarBackButtonHidden(true)
+        .task {
+            await photoViewModel.fetchPhotos(for: petId)
+            await petViewModel.fetchUserPets()
+        }
     }
 }
 
@@ -166,8 +189,8 @@ struct PhotoThumbnailView: View {
                 Button(action: onDelete) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(.red)
-                        .background(Color.white.clipShape(Circle()))
+                    .foregroundColor(.red)
+                    .background(Color.white.clipShape(Circle()))
                 }
                 .offset(x: 8, y: -8)
             }
@@ -183,6 +206,6 @@ struct PhotoThumbnailView: View {
 
 #Preview {
     NavigationStack {
-        PhotoGalleryView(petId: "test-pet-id")
+        PhotoGalleryView(petId: "test-pet-id", petName: "Snowball")
     }
 }

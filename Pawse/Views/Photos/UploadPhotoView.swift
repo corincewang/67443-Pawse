@@ -46,6 +46,13 @@ struct UploadPhotoView: View {
                 }
             }
         }
+        .alert("Upload Error", isPresented: .constant(photoViewModel.errorMessage != nil)) {
+            Button("OK") {
+                photoViewModel.errorMessage = nil
+            }
+        } message: {
+            Text(photoViewModel.errorMessage ?? "")
+        }
         .navigationBarBackButtonHidden(true)
     }
     
@@ -186,9 +193,16 @@ struct UploadPhotoView: View {
         guard let selectedImage = selectedImage else { return }
         
         Task {
-            if let imageData = selectedImage.jpegData(compressionQuality: 0.8) {
+            // Use AWSManager to process image for optimal upload
+            if let imageData = AWSManager.shared.processImageForUpload(selectedImage) {
                 await photoViewModel.uploadPhoto(petId: petId, privacy: selectedPrivacy.rawValue, imageData: imageData)
-                dismiss()
+                
+                // Only dismiss if upload was successful
+                if photoViewModel.errorMessage == nil {
+                    dismiss()
+                }
+            } else {
+                photoViewModel.errorMessage = "Failed to process image"
             }
         }
     }

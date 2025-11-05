@@ -129,7 +129,7 @@ struct ViewPetDetailView: View {
                         .padding(.horizontal, 30)
                         
                         // Go to gallery button
-                        NavigationLink(destination: PhotoGalleryView(petId: pet.id ?? "")) {
+                        NavigationLink(destination: PhotoGalleryView(petId: pet.id ?? "", petName: pet.name)) {
                             Text("Go to gallery")
                                 .font(.system(size: 24, weight: .bold))
                                 .foregroundColor(.white)

@@ -67,7 +67,7 @@ struct ProfilePageView: View {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 15) {
                                     ForEach(petViewModel.pets) { pet in
-                                        NavigationLink(destination: ViewPetDetailView(pet: pet)) {
+                                        NavigationLink(destination: PhotoGalleryView(petId: pet.id ?? "", petName: pet.name)) {
                                             PetCardView(pet: pet)
                                         }
                                     }
