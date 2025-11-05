@@ -27,9 +27,6 @@ struct PhotoGalleryView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Contest banner
-                ContestBannerView()
-                
                 ScrollView {
                     VStack(spacing: 30) {
                         // Pet name header with edit button
@@ -119,6 +116,14 @@ struct PhotoGalleryView: View {
                 }
             }
             
+            // Contest banner at bottom
+            VStack {
+                Spacer()
+                ActiveContestBannerView()
+                    .padding(.top, 280) // Position above bottom navigation
+                    .padding(.bottom, 40) // Position above bottom navigation
+            }
+            
             // Floating buttons overlay
             VStack {
                 Spacer()
@@ -128,12 +133,12 @@ struct PhotoGalleryView: View {
                         // Upload button
                         NavigationLink(destination: UploadPhotoView(petId: petId)) {
                             Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 60))
+                                .font(.system(size: 65))
                                 .foregroundColor(.pawseOrange)
                         }
                     }
                     .padding(.trailing, 30)
-                    .padding(.bottom, 100) // Position above bottom bar
+                    .padding(.bottom, 140) // Position above bottom bar
                 }
             }
         }
