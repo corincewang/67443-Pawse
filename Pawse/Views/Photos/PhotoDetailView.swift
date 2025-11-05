@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct PhotoDetailView: View {
+    @Environment(\.dismiss) var dismiss
     @State private var showingShareOptions = false
     
     var body: some View {
@@ -18,7 +19,9 @@ struct PhotoDetailView: View {
             VStack(spacing: 0) {
                 // Top navigation bar
                 HStack(spacing: 0) {
-                    Button(action: {}) {
+                    Button(action: {
+                        dismiss()
+                    }) {
                         Image(systemName: "chevron.backward")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundColor(.white.opacity(0))
@@ -93,6 +96,7 @@ struct PhotoDetailView: View {
             Button("Cancel", role: .cancel) {}
         }
         .navigationBarBackButtonHidden(true)
+        .swipeBack(dismiss: dismiss)
     }
 }
 

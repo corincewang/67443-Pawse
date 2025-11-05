@@ -156,6 +156,7 @@ struct ViewPetDetailView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .swipeBack(dismiss: dismiss)
         .task {
             if let petId = pet.id {
                 await guardianViewModel.fetchGuardians(for: petId)

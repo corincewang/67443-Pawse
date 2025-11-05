@@ -144,6 +144,7 @@ struct UploadPhotoView: View {
             Text("Image Picker")
         }
         .navigationBarBackButtonHidden(true)
+        .swipeBack(dismiss: dismiss)
     }
 }
 

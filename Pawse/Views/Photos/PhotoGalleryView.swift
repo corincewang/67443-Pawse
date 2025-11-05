@@ -9,6 +9,7 @@ import SwiftUI
 
 struct PhotoGalleryView: View {
     let petId: String
+    @Environment(\.dismiss) var dismiss
     @StateObject private var photoViewModel = PhotoViewModel()
     @State private var showingDeleteConfirmation = false
     @State private var selectedPhotoForDelete: Photo? = nil
@@ -106,7 +107,9 @@ struct PhotoGalleryView: View {
             // Back button
             VStack {
                 HStack {
-                    Button(action: {}) {
+                    Button(action: {
+                        dismiss()
+                    }) {
                         Image(systemName: "chevron.backward")
                             .font(.system(size: 24))
                             .foregroundColor(.pawseOliveGreen)
@@ -131,6 +134,7 @@ struct PhotoGalleryView: View {
             Text("Are you sure you want to delete this photo?")
         }
         .navigationBarBackButtonHidden(true)
+        .swipeBack(dismiss: dismiss)
     }
 }
 
