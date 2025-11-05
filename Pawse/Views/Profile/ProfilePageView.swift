@@ -17,81 +17,78 @@ struct ProfilePageView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Contest banner
-                ContestBannerView()
+                // Top section with greeting and settings button
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Hi, \(userViewModel.currentUser?.nick_name ?? "User")")
+                            .font(.system(size: 42, weight: .bold))
+                            .foregroundColor(.pawseOliveGreen)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    // Settings button - circular in top right
+                    Button(action: {
+                        // TODO: Navigate to settings
+                    }) {
+                        Circle()
+                            .fill(Color.pawseGolden.opacity(0.3))
+                            .frame(width: 44, height: 44)
+                            .overlay(
+                                Image(systemName: "gearshape")
+                                    .font(.system(size: 20, weight: .medium))
+                                    .foregroundColor(Color.pawseBrown)
+                            )
+                    }
+                }
+                .padding(.horizontal, 30)
+                .padding(.top, 60)
+                .padding(.bottom, 20)
                 
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // Title
-                        Text("Pets Gallery")
-                            .font(.system(size: 46, weight: .bold))
-                            .foregroundColor(.pawseBrown)
-                            .padding(.top, 20)
-                        
-                        // Greeting
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Hi, \(userViewModel.currentUser?.nick_name ?? "User")")
-                                .font(.system(size: 48, weight: .bold))
-                                .foregroundColor(.pawseOliveGreen)
-                            
-                            if let firstPet = petViewModel.pets.first {
-                                Text("How is \(firstPet.name) doing?")
-                                    .font(.system(size: 28))
-                                    .foregroundColor(Color(hex: "3A3A38"))
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 30)
-                        
-                        // Pet cards
-                        if petViewModel.isLoading {
-                            ProgressView()
-                                .padding()
-                        } else if petViewModel.pets.isEmpty {
-                            VStack(spacing: 20) {
-                                Text("No pets yet")
-                                    .font(.system(size: 24))
-                                    .foregroundColor(.pawseBrown)
-                                
-                                NavigationLink(destination: CreatePetFormView()) {
-                                    Text("Add Your First Pet")
-                                        .font(.system(size: 20, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .frame(width: 200, height: 50)
-                                        .background(Color.pawseOrange)
-                                        .cornerRadius(20)
-                                }
-                            }
-                            .padding(.vertical, 40)
-                        } else {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 15) {
-                                    ForEach(petViewModel.pets) { pet in
-                                        NavigationLink(destination: ViewPetDetailView(pet: pet)) {
-                                            PetCardView(pet: pet)
-                                        }
-                                    }
-                                }
-                                .padding(.horizontal, 30)
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Settings button overlay
-            VStack {
-                HStack {
+                // Pets Gallery Title
+                Text("Pets Gallery")
+                    .font(.system(size: 36, weight: .bold))
+                    .foregroundColor(.pawseBrown)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 30)
+                    .padding(.bottom, 20)
+                
+                // Pet cards section
+                if petViewModel.isLoading {
                     Spacer()
-                    Button(action: {}) {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 30))
-                            .foregroundColor(Color(hex: "D9CAB0"))
+                    ProgressView()
+                        .padding()
+                    Spacer()
+                } else if petViewModel.pets.isEmpty {
+                    // Empty state - show single add button, left-aligned
+                    VStack(alignment: .leading, spacing: 0) {
+                        NavigationLink(destination: CreatePetFormView()) {
+                            AddPetCardView()
+                        }
                     }
-                    .padding(.trailing, 20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 30)
+                    Spacer()
+                } else {
+                    // Show pets in horizontal scroll with add button at the end
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 20) {
+                            ForEach(petViewModel.pets) { pet in
+                                NavigationLink(destination: ViewPetDetailView(pet: pet)) {
+                                    PetCardView(pet: pet)
+                                }
+                            }
+                            
+                            // Add pet button at the end
+                            NavigationLink(destination: CreatePetFormView()) {
+                                AddPetCardView()
+                            }
+                        }
+                        .padding(.horizontal, 30)
+                    }
+                    .padding(.bottom, 20)
+                    
+                    Spacer()
                 }
-                .padding(.top, 80)
-                Spacer()
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -111,10 +108,34 @@ struct PetCardView: View {
                 .fill(Color(hex: "FFDC92"))
                 .frame(width: 200, height: 260)
                 .overlay(
-                    // If pet has profile photo, display it here
-                    Text(pet.name.prefix(1).uppercased())
-                        .font(.system(size: 80, weight: .bold))
-                        .foregroundColor(.white.opacity(0.5))
+                    Group {
+                        if !pet.profile_photo.isEmpty, let imageURL = URL(string: pet.profile_photo) {
+                            AsyncImage(url: imageURL) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 200, height: 260)
+                                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                                case .failure(_), .empty:
+                                    // Fallback to initial if image fails to load
+                                    Text(pet.name.prefix(1).uppercased())
+                                        .font(.system(size: 80, weight: .bold))
+                                        .foregroundColor(.white.opacity(0.5))
+                                @unknown default:
+                                    Text(pet.name.prefix(1).uppercased())
+                                        .font(.system(size: 80, weight: .bold))
+                                        .foregroundColor(.white.opacity(0.5))
+                                }
+                            }
+                        } else {
+                            // No profile photo - show initial
+                            Text(pet.name.prefix(1).uppercased())
+                                .font(.system(size: 80, weight: .bold))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                    }
                 )
             
             Text(pet.name.lowercased())
@@ -124,6 +145,47 @@ struct PetCardView: View {
                 .background(Color.pawseGolden)
         }
         .cornerRadius(20)
+    }
+}
+
+// Add Pet Card with Plus Icon
+struct AddPetCardView: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            // Top section - rounded corners on top, square on bottom
+            ZStack {
+                RoundedCorners(cornerRadius: 20, corners: [.topLeft, .topRight])
+                    .fill(Color.pawseGolden.opacity(0.3))
+                    .frame(width: 200, height: 260)
+                
+                Image(systemName: "plus")
+                    .font(.system(size: 60, weight: .regular))
+                    .foregroundColor(Color.pawseBrown)
+            }
+            
+            // Bottom section - square on top, rounded corners on bottom
+            ZStack {
+                RoundedCorners(cornerRadius: 20, corners: [.bottomLeft, .bottomRight])
+                    .fill(Color.pawseGolden.opacity(0.3))
+                    .frame(width: 200, height: 50) 
+            
+            }
+        }
+    }
+}
+
+// Helper Shape for rounded corners on specific sides
+struct RoundedCorners: Shape {
+    var cornerRadius: CGFloat
+    var corners: UIRectCorner
+    
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(
+            roundedRect: rect,
+            byRoundingCorners: corners,
+            cornerRadii: CGSize(width: cornerRadius, height: cornerRadius)
+        )
+        return Path(path.cgPath)
     }
 }
 
