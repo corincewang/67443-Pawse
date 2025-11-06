@@ -13,6 +13,13 @@ struct CoOwnerInvitationView: View {
     @StateObject private var userViewModel = UserViewModel()
     @State private var showingAcceptAlert = false
     
+    private var displayName: String {
+        if let user = userViewModel.currentUser, !user.nick_name.isEmpty {
+            return user.nick_name
+        }
+        return "User"
+    }
+    
     var body: some View {
         ZStack {
             // Background
@@ -32,7 +39,7 @@ struct CoOwnerInvitationView: View {
                 
                 // Greeting
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Hi, \(userViewModel.currentUser?.nick_name ?? "User")")
+                    Text("Hi, \(displayName)")
                         .font(.system(size: 56, weight: .bold))
                         .foregroundColor(.pawseOliveGreen)
                     

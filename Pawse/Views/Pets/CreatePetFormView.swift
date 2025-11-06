@@ -22,6 +22,7 @@ struct CreatePetFormView: View {
     @State private var selectedImage: PhotosPickerItem?
     @State private var profileImage: Image?
     @State private var showCoOwnerInput = false
+    @State private var showingDeleteConfirmation = false
     
     enum PetGender: String, CaseIterable {
         case male = "♂"
@@ -40,8 +41,9 @@ struct CreatePetFormView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Top section: Fixed 40% with gradient
+                // Top section: Fixed 40% with gradient - exactly like ViewPetDetailView
                 ZStack {
+                    // Gradient background - fills the entire top section
                     LinearGradient(
                         colors: [
                             Color.pawseOrange,
@@ -50,7 +52,8 @@ struct CreatePetFormView: View {
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .ignoresSafeArea()
+                    .frame(width: geometry.size.width, height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
+                    .ignoresSafeArea(.all, edges: .top)
                     
                     // Navigation buttons at the very top
                     VStack {
@@ -82,7 +85,7 @@ struct CreatePetFormView: View {
                             .disabled(!isFormValid || petViewModel.isLoading)
                             .padding(.trailing, 30)
                         }
-                        .padding(.top, -10)
+                        .padding(.top, geometry.safeAreaInsets.top - 10)
                         
                         Spacer()
                     }
@@ -136,7 +139,8 @@ struct CreatePetFormView: View {
                         }
                     }
                 }
-                .frame(height: geometry.size.height * 0.4)
+                .frame(height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
+                .ignoresSafeArea(.all, edges: .top)
                 
                 // Bottom section: Scrollable 60% with white background
                 ScrollView {
@@ -336,8 +340,23 @@ struct CreatePetFormView: View {
                             }
                         }
                         .padding(.horizontal, 60)
-                        .padding(.top, 40)
-                        .padding(.bottom, 120)
+                        .padding(.top, 0)
+                        .padding(.bottom, 20)
+                        
+                        // Delete Pet button
+                        Button(action: {
+                            showingDeleteConfirmation = true
+                        }) {
+                            Text("Delete Pet")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(Color.pawseOrange.opacity(0.8))
+                                .cornerRadius(20)
+                        }
+                        .padding(.horizontal, 60)
+                        .padding(.bottom, 150)
                     }
                 }
                 .background(Color.white)
@@ -362,6 +381,16 @@ struct CreatePetFormView: View {
         }
         .navigationBarBackButtonHidden(true)
         .swipeBack(dismiss: dismiss)
+        .alert("Delete Pet", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                // TODO: Implement delete pet functionality
+                // This would require a pet ID, which is not available in create mode
+                // For now, this is a placeholder
+            }
+        } message: {
+            Text("Are you sure you want to delete this pet? This action cannot be undone.")
+        }
     }
     
     private var isFormValid: Bool {
