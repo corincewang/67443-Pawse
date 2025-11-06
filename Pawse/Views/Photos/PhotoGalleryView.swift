@@ -199,7 +199,7 @@ struct PhotoThumbnailView: View {
                     .overlay(
                         Group {
                             if let thumbnailImage = thumbnailImage {
-                                NavigationLink(destination: PhotoDetailView(testPhoto: thumbnailImage)) {
+                                NavigationLink(destination: PhotoDetailView(testPhoto: thumbnailImage, photo: photo)) {
                                     Image(uiImage: thumbnailImage)
                                         .resizable()
                                         .aspectRatio(contentMode: .fill)

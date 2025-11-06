@@ -9,11 +9,24 @@ import SwiftUI
 
 struct PhotoDetailView: View {
     @State private var showingShareOptions = false
+    @Environment(\.dismiss) var dismiss
     let testPhoto: UIImage? // Add parameter for test photo
+    let photo: Photo? // Add parameter for photo data
     
-    // Initialize with optional test photo
-    init(testPhoto: UIImage? = nil) {
+    // Initialize with optional test photo and photo data
+    init(testPhoto: UIImage? = nil, photo: Photo? = nil) {
         self.testPhoto = testPhoto
+        self.photo = photo
+    }
+    
+    // Format the upload date
+    private var formattedDate: String {
+        if let photo = photo {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MM/dd/yyyy"
+            return formatter.string(from: photo.uploaded_at)
+        }
+        return "10/21/2025" // Fallback for preview
     }
     
     var body: some View {
@@ -24,16 +37,18 @@ struct PhotoDetailView: View {
             VStack(spacing: 0) {
                 // Top navigation bar
                 HStack(spacing: 0) {
-                    Button(action: {}) {
+                    Button(action: {
+                        dismiss()
+                    }) {
                         Image(systemName: "chevron.backward")
                             .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.white.opacity(0))
+                            .foregroundColor(.white)
                     }
                     .frame(width: 40, height: 40)
                     
                     Spacer()
                     
-                    Text("10/21/2025")
+                    Text(formattedDate)
                         .font(.system(size: 20, weight: .bold))
                         .foregroundColor(.white)
                     
@@ -168,6 +183,14 @@ struct PhotoDetailView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .onAppear {
+            // Fast bottom bar hiding
+            NotificationCenter.default.post(name: .hideBottomBar, object: nil)
+        }
+        .onDisappear {
+            // Fast bottom bar showing
+            NotificationCenter.default.post(name: .showBottomBar, object: nil)
+        }
     }
 }
 
