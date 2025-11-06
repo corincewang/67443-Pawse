@@ -61,6 +61,9 @@ class PhotoViewModel: ObservableObject {
             
             print("✅ Photo uploaded successfully: \(s3Key)")
             
+            // Refresh photos after successful upload
+            await fetchPhotos(for: petId)
+            
         } catch let error as AWSError {
             errorMessage = error.errorDescription
             print("❌ AWS Error: \(error)")
@@ -72,9 +75,11 @@ class PhotoViewModel: ObservableObject {
         isUploading = false
     }
     
-    func deletePhoto(photoId: String) async {
+    func deletePhoto(photoId: String, petId: String) async {
         do {
             try await photoController.deletePhoto(photoId: photoId)
+            // Refresh photos after successful deletion
+            await fetchPhotos(for: petId)
         } catch {
             errorMessage = error.localizedDescription
         }

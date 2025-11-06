@@ -68,17 +68,24 @@ struct PhotoGalleryView: View {
                                 .fontWeight(.semibold)
                                 .foregroundColor(Color(hex: "FB8053"))
                             
-                            let contestPhotos = photoViewModel.photos.filter { $0.privacy == "public" }
-                            
-                            if contestPhotos.isEmpty {
-                                Text("No contest photos yet")
-                                    .foregroundColor(.gray)
+                            if photoViewModel.isLoading {
+                                ProgressView("Loading photos...")
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .pawseOrange))
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding()
                             } else {
-                                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
-                                    ForEach(contestPhotos) { photo in
-                                        PhotoThumbnailView(photo: photo, showDelete: true) {
-                                            selectedPhotoForDelete = photo
-                                            showingDeleteConfirmation = true
+                                let contestPhotos = photoViewModel.photos.filter { $0.privacy == "public" }
+                                
+                                if contestPhotos.isEmpty {
+                                    Text("No contest photos yet")
+                                        .foregroundColor(.gray)
+                                } else {
+                                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
+                                        ForEach(contestPhotos) { photo in
+                                            PhotoThumbnailView(photo: photo, showDelete: true) {
+                                                selectedPhotoForDelete = photo
+                                                showingDeleteConfirmation = true
+                                            }
                                         }
                                     }
                                 }
@@ -94,17 +101,24 @@ struct PhotoGalleryView: View {
                                 .fontWeight(.semibold)
                                 .foregroundColor(Color(hex: "FB8053"))
                             
-                            let memoryPhotos = photoViewModel.photos.filter { $0.privacy != "public" }
-                            
-                            if memoryPhotos.isEmpty {
-                                Text("No memories yet")
-                                    .foregroundColor(.gray)
+                            if photoViewModel.isLoading {
+                                ProgressView("Loading photos...")
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .pawseOrange))
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding()
                             } else {
-                                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
-                                    ForEach(memoryPhotos) { photo in
-                                        PhotoThumbnailView(photo: photo, showDelete: true) {
-                                            selectedPhotoForDelete = photo
-                                            showingDeleteConfirmation = true
+                                let memoryPhotos = photoViewModel.photos.filter { $0.privacy != "public" }
+                                
+                                if memoryPhotos.isEmpty {
+                                    Text("No memories yet")
+                                        .foregroundColor(.gray)
+                                } else {
+                                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
+                                        ForEach(memoryPhotos) { photo in
+                                            PhotoThumbnailView(photo: photo, showDelete: true) {
+                                                selectedPhotoForDelete = photo
+                                                showingDeleteConfirmation = true
+                                            }
                                         }
                                     }
                                 }
@@ -147,12 +161,19 @@ struct PhotoGalleryView: View {
             Button("Delete", role: .destructive) {
                 if let photo = selectedPhotoForDelete, let photoId = photo.id {
                     Task {
-                        await photoViewModel.deletePhoto(photoId: photoId)
+                        await photoViewModel.deletePhoto(photoId: photoId, petId: petId)
                     }
                 }
             }
         } message: {
             Text("Are you sure you want to delete this photo?")
+        }
+        .alert("Error", isPresented: .constant(photoViewModel.errorMessage != nil)) {
+            Button("OK") {
+                photoViewModel.errorMessage = nil
+            }
+        } message: {
+            Text(photoViewModel.errorMessage ?? "")
         }
         .navigationBarBackButtonHidden(true)
         .task {
@@ -167,6 +188,7 @@ struct PhotoThumbnailView: View {
     let showDelete: Bool
     let onDelete: () -> Void
     @State private var thumbnailImage: UIImage?
+    @State private var isLoading = true
     
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -177,15 +199,26 @@ struct PhotoThumbnailView: View {
                     .overlay(
                         Group {
                             if let thumbnailImage = thumbnailImage {
-                                Image(uiImage: thumbnailImage)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 106, height: 136)
-                                    .clipped()
+                                NavigationLink(destination: PhotoDetailView(testPhoto: thumbnailImage)) {
+                                    Image(uiImage: thumbnailImage)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 106, height: 136)
+                                        .clipped()
+                                }
+                            } else if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(1.2)
                             } else {
-                                Image(systemName: "photo")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.white.opacity(0.5))
+                                VStack {
+                                    Image(systemName: "photo")
+                                        .font(.system(size: 30))
+                                        .foregroundColor(.white.opacity(0.5))
+                                    Text("Failed to load")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
                             }
                         }
                     )
@@ -202,8 +235,8 @@ struct PhotoThumbnailView: View {
                 Button(action: onDelete) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 20))
-                    .foregroundColor(.red)
-                    .background(Color.white.clipShape(Circle()))
+                        .foregroundColor(.red)
+                        .background(Color.white.clipShape(Circle()))
                 }
                 .offset(x: 8, y: -8)
             }
@@ -214,11 +247,13 @@ struct PhotoThumbnailView: View {
     }
     
     private func loadThumbnail() async {
+        isLoading = true
         do {
             thumbnailImage = try await AWSManager.shared.downloadImage(from: photo.image_link)
         } catch {
-            print("Failed to load thumbnail: \(error)")
+            print("Failed to load thumbnail for \(photo.image_link): \(error)")
         }
+        isLoading = false
     }
     
     private func formatDate(_ date: Date) -> String {
