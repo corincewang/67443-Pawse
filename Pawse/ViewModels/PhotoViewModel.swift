@@ -39,18 +39,13 @@ class PhotoViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            // Request presigned URL from Firebase Functions
-            let (uploadURL, s3Key) = try await photoController.requestPresignedURL(
-                petId: petId,
-                mimeType: "image/jpeg",
-                ext: "jpg"
-            )
+            // Generate S3 key for the photo
+            let s3Key = AWSManager.shared.generateS3Key(for: petId)
             
-            // Upload to S3 using enhanced AWSManager
-            try await AWSManager.shared.uploadToS3(
-                presignedURL: uploadURL,
-                data: imageData,
-                mimeType: "image/jpeg"
+            // Simple S3 upload (no Firebase Functions needed)
+            _ = try await AWSManager.shared.uploadToS3Simple(
+                imageData: imageData,
+                s3Key: s3Key
             )
             
             // Save photo record to Firestore

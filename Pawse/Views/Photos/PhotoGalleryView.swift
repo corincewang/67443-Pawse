@@ -166,6 +166,7 @@ struct PhotoThumbnailView: View {
     let photo: Photo
     let showDelete: Bool
     let onDelete: () -> Void
+    @State private var thumbnailImage: UIImage?
     
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -174,11 +175,18 @@ struct PhotoThumbnailView: View {
                     .fill(Color(hex: "F7D4BF"))
                     .frame(width: 106, height: 136)
                     .overlay(
-                        // Display image thumbnail here if needed
-                        VStack {
-                            Image(systemName: "photo")
-                                .font(.system(size: 40))
-                                .foregroundColor(.white.opacity(0.5))
+                        Group {
+                            if let thumbnailImage = thumbnailImage {
+                                Image(uiImage: thumbnailImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 106, height: 136)
+                                    .clipped()
+                            } else {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.white.opacity(0.5))
+                            }
                         }
                     )
                 
@@ -199,6 +207,17 @@ struct PhotoThumbnailView: View {
                 }
                 .offset(x: 8, y: -8)
             }
+        }
+        .task {
+            await loadThumbnail()
+        }
+    }
+    
+    private func loadThumbnail() async {
+        do {
+            thumbnailImage = try await AWSManager.shared.downloadImage(from: photo.image_link)
+        } catch {
+            print("Failed to load thumbnail: \(error)")
         }
     }
     
