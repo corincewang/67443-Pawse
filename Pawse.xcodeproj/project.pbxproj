@@ -31,6 +31,8 @@
 		1249C48C2EB15C59006040E9 /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = 1249C48B2EB15C59006040E9 /* FirebaseRemoteConfig */; };
 		1249C48E2EB15C59006040E9 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 1249C48D2EB15C59006040E9 /* FirebaseStorage */; };
 		1249C4902EB15C59006040E9 /* FirebaseStorageCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = 1249C48F2EB15C59006040E9 /* FirebaseStorageCombine-Community */; };
+		46449CAA2EBAFF2A006CF630 /* AWSCore in Frameworks */ = {isa = PBXBuildFile; productRef = 46449CA92EBAFF2A006CF630 /* AWSCore */; };
+		46449CAC2EBAFF2A006CF630 /* AWSS3 in Frameworks */ = {isa = PBXBuildFile; productRef = 46449CAB2EBAFF2A006CF630 /* AWSS3 */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -83,6 +85,7 @@
 				1249C47A2EB15C59006040E9 /* FirebaseFirestore in Frameworks */,
 				1249C4722EB15C59006040E9 /* FirebaseAuthCombine-Community in Frameworks */,
 				1249C4842EB15C59006040E9 /* FirebaseInstallations in Frameworks */,
+				46449CAA2EBAFF2A006CF630 /* AWSCore in Frameworks */,
 				1249C4642EB15C59006040E9 /* FirebaseAILogic in Frameworks */,
 				1249C46A2EB15C59006040E9 /* FirebaseAnalyticsIdentitySupport in Frameworks */,
 				1249C4822EB15C59006040E9 /* FirebaseInAppMessaging-Beta in Frameworks */,
@@ -94,6 +97,7 @@
 				1249C48E2EB15C59006040E9 /* FirebaseStorage in Frameworks */,
 				1249C48C2EB15C59006040E9 /* FirebaseRemoteConfig in Frameworks */,
 				1249C4662EB15C59006040E9 /* FirebaseAnalytics in Frameworks */,
+				46449CAC2EBAFF2A006CF630 /* AWSS3 in Frameworks */,
 				1249C4882EB15C59006040E9 /* FirebaseMessaging in Frameworks */,
 				1249C4862EB15C59006040E9 /* FirebaseMLModelDownloader in Frameworks */,
 				1249C48A2EB15C59006040E9 /* FirebasePerformance in Frameworks */,
@@ -195,6 +199,8 @@
 				1249C48B2EB15C59006040E9 /* FirebaseRemoteConfig */,
 				1249C48D2EB15C59006040E9 /* FirebaseStorage */,
 				1249C48F2EB15C59006040E9 /* FirebaseStorageCombine-Community */,
+				46449CA92EBAFF2A006CF630 /* AWSCore */,
+				46449CAB2EBAFF2A006CF630 /* AWSS3 */,
 			);
 			productName = Pawse;
 			productReference = 123B94FE2EB118BF002F62A9 /* Pawse.app */;
@@ -280,6 +286,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				1249C4602EB15C59006040E9 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				46449CA82EBAFF2A006CF630 /* XCRemoteSwiftPackageReference "aws-sdk-ios-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 123B94FF2EB118BF002F62A9 /* Products */;
@@ -689,6 +696,14 @@
 				minimumVersion = 12.5.0;
 			};
 		};
+		46449CA82EBAFF2A006CF630 /* XCRemoteSwiftPackageReference "aws-sdk-ios-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/aws-amplify/aws-sdk-ios-spm";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 2.41.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -811,6 +826,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1249C4602EB15C59006040E9 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = "FirebaseStorageCombine-Community";
+		};
+		46449CA92EBAFF2A006CF630 /* AWSCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 46449CA82EBAFF2A006CF630 /* XCRemoteSwiftPackageReference "aws-sdk-ios-spm" */;
+			productName = AWSCore;
+		};
+		46449CAB2EBAFF2A006CF630 /* AWSS3 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 46449CA82EBAFF2A006CF630 /* XCRemoteSwiftPackageReference "aws-sdk-ios-spm" */;
+			productName = AWSS3;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -20,9 +20,11 @@ final class PhotoController {
     func fetchPhotos(for petId: String) async throws -> [Photo] {
         let snap = try await db.collection(Collection.photos)
             .whereField("pet", isEqualTo: "pets/\(petId)")
-            .order(by: "uploaded_at", descending: true)
             .getDocuments()
-        return try snap.documents.compactMap { try $0.data(as: Photo.self) }
+        
+        // Sort in memory instead of using Firestore ordering
+        let photos = try snap.documents.compactMap { try $0.data(as: Photo.self) }
+        return photos.sorted { $0.uploaded_at > $1.uploaded_at }
     }
 
     func fetchPhoto(photoId: String) async throws -> Photo {
