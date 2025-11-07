@@ -16,10 +16,20 @@ extension Color {
     /// Coral Red - #F96D6D
     static let pawseCoralRed = Color(hex: "F96D6D")
     
-    /// Light Coral/Pink - #FF8686
+    /// background color for pet cards
     static let pawseLightCoral = Color(hex: "FF8686")
 
     static let pawseLightCoralBackground = Color(hex: "FF8686").opacity(0.3)
+
+    static let pawseYellow = Color(hex: "F0CC8D")
+
+    static let pawseYellowBackground = Color(hex: "F0CC8D").opacity(0.3)
+    
+    // MARK: - Pet Card Colors
+    static let petCardColors: [(background: Color, accent: Color)] = [
+        (pawseLightCoralBackground, pawseLightCoral),
+        (pawseYellowBackground, pawseYellow)
+    ]
     
     /// Olive Green - #769341
     static let pawseOliveGreen = Color(hex: "769341")

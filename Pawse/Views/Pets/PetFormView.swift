@@ -1,5 +1,5 @@
 //
-//  CreatePetFormView.swift
+//  PetFormView.swift
 //  Pawse
 //
 //  Create/Update pet form (profile_2_createpet)
@@ -8,21 +8,26 @@
 import SwiftUI
 import PhotosUI
 
-struct CreatePetFormView: View {
+struct PetFormView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var petViewModel = PetViewModel()
     @StateObject private var guardianViewModel = GuardianViewModel()
+    
+    private let authController = AuthController()
     
     @State private var petName = ""
     @State private var petType = "Cat"
     @State private var petAge = ""
     @State private var selectedGender: PetGender = .female
-    @State private var coOwnerEmails: [String] = []
     @State private var showingSuccess = false
     @State private var selectedImage: PhotosPickerItem?
     @State private var profileImage: Image?
-    @State private var showCoOwnerInput = false
     @State private var showingDeleteConfirmation = false
+    
+    // Guardian invite states
+    @State private var showInviteFloatingWindow = false
+    @State private var inviteEmail = ""
+    @State private var currentPetId: String?
     
     enum PetGender: String, CaseIterable {
         case male = "♂"
@@ -260,82 +265,47 @@ struct CreatePetFormView: View {
                             }
                             
                             // Invite Co-owner
-                            VStack(alignment: .leading, spacing: 0) {
+                            VStack(alignment: .leading, spacing: 12) {
                                 HStack(spacing: 12) {
                                     Text("Invite Co-owner")
                                         .font(.system(size: 18, weight: .bold))
                                         .foregroundColor(.pawseBrown)
                                     
-                                    if !showCoOwnerInput {
-                                        // Circle button to expand - right next to text, smaller
-                                        Button(action: {
-                                            withAnimation {
-                                                showCoOwnerInput = true
-                                                if coOwnerEmails.isEmpty {
-                                                    coOwnerEmails.append("")
-                                                }
-                                            }
-                                        }) {
-                                            Circle()
-                                                .fill(Color.pawseOrange)
-                                                .frame(width: 32, height: 32)
-                                                .overlay(
-                                                    Image(systemName: "plus")
-                                                        .font(.system(size: 16, weight: .bold))
-                                                        .foregroundColor(.white)
-                                                )
-                                        }
+                                    // Circle button to show floating window
+                                    Button(action: {
+                                        showInviteFloatingWindow = true
+                                    }) {
+                                        Circle()
+                                            .fill(Color.pawseOrange)
+                                            .frame(width: 32, height: 32)
+                                            .overlay(
+                                                Image(systemName: "plus")
+                                                    .font(.system(size: 16, weight: .bold))
+                                                    .foregroundColor(.white)
+                                            )
                                     }
                                     
                                     Spacer()
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 
-                                if showCoOwnerInput {
-                                    // Add spacing when expanded
-                                    Spacer()
-                                        .frame(height: 12)
-                                    
-                                    // Expanded input fields
-                                    ForEach(0..<coOwnerEmails.count, id: \.self) { index in
-                                        HStack(spacing: 15) {
-                                            TextField("search for account email", text: $coOwnerEmails[index])
-                                                .padding(.horizontal, 0)
-                                                .padding(.vertical, 16)
-                                                .frame(height: 52)
-                                                .background(Color.white)
-                                                .cornerRadius(10)
-                                                .autocapitalization(.none)
-                                                .keyboardType(.emailAddress)
-                                                .font(.system(size: 16, weight: .bold))
-                                                .multilineTextAlignment(.leading)
-                                            
-                                            if index == coOwnerEmails.count - 1 {
-                                                Button(action: {
-                                                    withAnimation {
-                                                        coOwnerEmails.append("")
-                                                    }
-                                                }) {
-                                                    Image(systemName: "plus.circle.fill")
-                                                        .font(.system(size: 28, weight: .bold))
-                                                        .foregroundColor(.pawseOrange)
-                                                }
-                                            } else {
-                                                Button(action: {
-                                                    withAnimation {
-                                                        coOwnerEmails.remove(at: index)
-                                                        if coOwnerEmails.isEmpty {
-                                                            showCoOwnerInput = false
-                                                        }
-                                                    }
-                                                }) {
-                                                    Image(systemName: "minus.circle.fill")
-                                                        .font(.system(size: 28, weight: .bold))
-                                                        .foregroundColor(.gray)
-                                                }
+                                // Show approved co-owners list
+                                if !guardianViewModel.approvedGuardians.isEmpty {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        ForEach(guardianViewModel.approvedGuardians, id: \.id) { guardian in
+                                            HStack {
+                                                Text(extractEmailFromGuardian(guardian))
+                                                    .font(.system(size: 16, weight: .medium))
+                                                    .foregroundColor(.pawseBrown)
+                                                Spacer()
                                             }
+                                            .padding(.vertical, 8)
+                                            .padding(.horizontal, 12)
+                                            .background(Color(hex: "F5F5F5"))
+                                            .cornerRadius(8)
                                         }
                                     }
+                                    .padding(.top, 8)
                                 }
                             }
                         }
@@ -391,14 +361,102 @@ struct CreatePetFormView: View {
         } message: {
             Text("Are you sure you want to delete this pet? This action cannot be undone.")
         }
+        .overlay {
+            // Floating window for invite
+            if showInviteFloatingWindow {
+                ZStack {
+                    // Semi-transparent background
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            showInviteFloatingWindow = false
+                            inviteEmail = ""
+                        }
+                    
+                    // Floating window
+                    VStack(spacing: 20) {
+                        TextField("search for account email", text: $inviteEmail)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 16)
+                            .frame(height: 52)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color(hex: "9B7EDE"), style: StrokeStyle(lineWidth: 2, dash: [5, 5]))
+                            )
+                            .autocapitalization(.none)
+                            .keyboardType(.emailAddress)
+                            .font(.system(size: 16, weight: .bold))
+                        
+                        HStack(spacing: 15) {
+                            // Invite button
+                            Button(action: {
+                                Task {
+                                    await handleInvite()
+                                }
+                            }) {
+                                Text("invite")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(Color.pawseOrange)
+                                    .cornerRadius(25)
+                            }
+                            .disabled(inviteEmail.isEmpty || guardianViewModel.isLoading)
+                            
+                            // Cancel button
+                            Button(action: {
+                                showInviteFloatingWindow = false
+                                inviteEmail = ""
+                            }) {
+                                Text("cancel")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(Color(hex: "DFA894"))
+                                    .cornerRadius(25)
+                            }
+                        }
+                    }
+                    .padding(24)
+                    .background(Color.white)
+                    .cornerRadius(20)
+                    .shadow(radius: 10)
+                    .padding(.horizontal, 40)
+                }
+            }
+        }
+        .alert("Error", isPresented: .constant(guardianViewModel.error != nil)) {
+            Button("OK") {
+                guardianViewModel.clearError()
+            }
+        } message: {
+            if let error = guardianViewModel.error {
+                Text(error)
+            }
+        }
+        .alert("Success", isPresented: .constant(guardianViewModel.successMessage != nil)) {
+            Button("OK") {
+                guardianViewModel.clearSuccessMessage()
+                showInviteFloatingWindow = false
+                inviteEmail = ""
+            }
+        } message: {
+            if let message = guardianViewModel.successMessage {
+                Text(message)
+            }
+        }
     }
     
     private var isFormValid: Bool {
         !petName.isEmpty && !petType.isEmpty && !petAge.isEmpty
     }
     
-    private func savePet() async {
-        guard let age = Int(petAge) else { return }
+    private func savePet(showSuccess: Bool = true) async -> String? {
+        guard let age = Int(petAge) else { return nil }
         
         await petViewModel.createPet(
             name: petName,
@@ -408,21 +466,70 @@ struct CreatePetFormView: View {
             profilePhoto: ""
         )
         
-        // Send co-owner invitations if emails are provided
-        let validEmails = coOwnerEmails.filter { !$0.isEmpty && $0.contains("@") }
-        for email in validEmails {
-            // TODO: Implement co-owner invitation logic
-            print("Invite co-owner: \(email)")
+        // Store pet ID for guardian invitations
+        // Find the newly created pet by matching name and owner
+        var petId: String? = nil
+        if let uid = authController.currentUID() {
+            let newPet = petViewModel.pets.first { pet in
+                pet.name == petName && pet.owner == "users/\(uid)"
+            }
+            if let newPetId = newPet?.id {
+                currentPetId = newPetId
+                petId = newPetId
+                await guardianViewModel.fetchGuardians(for: newPetId)
+            }
         }
         
-        if petViewModel.errorMessage == nil {
+        if petViewModel.errorMessage == nil && showSuccess {
             showingSuccess = true
         }
+        
+        return petId
+    }
+    
+    private func handleInvite() async {
+        var petId: String? = currentPetId
+        
+        // If pet hasn't been saved yet, save it first
+        if petId == nil {
+            // Validate form before saving
+            guard isFormValid else {
+                guardianViewModel.error = "Please fill in all required fields first"
+                return
+            }
+            
+            petId = await savePet(showSuccess: false)
+            
+            if petId == nil {
+                guardianViewModel.error = "Failed to save pet. Please try again."
+                return
+            }
+        }
+        
+        guard let petId = petId else {
+            return
+        }
+        
+        // Send invitation (no friend check required)
+        await guardianViewModel.requestGuardian(
+            petId: petId,
+            guardianEmail: inviteEmail
+        )
+        
+        // Refresh guardians list
+        await guardianViewModel.fetchGuardians(for: petId)
+    }
+    
+    private func extractEmailFromGuardian(_ guardian: Guardian) -> String {
+        // Extract UID from "users/{uid}" format
+        let uid = guardian.guardian.replacingOccurrences(of: "users/", with: "")
+        // For now, return the UID. In a real app, you'd fetch the user's email
+        return uid
     }
 }
 
 #Preview {
     NavigationStack {
-        CreatePetFormView()
+        PetFormView()
     }
 }

@@ -10,6 +10,8 @@ import SwiftUI
 struct ProfilePageView: View {
     @StateObject private var petViewModel = PetViewModel()
     @StateObject private var userViewModel = UserViewModel()
+    @StateObject private var guardianViewModel = GuardianViewModel()
+    @State private var showInvitationOverlay = true
     
     private var displayName: String {
         if let user = userViewModel.currentUser, !user.nick_name.isEmpty {
@@ -25,13 +27,26 @@ struct ProfilePageView: View {
             
             VStack(spacing: 0) {
                 // Top section with greeting and settings button
-                HStack(alignment: .top) {
+                HStack(alignment: .top, spacing: 8) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Hi, \(displayName)")
-                            .font(.system(size: 52, weight: .bold))
+                            .font(.system(size: 56 , weight: .bold))
                             .foregroundColor(.pawseOliveGreen)
                             .lineLimit(1)
                             .minimumScaleFactor(0.5)
+                        
+                        // Conditional message based on whether user has pets
+                        if petViewModel.pets.isEmpty {
+                            Text("Create Your First Pet Album!")
+                                .font(.system(size: 24, weight: .regular))
+                                .foregroundColor(.pawseBrown)
+                                .padding(.top, 4)
+                        } else if let randomPet = petViewModel.pets.randomElement() {
+                            Text("How is \(randomPet.name) doing?")
+                                .font(.system(size: 24, weight: .regular))
+                                .foregroundColor(.pawseBrown)
+                                .padding(.top, 4)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     
@@ -71,7 +86,7 @@ struct ProfilePageView: View {
                 } else if petViewModel.pets.isEmpty {
                     // Empty state - show single add button, left-aligned
                     VStack(alignment: .leading, spacing: 0) {
-                        NavigationLink(destination: CreatePetFormView()) {
+                        NavigationLink(destination: PetFormView()) {
                             AddPetCardView()
                         }
                     }
@@ -89,7 +104,7 @@ struct ProfilePageView: View {
                             }
                             
                             // Add pet button at the end
-                            NavigationLink(destination: CreatePetFormView()) {
+                            NavigationLink(destination: PetFormView()) {
                                 AddPetCardView()
                             }
                         }
@@ -101,10 +116,231 @@ struct ProfilePageView: View {
                 }
             }
         }
+        .overlay {
+            // Floating invitation card overlay
+            if showInvitationOverlay, let firstInvitation = guardianViewModel.receivedInvitations.first {
+                ZStack {
+                    // Semi-transparent background
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                    
+                    // Invitation card - centered and wider
+                    VStack {
+                        Spacer()
+                        GuardianInvitationCard(
+                            guardian: firstInvitation,
+                            onDismiss: {
+                                withAnimation {
+                                    showInvitationOverlay = false
+                                }
+                                // Refresh invitations after dismissing
+                                Task {
+                                    await guardianViewModel.fetchPendingInvitationsForCurrentUser()
+                                }
+                            }
+                        )
+                        Spacer()
+                    }
+                }
+            }
+        }
         .navigationBarBackButtonHidden(true)
         .task {
             await userViewModel.fetchCurrentUser()
             await petViewModel.fetchUserPets()
+            await guardianViewModel.fetchPendingInvitationsForCurrentUser()
+            // Show overlay if there are invitations
+            if !guardianViewModel.receivedInvitations.isEmpty {
+                showInvitationOverlay = true
+            }
+        }
+        .onChange(of: guardianViewModel.receivedInvitations.count) { _, newCount in
+            // Show overlay when new invitations arrive
+            if newCount > 0 {
+                showInvitationOverlay = true
+            }
+        }
+    }
+}
+
+// Guardian Invitation Card Component
+struct GuardianInvitationCard: View {
+    let guardian: Guardian
+    let onDismiss: () -> Void
+    
+    @StateObject private var userViewModel = UserViewModel()
+    @StateObject private var petViewModel = PetViewModel()
+    @StateObject private var guardianViewModel = GuardianViewModel()
+    @State private var ownerName: String = ""
+    @State private var petName: String = ""
+    @State private var isLoading = true
+    @State private var showAcceptedAnimation = false
+    @State private var showDeclinedMessage = false
+    @State private var isProcessing = false
+    
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(hex: "FAF7EB"))
+                .frame(width: 340, height: 170)
+                .shadow(radius: 10)
+            
+            if isLoading {
+                ProgressView()
+            } else if showAcceptedAnimation {
+                // Success checkmark animation
+                VStack(spacing: 20) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.pawseOliveGreen)
+                        .scaleEffect(showAcceptedAnimation ? 1.0 : 0.0)
+                        .opacity(showAcceptedAnimation ? 1.0 : 0.0)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.6), value: showAcceptedAnimation)
+                }
+            } else if showDeclinedMessage {
+                // Decline success message
+                VStack(spacing: 20) {
+                    Text("Successfully declined")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.pawseOliveGreen)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
+            } else {
+                VStack(spacing: 20) {
+                    Text("@\(ownerName) invites you to be a co-owner for @\(petName)")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.pawseOliveGreen)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                    
+                    HStack(spacing: 15) {
+                        // Accept button
+                        Button(action: {
+                            Task {
+                                await handleAccept()
+                            }
+                        }) {
+                            if isProcessing {
+                                ProgressView()
+                                    .tint(.white)
+                                    .frame(width: 120, height: 45)
+                            } else {
+                                Text("accept")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 120, height: 45)
+                                    .background(Color.pawseOrange)
+                                    .cornerRadius(22.5)
+                            }
+                        }
+                        .disabled(isProcessing)
+                        
+                        // Decline button
+                        Button(action: {
+                            Task {
+                                await handleDecline()
+                            }
+                        }) {
+                            if isProcessing {
+                                ProgressView()
+                                    .tint(.white)
+                                    .frame(width: 120, height: 45)
+                            } else {
+                                Text("decline")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 120, height: 45)
+                                    .background(Color(hex: "DFA894"))
+                                    .cornerRadius(22.5)
+                            }
+                        }
+                        .disabled(isProcessing)
+                    }
+                }
+            }
+        }
+        .frame(width: 340, height: 170)
+        .task {
+            await loadUserAndPetNames()
+        }
+    }
+    
+    private func loadUserAndPetNames() async {
+        // Extract owner UID from "users/{uid}" format
+        let ownerUID = guardian.owner.replacingOccurrences(of: "users/", with: "")
+        
+        // Extract pet ID from "pets/{id}" format
+        let petId = guardian.pet.replacingOccurrences(of: "pets/", with: "")
+        
+        // Fetch user name
+        let userController = UserController()
+        do {
+            let user = try await userController.fetchUser(uid: ownerUID)
+            ownerName = user.nick_name.isEmpty ? "User" : user.nick_name
+        } catch {
+            ownerName = ownerUID
+        }
+        
+        // Fetch pet name
+        let petController = PetController()
+        do {
+            let pet = try await petController.fetchPet(petId: petId)
+            petName = pet.name
+        } catch {
+            petName = petId
+        }
+        
+        isLoading = false
+    }
+    
+    private func handleAccept() async {
+        guard let requestId = guardian.id else {
+            return
+        }
+        
+        let petId = guardian.pet.replacingOccurrences(of: "pets/", with: "")
+        isProcessing = true
+        
+        await guardianViewModel.approveGuardianRequest(requestId: requestId, petId: petId)
+        
+        if guardianViewModel.error == nil {
+            // Show checkmark animation
+            withAnimation {
+                showAcceptedAnimation = true
+            }
+            
+            // Wait a bit then dismiss
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+            
+            onDismiss()
+        } else {
+            isProcessing = false
+        }
+    }
+    
+    private func handleDecline() async {
+        guard let requestId = guardian.id else {
+            return
+        }
+        
+        let petId = guardian.pet.replacingOccurrences(of: "pets/", with: "")
+        isProcessing = true
+        
+        await guardianViewModel.rejectGuardianRequest(requestId: requestId, petId: petId)
+        
+        if guardianViewModel.error == nil {
+            // Show decline message
+            withAnimation {
+                showDeclinedMessage = true
+            }
+            
+            // Wait a bit then dismiss
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+            
+            onDismiss()
+        } else {
+            isProcessing = false
         }
     }
 }
@@ -112,11 +348,21 @@ struct ProfilePageView: View {
 struct PetCardView: View {
     let pet: Pet
     
+    // Get a consistent color for this pet based on its ID
+    private var cardColors: (background: Color, accent: Color) {
+        guard let petId = pet.id else {
+            return Color.petCardColors[0]
+        }
+        // Use pet ID to consistently select a color
+        let index = abs(petId.hashValue) % Color.petCardColors.count
+        return Color.petCardColors[index]
+    }
+    
     var body: some View {
         ZStack(alignment: .bottom) {
             // Image section
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color.pawseLightCoralBackground)
+                .fill(cardColors.background)
                 .frame(width: 200, height: 260)
                 .overlay(
                     Group {
@@ -156,7 +402,7 @@ struct PetCardView: View {
                 .frame(width: 200, height: 50)
                 .background(
                     RoundedCorners(cornerRadius: 20, corners: [.bottomLeft, .bottomRight])
-                        .fill(Color.pawseLightCoral)
+                        .fill(cardColors.accent)
                 )
         }
         .frame(width: 200, height: 260)

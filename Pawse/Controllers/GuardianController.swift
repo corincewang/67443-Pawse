@@ -20,4 +20,19 @@ final class GuardianController {
             .whereField("pet", isEqualTo: "pets/\(petId)").getDocuments()
         return try snap.documents.compactMap { try $0.data(as: Guardian.self) }
     }
+    
+    func fetchPendingInvitationsForCurrentUser(guardianRef: String) async throws -> [Guardian] {
+        let snap = try await db.collection(Collection.Guardians)
+            .whereField("guardian", isEqualTo: guardianRef)
+            .whereField("status", isEqualTo: "pending")
+            .getDocuments()
+        return try snap.documents.compactMap { doc in
+            try doc.data(as: Guardian.self)
+        }
+    }
+    
+    func rejectGuardian(requestId: String) async throws {
+        try await db.collection(Collection.Guardians).document(requestId)
+            .updateData(["status": "rejected"])
+    }
 }

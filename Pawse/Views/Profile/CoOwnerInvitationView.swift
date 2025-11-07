@@ -94,14 +94,27 @@ struct CoOwnerInvitationView: View {
                             .disabled(guardianViewModel.isLoading)
                             
                             // Decline button
-                            Button(action: {}) {
-                                Text("decline")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 150, height: 50)
-                                    .background(Color(hex: "DFA894"))
-                                    .cornerRadius(40)
+                            Button(action: {
+                                Task {
+                                    if let guardianId = guardian.id, let petId = extractId(from: guardian.pet) {
+                                        await guardianViewModel.rejectGuardianRequest(requestId: guardianId, petId: petId)
+                                    }
+                                }
+                            }) {
+                                if guardianViewModel.isLoading {
+                                    ProgressView()
+                                        .tint(.white)
+                                        .frame(width: 150, height: 50)
+                                } else {
+                                    Text("decline")
+                                        .font(.system(size: 24, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .frame(width: 150, height: 50)
+                                        .background(Color(hex: "DFA894"))
+                                        .cornerRadius(40)
+                                }
                             }
+                            .disabled(guardianViewModel.isLoading)
                         }
                     }
                 }
@@ -130,6 +143,24 @@ struct CoOwnerInvitationView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("You are now a co-owner!")
+        }
+        .alert("Error", isPresented: .constant(guardianViewModel.error != nil)) {
+            Button("OK") {
+                guardianViewModel.clearError()
+            }
+        } message: {
+            if let error = guardianViewModel.error {
+                Text(error)
+            }
+        }
+        .alert("Success", isPresented: .constant(guardianViewModel.successMessage != nil)) {
+            Button("OK") {
+                guardianViewModel.clearSuccessMessage()
+            }
+        } message: {
+            if let message = guardianViewModel.successMessage {
+                Text(message)
+            }
         }
         .task {
             await userViewModel.fetchCurrentUser()

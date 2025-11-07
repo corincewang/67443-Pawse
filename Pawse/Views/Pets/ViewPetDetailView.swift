@@ -15,7 +15,7 @@ struct ViewPetDetailView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Top section: Fixed 40% with pet photo filling the entire area - exactly like CreatePetFormView
+                // Top section: Fixed 40% with pet photo filling the entire area - exactly like PetFormView
                 ZStack {
                     // Pet photo/gradient background - fills the entire top section
                     Group {

@@ -13,6 +13,7 @@ class GuardianViewModel: ObservableObject {
     @Published var guardians: [Guardian] = []
     @Published var pendingGuardianRequests: [Guardian] = []
     @Published var approvedGuardians: [Guardian] = []
+    @Published var receivedInvitations: [Guardian] = [] // Invitations received by current user
     
     @Published var isLoading = false
     @Published var error: String?
@@ -40,6 +41,27 @@ class GuardianViewModel: ObservableObject {
         } catch {
             self.error = error.localizedDescription
             guardians = []
+        }
+        isLoading = false
+    }
+    
+    func fetchPendingInvitationsForCurrentUser() async {
+        guard let uid = authController.currentUID() else {
+            error = "No user logged in"
+            return
+        }
+        
+        isLoading = true
+        error = nil
+        
+        do {
+            receivedInvitations = try await guardianController.fetchPendingInvitationsForCurrentUser(
+                guardianRef: "users/\(uid)"
+            )
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+            receivedInvitations = []
         }
         isLoading = false
     }
@@ -98,17 +120,27 @@ class GuardianViewModel: ObservableObject {
     
     // MARK: - Reject Guardian Request
     
-    func rejectGuardianRequest(requestId: String, petId: String) async {
+    func rejectGuardianRequest(requestId: String, petId: String?) async {
         isLoading = true
         error = nil
         successMessage = nil
         
-        // Add rejection method to GuardianController if needed
-        successMessage = "Co-owner request rejected"
-        
-        // Refresh guardians
-        await fetchGuardians(for: petId)
-        
+        do {
+            try await guardianController.rejectGuardian(requestId: requestId)
+            successMessage = "Co-owner request rejected"
+            
+            // Refresh guardians if petId is provided
+            if let petId = petId {
+                await fetchGuardians(for: petId)
+            }
+            
+            // Refresh received invitations
+            await fetchPendingInvitationsForCurrentUser()
+            
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
         isLoading = false
     }
     
