@@ -45,8 +45,201 @@ struct PetFormView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // Top section: Fixed 40% with gradient - exactly like ViewPetDetailView
+            ZStack(alignment: .top) {
+                // Scrollable content - starts below the top section
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Spacer to push content below the top section
+                        Spacer()
+                            .frame(height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
+                        
+                        // Content with white background
+                        VStack(spacing: 0) {
+                            // Form section
+                            VStack(alignment: .leading, spacing: 20) {
+                                // Name
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Text("Name")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundColor(.pawseBrown)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    
+                                    TextField("Snowball", text: $petName)
+                                        .padding(.horizontal, 0)
+                                        .padding(.vertical, 16)
+                                        .frame(height: 52)
+                                        .background(Color.white)
+                                        .cornerRadius(10)
+                                        .font(.system(size: 16, weight: .bold))
+                                        .multilineTextAlignment(.leading)
+                                }
+                                
+                                // Type and Age in same row
+                                HStack(spacing: 15) {
+                                    // Type
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text("Type")
+                                            .font(.system(size: 18, weight: .bold))
+                                            .foregroundColor(.pawseBrown)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        
+                                        Menu {
+                                            ForEach(petTypes, id: \.self) { type in
+                                                Button(type) { petType = type }
+                                            }
+                                        } label: {
+                                            HStack {
+                                                Text(petType)
+                                                    .foregroundColor(.black)
+                                                    .font(.system(size: 16, weight: .bold))
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                                Spacer()
+                                                Image(systemName: "chevron.down")
+                                                    .foregroundColor(.gray)
+                                                    .font(.system(size: 12, weight: .bold))
+                                            }
+                                            .padding(.horizontal, 0)
+                                            .padding(.vertical, 16)
+                                            .frame(height: 52)
+                                            .background(Color.white)
+                                            .cornerRadius(10)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    
+                                    // Age
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text("Age")
+                                            .font(.system(size: 18, weight: .bold))
+                                            .foregroundColor(.pawseBrown)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        
+                                        Menu {
+                                            ForEach(1...20, id: \.self) { age in
+                                                Button("\(age)") { petAge = "\(age)" }
+                                            }
+                                        } label: {
+                                            HStack {
+                                                Text(petAge.isEmpty ? "7" : petAge)
+                                                    .foregroundColor(petAge.isEmpty ? .gray : .black)
+                                                    .font(.system(size: 16, weight: .bold))
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                                Spacer()
+                                                Image(systemName: "chevron.down")
+                                                    .foregroundColor(.gray)
+                                                    .font(.system(size: 12, weight: .bold))
+                                            }
+                                            .padding(.horizontal, 0)
+                                            .padding(.vertical, 16)
+                                            .frame(height: 52)
+                                            .background(Color.white)
+                                            .cornerRadius(10)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                }
+                                
+                                // Gender
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Gender")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundColor(.pawseBrown)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    
+                                    HStack(spacing: 20) {
+                                        Button(action: { selectedGender = .male }) {
+                                            Text("♂")
+                                                .font(.system(size: 24, weight: .bold))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .frame(height: 48)
+                                                .background(selectedGender == .male ? Color.pawseOliveGreen : Color.pawseOliveGreen.opacity(0.5))
+                                                .cornerRadius(24)
+                                        }
+                                        
+                                        Button(action: { selectedGender = .female }) {
+                                            Text("♀")
+                                                .font(.system(size: 24, weight: .bold))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .frame(height: 48)
+                                                .background(selectedGender == .female ? Color.pawseLightCoral : Color.pawseLightCoral.opacity(0.5))
+                                                .cornerRadius(24)
+                                        }
+                                    }
+                                }
+                                
+                                // Invite Co-owner
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack(spacing: 12) {
+                                        Text("Invite Co-owner")
+                                            .font(.system(size: 18, weight: .bold))
+                                            .foregroundColor(.pawseBrown)
+                                        
+                                        // Circle button to show floating window
+                                        Button(action: {
+                                            showInviteFloatingWindow = true
+                                        }) {
+                                            Circle()
+                                                .fill(Color.pawseOrange)
+                                                .frame(width: 32, height: 32)
+                                                .overlay(
+                                                    Image(systemName: "plus")
+                                                        .font(.system(size: 16, weight: .bold))
+                                                        .foregroundColor(.white)
+                                                )
+                                        }
+                                        
+                                        Spacer()
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    
+                                    // Show approved co-owners list
+                                    if !guardianViewModel.approvedGuardians.isEmpty {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            ForEach(guardianViewModel.approvedGuardians, id: \.id) { guardian in
+                                                HStack {
+                                                    Text(extractEmailFromGuardian(guardian))
+                                                        .font(.system(size: 16, weight: .medium))
+                                                        .foregroundColor(.pawseBrown)
+                                                    Spacer()
+                                                }
+                                                .padding(.vertical, 8)
+                                                .padding(.horizontal, 12)
+                                                .background(Color(hex: "F5F5F5"))
+                                                .cornerRadius(8)
+                                            }
+                                        }
+                                        .padding(.top, 8)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 60)
+                            .padding(.top, 0)
+                            .padding(.bottom, 20)
+                            .background(Color.white)
+                            
+                            // Delete Pet button
+                            Button(action: {
+                                showingDeleteConfirmation = true
+                            }) {
+                                Text("Delete Pet")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(Color.pawseOrange)
+                                    .cornerRadius(20)
+                            }
+                            .padding(.horizontal, 60)
+                            .padding(.bottom, 150)
+                            .background(Color.white)
+                        }
+                    }
+                }
+                .scrollIndicators(.hidden)
+                
+                // Top section: Fixed 40% with gradient - always on top
                 ZStack {
                     // Gradient background - fills the entire top section
                     LinearGradient(
@@ -146,191 +339,7 @@ struct PetFormView: View {
                 }
                 .frame(height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
                 .ignoresSafeArea(.all, edges: .top)
-                
-                // Bottom section: Scrollable 60% with white background
-                ScrollView {
-                    VStack(spacing: 0) {
-                        // Form section
-                        VStack(alignment: .leading, spacing: 20) {
-                            // Name
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text("Name")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.pawseBrown)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                
-                                TextField("Snowball", text: $petName)
-                                    .padding(.horizontal, 0)
-                                    .padding(.vertical, 16)
-                                    .frame(height: 52)
-                                    .background(Color.white)
-                                    .cornerRadius(10)
-                                    .font(.system(size: 16, weight: .bold))
-                                    .multilineTextAlignment(.leading)
-                            }
-                            
-                            // Type and Age in same row
-                            HStack(spacing: 15) {
-                                // Type
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("Type")
-                                        .font(.system(size: 18, weight: .bold))
-                                        .foregroundColor(.pawseBrown)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    
-                                    Menu {
-                                        ForEach(petTypes, id: \.self) { type in
-                                            Button(type) { petType = type }
-                                        }
-                                    } label: {
-                                        HStack {
-                                            Text(petType)
-                                                .foregroundColor(.black)
-                                                .font(.system(size: 16, weight: .bold))
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                            Spacer()
-                                            Image(systemName: "chevron.down")
-                                                .foregroundColor(.gray)
-                                                .font(.system(size: 12, weight: .bold))
-                                        }
-                                        .padding(.horizontal, 0)
-                                        .padding(.vertical, 16)
-                                        .frame(height: 52)
-                                        .background(Color.white)
-                                        .cornerRadius(10)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity)
-                                
-                                // Age
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("Age")
-                                        .font(.system(size: 18, weight: .bold))
-                                        .foregroundColor(.pawseBrown)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    
-                                    Menu {
-                                        ForEach(1...20, id: \.self) { age in
-                                            Button("\(age)") { petAge = "\(age)" }
-                                        }
-                                    } label: {
-                                        HStack {
-                                            Text(petAge.isEmpty ? "7" : petAge)
-                                                .foregroundColor(petAge.isEmpty ? .gray : .black)
-                                                .font(.system(size: 16, weight: .bold))
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                            Spacer()
-                                            Image(systemName: "chevron.down")
-                                                .foregroundColor(.gray)
-                                                .font(.system(size: 12, weight: .bold))
-                                        }
-                                        .padding(.horizontal, 0)
-                                        .padding(.vertical, 16)
-                                        .frame(height: 52)
-                                        .background(Color.white)
-                                        .cornerRadius(10)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity)
-                            }
-                            
-                            // Gender
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Gender")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.pawseBrown)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                
-                                HStack(spacing: 20) {
-                                    Button(action: { selectedGender = .male }) {
-                                        Text("♂")
-                                            .font(.system(size: 24, weight: .bold))
-                                            .foregroundColor(.white)
-                                            .frame(maxWidth: .infinity)
-                                            .frame(height: 48)
-                                            .background(selectedGender == .male ? Color.pawseOliveGreen : Color.pawseOliveGreen.opacity(0.5))
-                                            .cornerRadius(24)
-                                    }
-                                    
-                                    Button(action: { selectedGender = .female }) {
-                                        Text("♀")
-                                            .font(.system(size: 24, weight: .bold))
-                                            .foregroundColor(.white)
-                                            .frame(maxWidth: .infinity)
-                                            .frame(height: 48)
-                                            .background(selectedGender == .female ? Color.pawseLightCoral : Color.pawseLightCoral.opacity(0.5))
-                                            .cornerRadius(24)
-                                    }
-                                }
-                            }
-                            
-                            // Invite Co-owner
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack(spacing: 12) {
-                                    Text("Invite Co-owner")
-                                        .font(.system(size: 18, weight: .bold))
-                                        .foregroundColor(.pawseBrown)
-                                    
-                                    // Circle button to show floating window
-                                    Button(action: {
-                                        showInviteFloatingWindow = true
-                                    }) {
-                                        Circle()
-                                            .fill(Color.pawseOrange)
-                                            .frame(width: 32, height: 32)
-                                            .overlay(
-                                                Image(systemName: "plus")
-                                                    .font(.system(size: 16, weight: .bold))
-                                                    .foregroundColor(.white)
-                                            )
-                                    }
-                                    
-                                    Spacer()
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                
-                                // Show approved co-owners list
-                                if !guardianViewModel.approvedGuardians.isEmpty {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        ForEach(guardianViewModel.approvedGuardians, id: \.id) { guardian in
-                                            HStack {
-                                                Text(extractEmailFromGuardian(guardian))
-                                                    .font(.system(size: 16, weight: .medium))
-                                                    .foregroundColor(.pawseBrown)
-                                                Spacer()
-                                            }
-                                            .padding(.vertical, 8)
-                                            .padding(.horizontal, 12)
-                                            .background(Color(hex: "F5F5F5"))
-                                            .cornerRadius(8)
-                                        }
-                                    }
-                                    .padding(.top, 8)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 60)
-                        .padding(.top, 0)
-                        .padding(.bottom, 20)
-                        
-                        // Delete Pet button
-                        Button(action: {
-                            showingDeleteConfirmation = true
-                        }) {
-                            Text("Delete Pet")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 50)
-                                .background(Color.pawseOrange.opacity(0.8))
-                                .cornerRadius(20)
-                        }
-                        .padding(.horizontal, 60)
-                        .padding(.bottom, 150)
-                    }
-                }
-                .background(Color.white)
-                .scrollIndicators(.hidden)
+                .allowsHitTesting(true) // Ensure top section can receive touches
             }
         }
         .alert("Success!", isPresented: $showingSuccess) {
@@ -456,6 +465,14 @@ struct PetFormView: View {
     }
     
     private func savePet(showSuccess: Bool = true) async -> String? {
+        // If pet is already saved, just return the existing ID
+        if let existingPetId = currentPetId {
+            if showSuccess {
+                showingSuccess = true
+            }
+            return existingPetId
+        }
+        
         guard let age = Int(petAge) else { return nil }
         
         await petViewModel.createPet(

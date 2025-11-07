@@ -24,11 +24,16 @@ extension Color {
     static let pawseYellow = Color(hex: "F0CC8D")
 
     static let pawseYellowBackground = Color(hex: "F0CC8D").opacity(0.3)
+
+    static let pawseLightGreen = Color(hex: "9ABA5F")
+
+    static let pawseLightGreenBackground = Color(hex: "9ABA5F").opacity(0.3)
     
     // MARK: - Pet Card Colors
     static let petCardColors: [(background: Color, accent: Color)] = [
         (pawseLightCoralBackground, pawseLightCoral),
-        (pawseYellowBackground, pawseYellow)
+        (pawseYellowBackground, pawseYellow),
+        (pawseLightGreenBackground, pawseLightGreen)
     ]
     
     /// Olive Green - #769341
