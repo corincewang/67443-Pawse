@@ -11,169 +11,274 @@ struct ViewPetDetailView: View {
     let pet: Pet
     @Environment(\.dismiss) var dismiss
     @StateObject private var guardianViewModel = GuardianViewModel()
-    @StateObject private var petViewModel = PetViewModel()
-    @State private var showingDeleteConfirmation = false
+    @State private var navigateToGallery = false
+    
+    // Get profile photo URL from S3 key
+    private var profilePhotoURL: URL? {
+        guard !pet.profile_photo.isEmpty else { return nil }
+        return AWSManager.shared.getPhotoURL(from: pet.profile_photo)
+    }
     
     var body: some View {
-        ZStack {
-            Color.pawseBackground
-                .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Back button
-                HStack {
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        Image(systemName: "chevron.backward")
-                            .font(.system(size: 24))
-                            .foregroundColor(Color(hex: "CB8829"))
-                    }
-                    .padding(.leading, 20)
-                    Spacer()
-                }
-                .padding(.top, 60)
-                
+        GeometryReader { geometry in
+            ZStack(alignment: .top) {
+                // Scrollable content - starts below the top section
                 ScrollView {
-                    VStack(spacing: 20) {
-                        // Pet name
-                        Text(pet.name)
-                            .font(.system(size: 48, weight: .bold))
-                            .foregroundColor(.pawseBrown)
-                            .padding(.top, 20)
+                    VStack(spacing: 0) {
+                        // Spacer to push content below the top section
+                        Spacer()
+                            .frame(height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
                         
-                        // Pet image area
-                        RoundedRectangle(cornerRadius: 60)
-                            .fill(Color(hex: "FAF0DE"))
-                            .frame(height: 350)
+                        // Content with white background
+                        VStack(spacing: 0) {
+                            // Pet name - same font size as Co-Owners
+                            Text(pet.name)
+                                .font(.system(size: 26, weight: .bold))
+                                .foregroundColor(.pawseBrown)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 30)
+                                .padding(.top, 0)
+                                .padding(.bottom, 15)
+                                .background(Color.white)
+                            
+                            // Pet info card
+            VStack(spacing: 0) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color.pawseGreyBackground)
+                                        .frame(height: 80)
+                                    
+                                    HStack(spacing: 40) {
+                                        VStack(spacing: 5) {
+                                            Text("Pet Type")
+                                                .font(.system(size: 14, weight: .bold))
+                                                .foregroundColor(Color.pawseDarkCoral)
+                                            Text(pet.type)
+                                                .font(.system(size: 14, weight: .medium))
+                                                .foregroundColor(Color(hex: "6B68A9"))
+                                        }
+                                        
+                                        Divider()
+                                            .frame(height: 25)
+                                        
+                                        VStack(spacing: 5) {
+                                            Text("Sex")
+                                                .font(.system(size: 14, weight: .bold))
+                                                .foregroundColor(Color.pawseDarkCoral)
+                                            Text(pet.gender == "F" ? "Female" : "Male")
+                                                .font(.system(size: 14, weight: .medium))
+                                                .foregroundColor(Color(hex: "6B68A9"))
+                                        }
+                                        
+                                        Divider()
+                                            .frame(height: 25)
+                                        
+                                        VStack(spacing: 5) {
+                                            Text("Age")
+                                                .font(.system(size: 14, weight: .bold))
+                                                .foregroundColor(Color.pawseDarkCoral)
+                                            Text("\(pet.age)")
+                                                .font(.system(size: 14, weight: .medium))
+                                                .foregroundColor(Color(hex: "6B68A9"))
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 30)
+                                .padding(.bottom, 30)
+                                .background(Color.white)
+                            }
+                            
+                            // Co-Owners section
+                            VStack(alignment: .leading, spacing: 15) {
+                                Text("Co-Owners")
+                                    .font(.system(size: 26, weight: .bold))
+                                    .foregroundColor(.pawseBrown)
+                                
+                                if guardianViewModel.isLoading {
+                                    ProgressView()
+                                } else if guardianViewModel.guardians.isEmpty {
+                                    Text("No co-owners yet")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.gray)
+                                } else {
+                                    ForEach(guardianViewModel.guardians.filter { $0.status == "approved" }) { guardian in
+                                        CoOwnerRowView(guardian: guardian)
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 30)
+                            .padding(.bottom, 20)
+                            .background(Color.white)
+                            
+                            // Go to gallery button
+                            // Go to gallery button - use programmatic navigation
+                            Button(action: {
+                                navigateToGallery = true
+                            }) {
+                                Text("Go to gallery")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(Color.pawseCoralRed)
+                                    .cornerRadius(20)
+                            }
+                            .padding(.horizontal, 30)
+                            .padding(.bottom, 150)
+                            .background(Color.white)
+                        }
+                    }
+                }
+                .scrollIndicators(.hidden)
+                
+                // Top section: Fixed 40% with pet photo - always on top
+                ZStack {
+                    // Pet photo/gradient background - fills the entire top section
+                    Group {
+                        if let imageURL = profilePhotoURL {
+                            AsyncImage(url: imageURL) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: geometry.size.width, height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top )
+                                        .clipped()
+                                case .failure(_), .empty:
+                                    // Fallback to gradient background
+                                    LinearGradient(
+                                        colors: [
+                                            Color.pawseOrange,
+                                            Color(hex: "F8DEB8")
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                    .overlay(
+                                        Text(pet.name.prefix(1).uppercased())
+                                            .font(.system(size: 120, weight: .bold))
+                                            .foregroundColor(.white.opacity(0.3))
+                                    )
+                                @unknown default:
+                                    // Fallback to gradient background
+                                    LinearGradient(
+                                        colors: [
+                                            Color.pawseOrange,
+                                            Color(hex: "F8DEB8")
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                    .overlay(
+                                        Text(pet.name.prefix(1).uppercased())
+                                            .font(.system(size: 120, weight: .bold))
+                                            .foregroundColor(.white.opacity(0.3))
+                                    )
+                                }
+                            }
+                        } else {
+                            // No profile photo - show gradient background
+                            LinearGradient(
+                                colors: [
+                                    Color.pawseOrange,
+                                    Color(hex: "F8DEB8")
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
                             .overlay(
-                                // If pet has profile photo, display it here
                                 Text(pet.name.prefix(1).uppercased())
                                     .font(.system(size: 120, weight: .bold))
                                     .foregroundColor(.white.opacity(0.3))
                             )
-                        
-                        // Pet info card
-                        VStack(spacing: 0) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color(hex: "F7E4C5"))
-                                    .frame(height: 80)
-                                
-                                HStack(spacing: 40) {
-                                    VStack(spacing: 5) {
-                                        Text("Pet Type")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(Color(hex: "DEC080"))
-                                        Text(pet.type)
-                                            .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(Color(hex: "6B68A9"))
-                                    }
-                                    
-                                    Divider()
-                                        .frame(height: 25)
-                                    
-                                    VStack(spacing: 5) {
-                                        Text("Sex")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(Color(hex: "DEC080"))
-                                        Text(pet.gender == "F" ? "Female" : "Male")
-                                            .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(Color(hex: "6B68A9"))
-                                    }
-                                    
-                                    Divider()
-                                        .frame(height: 25)
-                                    
-                                    VStack(spacing: 5) {
-                                        Text("Age")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(Color(hex: "DEC080"))
-                                        Text("\(pet.age)")
-                                            .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(Color(hex: "6B68A9"))
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, 30)
                         }
-                        
-                        // Co-Owners section
-                        VStack(alignment: .leading, spacing: 15) {
-                            Text("Co-Owners")
-                                .font(.system(size: 26, weight: .bold))
-                                .foregroundColor(.pawseBrown)
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
+                    .ignoresSafeArea(.all, edges: .top)
+                    
+                    // Navigation buttons at the very top
+                    VStack {
+                        HStack {
+                            // Back button (left)
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 22, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 44, height: 44)
+                            }
+                            .padding(.leading, 20)
                             
-                            if guardianViewModel.isLoading {
-                                ProgressView()
-                            } else if guardianViewModel.guardians.isEmpty {
-                                Text("No co-owners yet")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.gray)
-                            } else {
-                                ForEach(guardianViewModel.guardians.filter { $0.status == "approved" }) { guardian in
-                                    HStack(spacing: 15) {
-                                        Image(systemName: "person.circle.fill")
-                                            .font(.system(size: 21))
-                                            .foregroundColor(.white)
-                                        
-                                        Text(guardian.guardian)
-                                            .font(.system(size: 14, weight: .medium))
-                                            .foregroundColor(Color(hex: "6B68A9"))
-                                    }
-                                }
-                            }
+                            Spacer()
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 30)
+                        .padding(.top, geometry.safeAreaInsets.top - 10)
                         
-                        // Go to gallery button
-                        NavigationLink(destination: PhotoGalleryView(petId: pet.id ?? "")) {
-                            Text("Go to gallery")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 340, height: 57)
-                                .background(Color.pawseCoralRed)
-                                .cornerRadius(20)
-                        }
-                        .padding(.top, 20)
-                        
-                        // Delete button
-                        Button(action: {
-                            showingDeleteConfirmation = true
-                        }) {
-                            Text("Delete Pet")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 200, height: 45)
-                                .background(Color.red)
-                                .cornerRadius(20)
-                        }
-                        .padding(.top, 10)
+                        Spacer()
                     }
                 }
+                .frame(height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
+                .ignoresSafeArea(.all, edges: .top)
+                .allowsHitTesting(true) // Ensure top section can receive touches
             }
         }
         .navigationBarBackButtonHidden(true)
+        .swipeBack(dismiss: dismiss)
+        .navigationDestination(isPresented: $navigateToGallery) {
+            PhotoGalleryView(petId: pet.id ?? "", petName: pet.name)
+        }
         .task {
             if let petId = pet.id {
                 await guardianViewModel.fetchGuardians(for: petId)
             }
         }
-        .alert("Delete Pet", isPresented: $showingDeleteConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                Task {
-                    if let petId = pet.id {
-                        await petViewModel.deletePet(petId: petId)
-                        dismiss()
-                    }
-                }
-            }
-        } message: {
-            Text("Are you sure you want to delete \(pet.name)? This action cannot be undone.")
+        .onDisappear {
+            print("✅ ViewPetDetailView disappeared")
         }
+    }
+}
+
+// Co-Owner Row Component
+struct CoOwnerRowView: View {
+    let guardian: Guardian
+    @State private var userEmail: String = ""
+    @State private var isLoading = true
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "person")
+                .font(.system(size: 21))
+                .foregroundColor(.pawseLightCoral)
+            
+            if isLoading {
+                ProgressView()
+                    .scaleEffect(0.8)
+            } else {
+                Text(userEmail)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(Color(hex: "6B68A9"))
+            }
+        }
+        .task {
+            await loadUserEmail()
+        }
+    }
+    
+    private func loadUserEmail() async {
+        // Extract guardian UID from "users/{uid}" format
+        let guardianUID = guardian.guardian.replacingOccurrences(of: "users/", with: "")
+        
+        // Fetch user email
+        let userController = UserController()
+        do {
+            let user = try await userController.fetchUser(uid: guardianUID)
+            userEmail = user.email
+        } catch {
+            userEmail = guardianUID
+        }
+        
+        isLoading = false
     }
 }
 

@@ -16,14 +16,33 @@ extension Color {
     /// Coral Red - #F96D6D
     static let pawseCoralRed = Color(hex: "F96D6D")
     
-    /// Light Coral/Pink - #FF8686
+    /// background color for pet cards
     static let pawseLightCoral = Color(hex: "FF8686")
+
+    static let pawseLightCoralBackground = Color(hex: "FF8686").opacity(0.3)
+
+    static let pawseYellow = Color(hex: "F0CC8D")
+
+    static let pawseYellowBackground = Color(hex: "F0CC8D").opacity(0.3)
+
+    static let pawseLightGreen = Color(hex: "9ABA5F")
+
+    static let pawseLightGreenBackground = Color(hex: "9ABA5F").opacity(0.3)
+    
+    // MARK: - Pet Card Colors
+    static let petCardColors: [(background: Color, accent: Color)] = [
+        (pawseLightCoralBackground, pawseLightCoral),
+        (pawseYellowBackground, pawseYellow),
+        (pawseLightGreenBackground, pawseLightGreen)
+    ]
     
     /// Olive Green - #769341
     static let pawseOliveGreen = Color(hex: "769341")
     
     /// Orange/Peach - #FB7849
     static let pawseOrange = Color(hex: "FB7849")
+
+    static let pawseDarkCoral = Color(hex: "DE5B5B");
     
     /// Golden Yellow - #F7B455
     static let pawseGolden = Color(hex: "F7B455")
@@ -32,6 +51,13 @@ extension Color {
     
     /// Brown/Taupe - #84665C
     static let pawseBrown = Color(hex: "84665C")
+
+    static let PawseGrey = Color(hex: "6B68A9")
+    
+    /// PawseGrey with 8% opacity (for pet info card background)
+    static let pawseGreyBackground = Color(hex: "6B68A9").opacity(0.08)
+
+    static let pawseWarmGrey = Color(hex: "D9CAB0")
     
     // MARK: - Semantic Color Names (Optional - for easier usage)
     

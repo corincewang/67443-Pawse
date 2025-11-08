@@ -11,106 +11,131 @@ struct BottomBarView: View {
     @Binding var selectedTab: TabItem
     
     var body: some View {
-        HStack(spacing: 0) {
-            // Profile Tab
-            TabButton(
-                tab: .profile,
-                selectedTab: $selectedTab
-            )
-            
-            Spacer()
-            
-            // Camera Tab
-            TabButton(
-                tab: .camera,
-                selectedTab: $selectedTab
-            )
-            
-            Spacer()
-            // Community Tab
-            TabButton(
-                tab: .community,
-                selectedTab: $selectedTab
-            )
-            
+        GeometryReader { geometry in
+            ZStack(alignment: .top) {
+                // Wave shape background
+                WaveBottomBarShape()
+                    .fill(Color.bottomBarBackground)
+                    .frame(height: 120)
+                
+                // Tab buttons positioned at wave peaks - shifted 15px left (10 + 5)
+                HStack(spacing: 0) {
+                    // First button center at (width/4 - 40) + 30, shifted 15px left
+                    Spacer()
+                        .frame(width: geometry.size.width / 4 - 35)
+                    
+                    TabButton(
+                        tab: .profile,
+                        selectedTab: $selectedTab
+                    )
+                    .offset(x: -15, y: 0)
+                    
+                    Spacer()
+                        .frame(width: geometry.size.width / 4 - 30)
+                    
+                    TabButton(
+                        tab: .camera,
+                        selectedTab: $selectedTab
+                    )
+                    .offset(x: -15, y: 0)
+                    
+                    Spacer()
+                        .frame(width: geometry.size.width / 4 - 30)
+                    
+                    TabButton(
+                        tab: .community,
+                        selectedTab: $selectedTab
+                    )
+                    .offset(x: -15, y: 0)
+                    
+                    Spacer()
+                        .frame(width: geometry.size.width / 4 - 45)
+                }
+                .frame(height: 120)
+            }
         }
-        .padding(.horizontal, 60)
-        .padding(.top, 20)
-        .padding(.bottom, 25)
-        .background(
-            CurvedBottomBarShape()
-                .fill(Color.bottomBarBackground)
-        )
+        .frame(height: 120)
+        .edgesIgnoringSafeArea(.bottom)
     }
 }
 
-// MARK: - Curved Bottom Bar Shape
-struct CurvedBottomBarShape: Shape {
+// MARK: - Wave Bottom Bar Shape
+struct WaveBottomBarShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         
         let width = rect.width
         let height = rect.height
-        let peakHeight: CGFloat = 18  // Height of each peak
-        let valleyDepth: CGFloat = 12  // Depth of valleys between peaks
+        let waveHeight: CGFloat = 16
+        
+        // Calculate peak positions based on actual button centers, shifted 20px left
+        // Button layout: Spacer(width/4-40) + Button(60) + Spacer(width/4-40) + Button(60) + Spacer(width/4-40) + Button(60) + Spacer(width/4-40)
+        // Button center is 30px from button left edge (60/2)
+        // Shift all peaks 20px to the left
+        let buttonWidth: CGFloat = 60
+        let spacerWidth = width / 4 - 40
+        let leftShift: CGFloat = 20
+        let firstPeakX = spacerWidth + buttonWidth / 2 - leftShift  // First button center shifted left
+        let secondPeakX = spacerWidth + buttonWidth + spacerWidth + buttonWidth / 2 - leftShift  // Second button center shifted left
+        let thirdPeakX = spacerWidth + buttonWidth + spacerWidth + buttonWidth + spacerWidth + buttonWidth / 2 - leftShift  // Third button center shifted left
+        
+        // Valley positions - exactly between peaks
+        let firstValleyX = (firstPeakX + secondPeakX) / 2
+        let secondValleyX = (secondPeakX + thirdPeakX) / 2
         
         // Start from top-left
-        path.move(to: CGPoint(x: 0, y: valleyDepth))
+        path.move(to: CGPoint(x: 0, y: waveHeight))
         
-        // First peak (left side) - more semi-circular
+        let leftToPeak1 = firstPeakX
         path.addCurve(
-            to: CGPoint(x: width * 0.33, y: valleyDepth),
-            control1: CGPoint(x: width * 0.08, y: valleyDepth - peakHeight),
-            control2: CGPoint(x: width * 0.25, y: valleyDepth - peakHeight)
+            to: CGPoint(x: firstPeakX, y: 0),
+            control1: CGPoint(x: leftToPeak1 * 0.5, y: waveHeight),
+            control2: CGPoint(x: leftToPeak1 * 0.5, y: 0)
         )
         
-        // Valley between first and second peak
+        // First peak to first valley - smooth, gradual descent
+        let peak1ToValley1 = firstValleyX - firstPeakX
         path.addCurve(
-            to: CGPoint(x: width * 0.42, y: valleyDepth * 0.7),
-            control1: CGPoint(x: width * 0.36, y: valleyDepth),
-            control2: CGPoint(x: width * 0.39, y: valleyDepth * 0.85)
+            to: CGPoint(x: firstValleyX, y: waveHeight),
+            control1: CGPoint(x: firstPeakX + peak1ToValley1 * 0.3, y: 0),
+            control2: CGPoint(x: firstPeakX + peak1ToValley1 * 0.7, y: waveHeight)
         )
         
-        // Second peak (center) - highest and most prominent
+        // First valley to second peak - smooth, gradual ascent
+        let valley1ToPeak2 = secondPeakX - firstValleyX
         path.addCurve(
-            to: CGPoint(x: width * 0.58, y: valleyDepth * 0.7),
-            control1: CGPoint(x: width * 0.47, y: valleyDepth * 0.2),
-            control2: CGPoint(x: width * 0.53, y: valleyDepth * 0.2)
+            to: CGPoint(x: secondPeakX, y: 0),
+            control1: CGPoint(x: firstValleyX + valley1ToPeak2 * 0.5, y: waveHeight),
+            control2: CGPoint(x: firstValleyX + valley1ToPeak2 * 0.5, y: 0)
         )
         
-        // Valley between second and third peak
+        // Second peak to second valley - smooth, gradual descent
+        let peak2ToValley2 = secondValleyX - secondPeakX
         path.addCurve(
-            to: CGPoint(x: width * 0.67, y: valleyDepth),
-            control1: CGPoint(x: width * 0.61, y: valleyDepth * 0.85),
-            control2: CGPoint(x: width * 0.64, y: valleyDepth)
+            to: CGPoint(x: secondValleyX, y: waveHeight),
+            control1: CGPoint(x: secondPeakX + peak2ToValley2 * 0.3, y: 0),
+            control2: CGPoint(x: secondPeakX + peak2ToValley2 * 0.7, y: waveHeight)
         )
         
-        // Third peak (right side) - mirror of first peak
+        // Second valley to third peak - smooth, gradual ascent
+        let valley2ToPeak3 = thirdPeakX - secondValleyX
         path.addCurve(
-            to: CGPoint(x: width, y: valleyDepth),
-            control1: CGPoint(x: width * 0.75, y: valleyDepth - peakHeight),
-            control2: CGPoint(x: width * 0.92, y: valleyDepth - peakHeight)
+            to: CGPoint(x: thirdPeakX, y: 0),
+            control1: CGPoint(x: secondValleyX + valley2ToPeak3 * 0.3, y: waveHeight),
+            control2: CGPoint(x: secondValleyX + valley2ToPeak3 * 0.7, y: 0)
         )
         
-        // Right side down
-        path.addLine(to: CGPoint(x: width, y: height - 60))
-        
-        // Bottom right rounded corner
-        path.addQuadCurve(
-            to: CGPoint(x: width - 60, y: height),
-            control: CGPoint(x: width, y: height)
+        // Third peak to right edge - symmetric, vertical descent from peak
+        let peak3ToRight = width - thirdPeakX
+        path.addCurve(
+            to: CGPoint(x: width, y: waveHeight),
+            control1: CGPoint(x: thirdPeakX + peak3ToRight * 0.5, y: 0),
+            control2: CGPoint(x: thirdPeakX + peak3ToRight * 0.5, y: waveHeight)
         )
         
-        // Bottom line
-        path.addLine(to: CGPoint(x: 60, y: height))
-        
-        // Bottom left rounded corner
-        path.addQuadCurve(
-            to: CGPoint(x: 0, y: height - 60),
-            control: CGPoint(x: 0, y: height)
-        )
-        
-        // Close the path
+        // Complete the shape
+        path.addLine(to: CGPoint(x: width, y: height))
+        path.addLine(to: CGPoint(x: 0, y: height))
         path.closeSubpath()
         
         return path

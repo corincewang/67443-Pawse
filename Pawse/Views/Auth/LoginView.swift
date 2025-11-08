@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct LoginView: View {
+    @Environment(\.dismiss) var dismiss
     @StateObject private var userViewModel = UserViewModel()
     @State private var email = ""
     @State private var password = ""
@@ -24,7 +25,7 @@ struct LoginView: View {
                 // Back button
                 HStack {
                     Button(action: {
-                        // Navigate back
+                        dismiss()
                     }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 24, weight: .bold))
@@ -140,6 +141,7 @@ struct LoginView: View {
             }
         }
         .navigationBarBackButtonHidden(false)
+        .swipeBack(dismiss: dismiss)
         .navigationDestination(isPresented: $showingRegister) {
             RegisterView()
         }

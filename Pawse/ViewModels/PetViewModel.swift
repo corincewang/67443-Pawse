@@ -55,6 +55,31 @@ class PetViewModel: ObservableObject {
         }
     }
     
+    func updatePet(petId: String, name: String, type: String, age: Int, gender: String, profilePhoto: String) async {
+        guard let uid = authController.currentUID() else {
+            errorMessage = "No user logged in"
+            return
+        }
+        
+        // Create Pet object with id using var initialization
+        var updatedPet = Pet(
+            age: age,
+            gender: gender,
+            name: name,
+            owner: "users/\(uid)",
+            profile_photo: profilePhoto,
+            type: type
+        )
+        updatedPet.id = petId
+        
+        do {
+            try await petController.updatePet(updatedPet)
+            await fetchUserPets()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+    
     func deletePet(petId: String) async {
         do {
             try await petController.deletePet(petId: petId)

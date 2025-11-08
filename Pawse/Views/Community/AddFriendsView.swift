@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct AddFriendsView: View {
+    @Environment(\.dismiss) var dismiss
     @StateObject private var connectionViewModel = ConnectionViewModel()
     @State private var searchText = ""
     @State private var searchResults: [User] = []
@@ -20,7 +21,9 @@ struct AddFriendsView: View {
             VStack(spacing: 0) {
                 // Back button
                 HStack {
-                    Button(action: {}) {
+                    Button(action: {
+                        dismiss()
+                    }) {
                         Image(systemName: "chevron.backward")
                             .font(.system(size: 24))
                             .foregroundColor(Color(hex: "CB8829"))
@@ -108,6 +111,7 @@ struct AddFriendsView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .swipeBack(dismiss: dismiss)
         .task {
             await connectionViewModel.fetchConnections()
         }
