@@ -14,12 +14,10 @@ struct PhotoGalleryView: View {
     @StateObject private var petViewModel = PetViewModel()
     @State private var showingDeleteConfirmation = false
     @State private var selectedPhotoForDelete: Photo? = nil
+    @State private var currentPet: Pet? = nil
+    @State private var petForEdit: Pet? = nil
+    @State private var navigateToViewPet = false
     @Environment(\.dismiss) var dismiss
-    
-    // Computed property to find the current pet
-    private var currentPet: Pet? {
-        petViewModel.pets.first { $0.id == petId }
-    }
     
     var body: some View {
         ZStack {
@@ -27,39 +25,73 @@ struct PhotoGalleryView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
+                // Fixed header with pet name and edit button
+                HStack {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "chevron.backward")
+                            .font(.system(size: 24))
+                            .foregroundColor(.pawseOliveGreen)
+                            .frame(width: 44, height: 44)
+                    }
+                    
+                    Text(petName ?? "Unknown Pet")
+                        .font(.system(size: 48, weight: .bold))
+                        .foregroundColor(.pawseOliveGreen)
+                    
+                    Spacer()
+                    
+                    // View button that goes to ViewPetDetailView
+                    Button(action: {
+                        if let pet = currentPet {
+                            navigateToViewPet = true
+                        }
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.pawseYellow)
+                                .frame(width: 44, height: 44)
+                            
+                            Image(systemName: "eye")
+                                .font(.system(size: 24))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .disabled(currentPet == nil)
+                    .padding(.top, 5) // Move down a bit
+                    
+                    // Edit button that goes to Pet Form View
+                    Button(action: {
+                        if let pet = currentPet {
+                            print("🔵 Edit button clicked, pet: \(pet.name), id: \(pet.id ?? "no-id")")
+                            // Set petForEdit which will trigger navigationDestination(item:)
+                            petForEdit = pet
+                            print("✅ petForEdit set to: \(pet.name)")
+                        } else {
+                            print("🔴 Edit button clicked but currentPet is nil")
+                        }
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.pawseYellow)
+                                .frame(width: 44, height: 44)
+                            
+                            Image(systemName: "pencil")
+                                .font(.system(size: 24))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .disabled(currentPet == nil)
+                    .padding(.top, 5) // Move down a bit
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 10)
+                .background(Color.pawseBackground)
+                
                 ScrollView {
                     VStack(spacing: 30) {
-                        // Pet name header with edit button
-                        HStack {
-                            Button(action: {
-                                dismiss()
-                            }) {
-                                Image(systemName: "chevron.backward")
-                                    .font(.system(size: 24))
-                                    .foregroundColor(.pawseOliveGreen)
-                            }
-                            
-                            Text(petName ?? "Unknown Pet")
-                                .font(.system(size: 48, weight: .bold))
-                                .foregroundColor(.pawseOliveGreen)
-                            
-                            Spacer()
-                            
-                            // Edit button that goes to Pet Detail View
-                            if let pet = currentPet {
-                                NavigationLink(destination: ViewPetDetailView(pet: pet)) {
-                                    Image(systemName: "pencil")
-                                        .font(.system(size: 24))
-                                        .foregroundColor(.pawseOliveGreen)
-                                        .frame(width: 40, height: 40)
-                                        .background(Color.white)
-                                        .clipShape(Circle())
-                                        .shadow(radius: 2)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 20)
                         
                         // Contest photos section
                         VStack(alignment: .leading, spacing: 15) {
@@ -155,6 +187,26 @@ struct PhotoGalleryView: View {
                     .padding(.bottom, 140) // Position above bottom bar
                 }
             }
+            
+        }
+        .onAppear {
+            // Clear petForEdit immediately when view appears to prevent auto-navigation
+            // This must happen synchronously before navigationDestination can trigger
+            // Reset to nil to prevent any stale state from causing unwanted navigation
+            petForEdit = nil
+            navigateToViewPet = false
+        }
+        .navigationDestination(item: $petForEdit) { pet in
+            PetFormView(pet: pet)
+        }
+        .navigationDestination(isPresented: $navigateToViewPet) {
+            if let pet = currentPet {
+                ViewPetDetailView(pet: pet)
+            }
+        }
+        .task {
+            await photoViewModel.fetchPhotos(for: petId)
+            await loadCurrentPet()
         }
         .alert("Delete Photo", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -176,9 +228,24 @@ struct PhotoGalleryView: View {
             Text(photoViewModel.errorMessage ?? "")
         }
         .navigationBarBackButtonHidden(true)
-        .task {
-            await photoViewModel.fetchPhotos(for: petId)
+        .swipeBack(dismiss: dismiss)
+    }
+    
+    private func loadCurrentPet() async {
+        let petController = PetController()
+        do {
+            currentPet = try await petController.fetchPet(petId: petId)
+            print("✅ Successfully loaded pet: \(currentPet?.name ?? "unknown") with id: \(petId)")
+        } catch {
+            print("❌ Failed to load pet with id \(petId): \(error)")
+            // Fallback: try to find in petViewModel.pets
             await petViewModel.fetchUserPets()
+            currentPet = petViewModel.pets.first { $0.id == petId }
+            if currentPet != nil {
+                print("✅ Found pet in petViewModel.pets: \(currentPet?.name ?? "unknown")")
+            } else {
+                print("❌ Pet not found in petViewModel.pets either. Available pets: \(petViewModel.pets.map { $0.id ?? "no-id" })")
+            }
         }
     }
 }

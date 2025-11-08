@@ -12,6 +12,7 @@ struct ProfilePageView: View {
     @StateObject private var userViewModel = UserViewModel()
     @StateObject private var guardianViewModel = GuardianViewModel()
     @State private var showInvitationOverlay = true
+    @State private var selectedPetName: String? = nil // Store selected pet name for the session
     
     private var displayName: String {
         if let user = userViewModel.currentUser, !user.nick_name.isEmpty {
@@ -41,8 +42,8 @@ struct ProfilePageView: View {
                                 .font(.system(size: 24, weight: .regular))
                                 .foregroundColor(.pawseBrown)
                                 .padding(.top, 4)
-                        } else if let randomPet = petViewModel.pets.randomElement() {
-                            Text("How is \(randomPet.name) doing?")
+                        } else if let petName = selectedPetName {
+                            Text("How is \(petName) doing?")
                                 .font(.system(size: 24, weight: .regular))
                                 .foregroundColor(.pawseBrown)
                                 .padding(.top, 4)
@@ -98,7 +99,7 @@ struct ProfilePageView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 20) {
                             ForEach(petViewModel.pets) { pet in
-                                NavigationLink(destination: ViewPetDetailView(pet: pet)) {
+                                NavigationLink(destination: PhotoGalleryView(petId: pet.id ?? "", petName: pet.name)) {
                                     PetCardView(pet: pet)
                                 }
                             }
@@ -114,6 +115,14 @@ struct ProfilePageView: View {
                     
                     Spacer()
                 }
+            }
+            
+            // Active Contest Banner at bottom (above bottom bar)
+            VStack {
+                Spacer()
+                ActiveContestBannerView()
+                    .padding(.top, 280) // Position above bottom navigation (same as gallery)
+                    .padding(.bottom, 40) // Position above bottom navigation
             }
         }
         .overlay {
@@ -152,6 +161,11 @@ struct ProfilePageView: View {
             // Show overlay if there are invitations
             if !guardianViewModel.receivedInvitations.isEmpty {
                 showInvitationOverlay = true
+            }
+            
+            // Set selected pet name only if not already set (to keep it consistent during the session)
+            if selectedPetName == nil && !petViewModel.pets.isEmpty {
+                selectedPetName = petViewModel.pets.randomElement()?.name
             }
         }
         .onChange(of: guardianViewModel.receivedInvitations.count) { _, newCount in
@@ -358,42 +372,54 @@ struct PetCardView: View {
         return Color.petCardColors[index]
     }
     
+    // Get profile photo URL from S3 key
+    private var profilePhotoURL: URL? {
+        guard !pet.profile_photo.isEmpty else { return nil }
+        return AWSManager.shared.getPhotoURL(from: pet.profile_photo)
+    }
+    
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Image section
-            RoundedRectangle(cornerRadius: 20)
-                .fill(cardColors.background)
-                .frame(width: 200, height: 260)
-                .overlay(
-                    Group {
-                        if !pet.profile_photo.isEmpty, let imageURL = URL(string: pet.profile_photo) {
-                            AsyncImage(url: imageURL) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 200, height: 260)
-                                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                                case .failure(_), .empty:
-                                    // Fallback to initial if image fails to load
-                                    Text(pet.name.prefix(1).uppercased())
-                                        .font(.system(size: 80, weight: .bold))
-                                        .foregroundColor(.white.opacity(0.5))
-                                @unknown default:
-                                    Text(pet.name.prefix(1).uppercased())
-                                        .font(.system(size: 80, weight: .bold))
-                                        .foregroundColor(.white.opacity(0.5))
-                                }
+            // Image section with background color as base layer
+            ZStack {
+                // Background color - always visible
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(cardColors.background)
+                    .frame(width: 200, height: 260)
+                
+                // Image or initial letter on top
+                Group {
+                    if let imageURL = profilePhotoURL {
+                        AsyncImage(url: imageURL) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 200, height: 260)
+                                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                            case .failure(_), .empty:
+                                // Fallback to initial if image fails to load
+                                Text(pet.name.prefix(1).uppercased())
+                                    .font(.system(size: 80, weight: .bold))
+                                    .foregroundColor(.white.opacity(0.5))
+                            @unknown default:
+                                Text(pet.name.prefix(1).uppercased())
+                                    .font(.system(size: 80, weight: .bold))
+                                    .foregroundColor(.white.opacity(0.5))
                             }
-                        } else {
-                            // No profile photo - show initial
-                            Text(pet.name.prefix(1).uppercased())
-                                .font(.system(size: 80, weight: .bold))
-                                .foregroundColor(.white.opacity(0.5))
                         }
+                        .background(cardColors.background) // Use card background color instead of white
+                    } else {
+                        // No profile photo - show initial
+                        Text(pet.name.prefix(1).uppercased())
+                            .font(.system(size: 80, weight: .bold))
+                            .foregroundColor(.white.opacity(0.5))
                     }
-                )
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .frame(width: 200, height: 260)
             
             // Pet name - overlapping the bottom of the image
             Text(pet.name.lowercased())

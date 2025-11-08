@@ -9,6 +9,8 @@ import SwiftUI
 import PhotosUI
 
 struct PetFormView: View {
+    let pet: Pet? // Optional pet for edit mode
+    
     @Environment(\.dismiss) var dismiss
     @StateObject private var petViewModel = PetViewModel()
     @StateObject private var guardianViewModel = GuardianViewModel()
@@ -22,12 +24,18 @@ struct PetFormView: View {
     @State private var showingSuccess = false
     @State private var selectedImage: PhotosPickerItem?
     @State private var profileImage: Image?
+    @State private var profileImageData: Data? // Store image data for upload
     @State private var showingDeleteConfirmation = false
+    @State private var isUpdating = false // Track if we're updating an existing pet
     
     // Guardian invite states
     @State private var showInviteFloatingWindow = false
     @State private var inviteEmail = ""
     @State private var currentPetId: String?
+    
+    init(pet: Pet? = nil) {
+        self.pet = pet
+    }
     
     enum PetGender: String, CaseIterable {
         case male = "♂"
@@ -333,6 +341,7 @@ struct PetFormView: View {
                             if let data = try? await newValue?.loadTransferable(type: Data.self),
                                let uiImage = UIImage(data: data) {
                                 profileImage = Image(uiImage: uiImage)
+                                profileImageData = data // Store image data for upload
                             }
                         }
                     }
@@ -344,10 +353,11 @@ struct PetFormView: View {
         }
         .alert("Success!", isPresented: $showingSuccess) {
             Button("OK") {
+                // Just dismiss, don't navigate
                 dismiss()
             }
         } message: {
-            Text("\(petName) has been added to your pets!")
+            Text(isUpdating ? "Update complete!" : "\(petName) has been added to your pets!")
         }
         .alert("Error", isPresented: .constant(petViewModel.errorMessage != nil)) {
             Button("OK") {
@@ -360,6 +370,41 @@ struct PetFormView: View {
         }
         .navigationBarBackButtonHidden(true)
         .swipeBack(dismiss: dismiss)
+        .onAppear {
+            // Set isUpdating based on whether we have an existing pet
+            isUpdating = pet != nil
+            
+            // Load existing pet data if in edit mode
+            if let existingPet = pet {
+                petName = existingPet.name
+                petType = existingPet.type
+                petAge = String(existingPet.age)
+                selectedGender = existingPet.gender == "M" ? .male : .female
+                currentPetId = existingPet.id
+                
+                // Load existing profile photo if available
+                if !existingPet.profile_photo.isEmpty {
+                    Task {
+                        do {
+                            let image = try await AWSManager.shared.downloadImage(from: existingPet.profile_photo)
+                            if let uiImage = image {
+                                await MainActor.run {
+                                    profileImage = Image(uiImage: uiImage)
+                                }
+                            }
+                        } catch {
+                            print("⚠️ Failed to load profile photo: \(error.localizedDescription)")
+                        }
+                    }
+                }
+            }
+        }
+        .task {
+            // Fetch guardians if editing existing pet
+            if let petId = currentPetId {
+                await guardianViewModel.fetchGuardians(for: petId)
+            }
+        }
         .alert("Delete Pet", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -458,6 +503,33 @@ struct PetFormView: View {
                 Text(message)
             }
         }
+        .alert("Delete Pet", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task {
+                    await deletePet()
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete \(petName)? This action cannot be undone.")
+        }
+        .onAppear {
+            // Load pet data if in edit mode
+            if let pet = pet {
+                petName = pet.name
+                petType = pet.type
+                petAge = "\(pet.age)"
+                selectedGender = pet.gender == "M" ? .male : .female
+                currentPetId = pet.id
+                
+                // Load guardians for this pet
+                if let petId = pet.id {
+                    Task {
+                        await guardianViewModel.fetchGuardians(for: petId)
+                    }
+                }
+            }
+        }
     }
     
     private var isFormValid: Bool {
@@ -465,34 +537,99 @@ struct PetFormView: View {
     }
     
     private func savePet(showSuccess: Bool = true) async -> String? {
-        // If pet is already saved, just return the existing ID
+        guard let age = Int(petAge) else { return nil }
+        
+        // Upload profile photo if selected
+        var profilePhotoURL = pet?.profile_photo ?? ""
+        if let imageData = profileImageData {
+            // Process image for upload
+            if let processedData = AWSManager.shared.processImageForUpload(UIImage(data: imageData) ?? UIImage()) {
+                do {
+                    // For existing pet, use currentPetId; for new pet, we'll upload after creation
+                    let petIdForUpload = currentPetId ?? "temp"
+                    // Generate S3 key for profile photo (different from regular photos)
+                    let timestamp = Int(Date().timeIntervalSince1970)
+                    let s3Key = "pets/\(petIdForUpload)/profile_photo_\(timestamp).jpg"
+                    _ = try await AWSManager.shared.uploadToS3Simple(
+                        imageData: processedData,
+                        s3Key: s3Key
+                    )
+                    profilePhotoURL = s3Key
+                } catch {
+                    petViewModel.errorMessage = "Failed to upload profile photo: \(error.localizedDescription)"
+                    return nil
+                }
+            }
+        }
+        
+        // If editing existing pet, update it
         if let existingPetId = currentPetId {
-            if showSuccess {
+            isUpdating = true
+            await petViewModel.updatePet(
+                petId: existingPetId,
+                name: petName,
+                type: petType,
+                age: age,
+                gender: selectedGender.firebaseValue,
+                profilePhoto: profilePhotoURL.isEmpty ? (pet?.profile_photo ?? "") : profilePhotoURL
+            )
+            
+            if petViewModel.errorMessage == nil && showSuccess {
                 showingSuccess = true
             }
+            
             return existingPetId
         }
         
-        guard let age = Int(petAge) else { return nil }
+        // Otherwise, create new pet (first without profile photo if we need to upload)
+        isUpdating = false
         
         await petViewModel.createPet(
             name: petName,
             type: petType,
             age: age,
             gender: selectedGender.firebaseValue,
-            profilePhoto: ""
+            profilePhoto: profilePhotoURL.contains("temp") ? "" : profilePhotoURL
         )
         
         // Store pet ID for guardian invitations
         // Find the newly created pet by matching name and owner
         var petId: String? = nil
         if let uid = authController.currentUID() {
+            await petViewModel.fetchUserPets()
             let newPet = petViewModel.pets.first { pet in
                 pet.name == petName && pet.owner == "users/\(uid)"
             }
             if let newPetId = newPet?.id {
                 currentPetId = newPetId
                 petId = newPetId
+                
+                // If we uploaded with temp ID, re-upload with correct petId
+                if profilePhotoURL.contains("temp"), let imageData = profileImageData {
+                    if let processedData = AWSManager.shared.processImageForUpload(UIImage(data: imageData) ?? UIImage()) {
+                        do {
+                            let timestamp = Int(Date().timeIntervalSince1970)
+                            let s3Key = "pets/\(newPetId)/profile_photo_\(timestamp).jpg"
+                            _ = try await AWSManager.shared.uploadToS3Simple(
+                                imageData: processedData,
+                                s3Key: s3Key
+                            )
+                            // Update pet with profile photo URL
+                            await petViewModel.updatePet(
+                                petId: newPetId,
+                                name: petName,
+                                type: petType,
+                                age: age,
+                                gender: selectedGender.firebaseValue,
+                                profilePhoto: s3Key
+                            )
+                        } catch {
+                            print("⚠️ Failed to upload profile photo: \(error.localizedDescription)")
+                            // Don't fail the whole operation if photo upload fails
+                        }
+                    }
+                }
+                
                 await guardianViewModel.fetchGuardians(for: newPetId)
             }
         }
@@ -502,6 +639,19 @@ struct PetFormView: View {
         }
         
         return petId
+    }
+    
+    private func deletePet() async {
+        guard let petId = currentPetId else {
+            petViewModel.errorMessage = "No pet selected to delete"
+            return
+        }
+        
+        await petViewModel.deletePet(petId: petId)
+        
+        if petViewModel.errorMessage == nil {
+            dismiss()
+        }
     }
     
     private func handleInvite() async {

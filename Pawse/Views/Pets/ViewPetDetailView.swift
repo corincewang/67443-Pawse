@@ -11,6 +11,13 @@ struct ViewPetDetailView: View {
     let pet: Pet
     @Environment(\.dismiss) var dismiss
     @StateObject private var guardianViewModel = GuardianViewModel()
+    @State private var navigateToGallery = false
+    
+    // Get profile photo URL from S3 key
+    private var profilePhotoURL: URL? {
+        guard !pet.profile_photo.isEmpty else { return nil }
+        return AWSManager.shared.getPhotoURL(from: pet.profile_photo)
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -105,7 +112,10 @@ struct ViewPetDetailView: View {
                             .background(Color.white)
                             
                             // Go to gallery button
-                            NavigationLink(destination: PhotoGalleryView(petId: pet.id ?? "")) {
+                            // Go to gallery button - use programmatic navigation
+                            Button(action: {
+                                navigateToGallery = true
+                            }) {
                                 Text("Go to gallery")
                                     .font(.system(size: 20, weight: .bold))
                                     .foregroundColor(.white)
@@ -126,7 +136,7 @@ struct ViewPetDetailView: View {
                 ZStack {
                     // Pet photo/gradient background - fills the entire top section
                     Group {
-                        if !pet.profile_photo.isEmpty, let imageURL = URL(string: pet.profile_photo) {
+                        if let imageURL = profilePhotoURL {
                             AsyncImage(url: imageURL) { phase in
                                 switch phase {
                                 case .success(let image):
@@ -215,10 +225,16 @@ struct ViewPetDetailView: View {
         }
         .navigationBarBackButtonHidden(true)
         .swipeBack(dismiss: dismiss)
+        .navigationDestination(isPresented: $navigateToGallery) {
+            PhotoGalleryView(petId: pet.id ?? "", petName: pet.name)
+        }
         .task {
             if let petId = pet.id {
                 await guardianViewModel.fetchGuardians(for: petId)
             }
+        }
+        .onDisappear {
+            print("✅ ViewPetDetailView disappeared")
         }
     }
 }
