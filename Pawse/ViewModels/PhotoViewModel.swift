@@ -84,5 +84,23 @@ class PhotoViewModel: ObservableObject {
             errorMessage = error.localizedDescription
         }
     }
+    
+    func updatePhotoPrivacy(photoId: String, privacy: String) async {
+        do {
+            try await photoController.updatePhotoPrivacy(photoId: photoId, privacy: privacy)
+            // Update the local photo object if it exists
+            if let index = photos.firstIndex(where: { $0.id == photoId }) {
+                var updatedPhoto = photos[index]
+                updatedPhoto.privacy = privacy
+                photos[index] = updatedPhoto
+            }
+            // Update selected photo if it matches
+            if selectedPhoto?.id == photoId {
+                selectedPhoto?.privacy = privacy
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }
 

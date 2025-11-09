@@ -95,7 +95,7 @@ struct PhotoGalleryView: View {
                         
                         // Contest photos section
                         VStack(alignment: .leading, spacing: 15) {
-
+                            
                             Text("Contests")
                                 .font(.system(size: 36, weight: .bold))
                                 .foregroundColor(Color.pawseOrange)
@@ -255,100 +255,101 @@ struct PhotoGalleryView: View {
             }
         }
     }
-}
-
-struct PhotoThumbnailView: View {
-    let photo: Photo
-    let showDelete: Bool
-    let onDelete: () -> Void
-    @State private var thumbnailImage: UIImage?
-    @State private var isLoading = true
     
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            ZStack(alignment: .bottom) {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(hex: "F7D4BF"))
-                    .frame(width: 106, height: 136)
-                    .overlay(
-                        Group {
-                            if let thumbnailImage = thumbnailImage {
-                                NavigationLink(destination: PhotoDetailView(testPhoto: thumbnailImage, photo: photo)) {
-                                    Image(uiImage: thumbnailImage)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: 106, height: 136)
-                                        .clipped()
-                                }
-                            } else if isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(1.2)
-                            } else {
-                                VStack {
-                                    Image(systemName: "photo")
-                                        .font(.system(size: 30))
-                                        .foregroundColor(.white.opacity(0.5))
-                                    Text("Failed to load")
-                                        .font(.system(size: 10))
-                                        .foregroundColor(.white.opacity(0.7))
+    
+    struct PhotoThumbnailView: View {
+        let photo: Photo
+        let showDelete: Bool
+        let onDelete: () -> Void
+        @State private var thumbnailImage: UIImage?
+        @State private var isLoading = true
+        
+        var body: some View {
+            ZStack(alignment: .topTrailing) {
+                ZStack(alignment: .bottom) {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(hex: "F7D4BF"))
+                        .frame(width: 106, height: 136)
+                        .overlay(
+                            Group {
+                                if let thumbnailImage = thumbnailImage {
+                                    NavigationLink(destination: PhotoDetailView(testPhoto: thumbnailImage, photo: photo)) {
+                                        Image(uiImage: thumbnailImage)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                            .frame(width: 106, height: 136)
+                                            .clipped()
+                                    }
+                                } else if isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(1.2)
+                                } else {
+                                    VStack {
+                                        Image(systemName: "photo")
+                                            .font(.system(size: 30))
+                                            .foregroundColor(.white.opacity(0.5))
+                                        Text("Failed to load")
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.white.opacity(0.7))
+                                    }
                                 }
                             }
-                        }
-                    )
-                    .cornerRadius(10)
-                
-                // Date overlay at the bottom of the photo
-                // this should be changed to prompt if the photo is part of a contest
-                Text(formatDate(photo.uploaded_at))
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 106, height: 26)
-                    .background(Color.pawseGolden)
-                    .clipShape(
-                        UnevenRoundedRectangle(
-                            topLeadingRadius: 0,
-                            bottomLeadingRadius: 10,
-                            bottomTrailingRadius: 10,
-                            topTrailingRadius: 0
                         )
-                    )
-            }
-            
-            if showDelete {
-                Button(action: onDelete) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(.red)
-                        .background(Color.white.clipShape(Circle()))
+                        .cornerRadius(10)
+                    
+                    // Date overlay at the bottom of the photo
+                    // this should be changed to prompt if the photo is part of a contest
+                    Text(formatDate(photo.uploaded_at))
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 106, height: 26)
+                        .background(Color.pawseGolden)
+                        .clipShape(
+                            UnevenRoundedRectangle(
+                                topLeadingRadius: 0,
+                                bottomLeadingRadius: 10,
+                                bottomTrailingRadius: 10,
+                                topTrailingRadius: 0
+                            )
+                        )
                 }
-                .offset(x: 8, y: -8)
+                
+                if showDelete {
+                    Button(action: onDelete) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.red)
+                            .background(Color.white.clipShape(Circle()))
+                    }
+                    .offset(x: 8, y: -8)
+                }
+            }
+            .task {
+                await loadThumbnail()
             }
         }
-        .task {
-            await loadThumbnail()
+        
+        private func loadThumbnail() async {
+            isLoading = true
+            do {
+                thumbnailImage = try await AWSManager.shared.downloadImage(from: photo.image_link)
+            } catch {
+                print("Failed to load thumbnail for \(photo.image_link): \(error)")
+            }
+            isLoading = false
         }
-    }
-    
-    private func loadThumbnail() async {
-        isLoading = true
-        do {
-            thumbnailImage = try await AWSManager.shared.downloadImage(from: photo.image_link)
-        } catch {
-            print("Failed to load thumbnail for \(photo.image_link): \(error)")
+        
+        private func formatDate(_ date: Date) -> String {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MM/dd"
+            return formatter.string(from: date)
         }
-        isLoading = false
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM/dd"
-        return formatter.string(from: date)
     }
 }
 
-#Preview {
-    NavigationStack {
-        PhotoGalleryView(petId: "test-pet-id", petName: "Snowball")
-    }
-}
+//#Preview {
+//    NavigationStack {
+//        PhotoGalleryView(petId: "test-pet-id", petName: "Snowball")
+//    }
+//}

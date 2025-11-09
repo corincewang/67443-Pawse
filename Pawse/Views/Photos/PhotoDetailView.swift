@@ -9,6 +9,7 @@ import SwiftUI
 
 struct PhotoDetailView: View {
     @State private var showingShareOptions = false
+    @StateObject private var photoViewModel = PhotoViewModel()
     @Environment(\.dismiss) var dismiss
     let testPhoto: UIImage? // Add parameter for test photo
     let photo: Photo? // Add parameter for photo data
@@ -75,14 +76,21 @@ struct PhotoDetailView: View {
                     
                     Spacer()
                     
-                    Button(action: {
-                        showingShareOptions = true
-                    }) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 24))
-                            .foregroundColor(.white)
+                    // Only show share button for private photos
+                    if let photo = photo, photo.privacy == "private" {
+                        Button(action: {
+                            showingShareOptions = true
+                        }) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 24))
+                                .foregroundColor(.white)
+                        }
+                        .frame(width: 40, height: 40)
+                    } else {
+                        // Empty space to maintain layout consistency
+                        Spacer()
+                            .frame(width: 40, height: 40)
                     }
-                    .frame(width: 40, height: 40)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
@@ -146,7 +154,12 @@ struct PhotoDetailView: View {
                 title: "Share this photo to the friend circle?",
                 confirmText: "share",
                 confirmAction: {
-                    // Handle share action
+                    // Handle share action - change privacy to friends_only if it's private
+                    if let photo = photo, let photoId = photo.id, photo.privacy == "private" {
+                        Task {
+                            await photoViewModel.updatePhotoPrivacy(photoId: photoId, privacy: "friends_only")
+                        }
+                    }
                     showingShareOptions = false
                 },
                 cancelAction: {
