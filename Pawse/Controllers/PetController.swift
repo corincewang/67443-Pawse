@@ -5,7 +5,28 @@ final class PetController {
     private let db = FirebaseManager.shared.db
 
     func createPet(_ pet: Pet) async throws {
-        _ = try await db.collection(Collection.pets).addDocument(from: pet)
+        let docRef = try await db.collection(Collection.pets).addDocument(from: pet)
+        let petId = docRef.documentID
+        
+        // Update user's pets array
+        let ownerId = pet.owner.replacingOccurrences(of: "users/", with: "")
+        let petRef = "pets/\(petId)"
+        
+        // Get current user document to check if it exists and get current pets
+        let userRef = db.collection(Collection.users).document(ownerId)
+        let userDoc = try await userRef.getDocument()
+        
+        if userDoc.exists {
+            // User exists, update pets array using arrayUnion
+            try await userRef.updateData([
+                "pets": FieldValue.arrayUnion([petRef])
+            ])
+        } else {
+            // User doesn't exist, create with just pets array (minimal update)
+            try await userRef.setData([
+                "pets": [petRef]
+            ], merge: true)
+        }
     }
 
     func fetchPets(for user: String) async throws -> [Pet] {
@@ -26,7 +47,19 @@ final class PetController {
     }
 
     func deletePet(petId: String) async throws {
+        // Get pet to find owner before deleting
+        let pet = try await fetchPet(petId: petId)
+        let ownerId = pet.owner.replacingOccurrences(of: "users/", with: "")
+        let petRef = "pets/\(petId)"
+        
+        // Delete pet document
         try await db.collection(Collection.pets).document(petId).delete()
+        
+        // Remove from user's pets array
+        try await db.collection(Collection.users).document(ownerId)
+            .updateData([
+                "pets": FieldValue.arrayRemove([petRef])
+            ])
     }
     
     // Fetch pets where the user is an approved guardian
