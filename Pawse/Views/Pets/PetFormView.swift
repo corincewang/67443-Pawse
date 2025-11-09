@@ -416,72 +416,24 @@ struct PetFormView: View {
             Text("Are you sure you want to delete this pet? This action cannot be undone.")
         }
         .overlay {
-            // Floating window for invite
-            if showInviteFloatingWindow {
-                ZStack {
-                    // Semi-transparent background
-                    Color.black.opacity(0.3)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            showInviteFloatingWindow = false
-                            inviteEmail = ""
-                        }
-                    
-                    // Floating window
-                    VStack(spacing: 20) {
-                        TextField("search for account email", text: $inviteEmail)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 16)
-                            .frame(height: 52)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color(hex: "9B7EDE"), style: StrokeStyle(lineWidth: 2, dash: [5, 5]))
-                            )
-                            .autocapitalization(.none)
-                            .keyboardType(.emailAddress)
-                            .font(.system(size: 16, weight: .bold))
-                        
-                        HStack(spacing: 15) {
-                            // Invite button
-                            Button(action: {
-                                Task {
-                                    await handleInvite()
-                                }
-                            }) {
-                                Text("invite")
-                                    .font(.system(size: 20, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 50)
-                                    .background(Color.pawseOrange)
-                                    .cornerRadius(25)
-                            }
-                            .disabled(inviteEmail.isEmpty || guardianViewModel.isLoading)
-                            
-                            // Cancel button
-                            Button(action: {
-                                showInviteFloatingWindow = false
-                                inviteEmail = ""
-                            }) {
-                                Text("cancel")
-                                    .font(.system(size: 20, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 50)
-                                    .background(Color(hex: "DFA894"))
-                                    .cornerRadius(25)
-                            }
-                        }
+            // Floating window for invite using reusable component
+            InputFloatingWindow(
+                isPresented: showInviteFloatingWindow,
+                title: "Invite Co-owner",
+                placeholder: "search for account email",
+                inputText: $inviteEmail,
+                confirmText: "invite",
+                confirmAction: {
+                    Task {
+                        await handleInvite()
                     }
-                    .padding(24)
-                    .background(Color.white)
-                    .cornerRadius(20)
-                    .shadow(radius: 10)
-                    .padding(.horizontal, 40)
-                }
-            }
+                },
+                cancelAction: {
+                    showInviteFloatingWindow = false
+                    inviteEmail = ""
+                },
+                isLoading: guardianViewModel.isLoading
+            )
         }
         .alert("Error", isPresented: .constant(guardianViewModel.error != nil)) {
             Button("OK") {
