@@ -140,56 +140,19 @@ struct PhotoDetailView: View {
                 }
             }
             
-            // Custom share dialog overlay
-            if showingShareOptions {
-                Color.black.opacity(0.4)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        showingShareOptions = false
-                    }
-                
-                VStack(spacing: 20) {
-                    Text("Share this photo to the friend circle?")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.pawseOliveGreen)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 30)
-                        .padding(.horizontal, 10)
-                    
-                    HStack(spacing: 20) {
-                        // Share button
-                        Button(action: {
-                            // Handle share action
-                            showingShareOptions = false
-                        }) {
-                            Text("share")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 120, height: 45)
-                                .background(Color.pawseOrange)
-                                .cornerRadius(22.5)
-                        }
-                        
-                        // Cancel button
-                        Button(action: {
-                            showingShareOptions = false
-                        }) {
-                            Text("cancel")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 120, height: 45)
-                                .background(Color.gray.opacity(0.6))
-                                .cornerRadius(22.5)
-                        }
-                    }
-                    .padding(.bottom, 30)
-                    .padding(.top, 10)
+            // Share confirmation dialog using reusable component
+            ConfirmationFloatingWindow(
+                isPresented: showingShareOptions,
+                title: "Share this photo to the friend circle?",
+                confirmText: "share",
+                confirmAction: {
+                    // Handle share action
+                    showingShareOptions = false
+                },
+                cancelAction: {
+                    showingShareOptions = false
                 }
-                .background(Color.white)
-                .cornerRadius(20)
-                .frame(width: 300)
-                .shadow(radius: 10)
-            }
+            )
         }
         .navigationBarBackButtonHidden(true)
         .onAppear {

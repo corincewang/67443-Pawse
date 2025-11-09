@@ -37,7 +37,7 @@ struct PhotoGalleryView: View {
                     }
                     
                     Text(petName ?? "Unknown Pet")
-                        .font(.system(size: 48, weight: .bold))
+                        .font(.system(size: 43, weight: .bold))
                         .foregroundColor(.pawseOliveGreen)
                     
                     Spacer()
@@ -199,6 +199,9 @@ struct PhotoGalleryView: View {
             // Reset to nil to prevent any stale state from causing unwanted navigation
             petForEdit = nil
             navigateToViewPet = false
+            
+            // Show bottom bar when this view appears
+            NotificationCenter.default.post(name: .showBottomBar, object: nil)
         }
         .navigationDestination(item: $petForEdit) { pet in
             PetFormView(pet: pet)
