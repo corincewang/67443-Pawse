@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct Landing1View: View {
+    @EnvironmentObject var userViewModel: UserViewModel
+
     var body: some View {
         ZStack {
             // Gradient background
@@ -53,7 +55,7 @@ struct Landing1View: View {
                 Spacer()
                 
                 // Get Started button - Navigate to Login
-                NavigationLink(destination: LoginView()) {
+                NavigationLink(destination: LoginView().environmentObject(userViewModel)) {
                     Text("Get Started")
                         .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.white)

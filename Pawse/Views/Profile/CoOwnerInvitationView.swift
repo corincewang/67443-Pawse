@@ -10,7 +10,7 @@ import SwiftUI
 struct CoOwnerInvitationView: View {
     let guardian: Guardian
     @StateObject private var guardianViewModel = GuardianViewModel()
-    @StateObject private var userViewModel = UserViewModel()
+    @EnvironmentObject var userViewModel: UserViewModel
     @State private var showingAcceptAlert = false
     
     private var displayName: String {

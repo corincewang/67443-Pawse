@@ -9,11 +9,12 @@ import SwiftUI
 
 struct LoginView: View {
     @Environment(\.dismiss) var dismiss
-    @StateObject private var userViewModel = UserViewModel()
+    @EnvironmentObject var userViewModel: UserViewModel
     @State private var email = ""
     @State private var password = ""
     @State private var showingRegister = false
-    @State private var navigateToApp = false
+    @State private var navigateToSetup = false
+    
     
     var body: some View {
         ZStack {
@@ -66,6 +67,7 @@ struct LoginView: View {
                             .autocapitalization(.none)
                             .keyboardType(.emailAddress)
                             .textContentType(.emailAddress)
+                            .foregroundColor(.black)
                     }
                     
                     // Password
@@ -83,6 +85,7 @@ struct LoginView: View {
                                     .stroke(Color(red: 217/255, green: 217/255, blue: 217/255), lineWidth: 1)
                             )
                             .textContentType(.password)
+                            .foregroundColor(.black)
                     }
                 }
                 .padding(.horizontal, 30)
@@ -115,8 +118,12 @@ struct LoginView: View {
                     Button(action: {
                         Task {
                             await userViewModel.login(email: email, password: password)
-                            if userViewModel.currentUser != nil {
-                                navigateToApp = true
+                            if userViewModel.errorMessage == nil, let user = userViewModel.currentUser {
+                                // Check if user needs to complete profile setup
+                                if user.nick_name.isEmpty {
+                                    navigateToSetup = true
+                                }
+                                // Otherwise RootView will automatically switch to AppView
                             }
                         }
                     }) {
@@ -144,10 +151,11 @@ struct LoginView: View {
         .swipeBack(dismiss: dismiss)
         .navigationDestination(isPresented: $showingRegister) {
             RegisterView()
+                .environmentObject(userViewModel)
         }
-        .navigationDestination(isPresented: $navigateToApp) {
-            AppView()
-                .navigationBarBackButtonHidden(true)
+        .navigationDestination(isPresented: $navigateToSetup) {
+            AccountSetupView()
+                .environmentObject(userViewModel)
         }
     }
 }
@@ -155,5 +163,6 @@ struct LoginView: View {
 #Preview {
     NavigationStack {
         LoginView()
+            .environmentObject(UserViewModel())
     }
 }
