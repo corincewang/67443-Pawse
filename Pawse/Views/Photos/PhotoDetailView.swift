@@ -31,11 +31,32 @@ struct PhotoDetailView: View {
     
     var body: some View {
         ZStack {
-            Color.pawseGolden
+            // Black background like native Photos app
+            Color.black
                 .ignoresSafeArea()
             
-            VStack(spacing: 0) {
-                // Top navigation bar
+            // Full-screen photo
+            if let testPhoto = testPhoto {
+                Image(uiImage: testPhoto)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .ignoresSafeArea()
+            } else {
+                // Fallback placeholder
+                VStack {
+                    Image(systemName: "photo")
+                        .font(.system(size: 120))
+                        .foregroundColor(.white.opacity(0.6))
+                    
+                    Text("No Photo Available")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.white.opacity(0.8))
+                        .padding(.top, 20)
+                }
+            }
+            
+            // Top navigation bar overlay
+            VStack {
                 HStack(spacing: 0) {
                     Button(action: {
                         dismiss()
@@ -65,70 +86,58 @@ struct PhotoDetailView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
-                .padding(.bottom, 10)
-                
-                // Photo container
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.pawseOffWhite)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 600)
-                        // .padding(.horizontal, 20)
-                        .overlay(
-                            // Display test photo or placeholder
-                            Group {
-                                if let testPhoto = testPhoto {
-                                    Image(uiImage: testPhoto)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(width: 320, height: 400)
-                                        .cornerRadius(10)
-                                } else {
-                                    // Fallback to a sample system image
-                                    Image(systemName: "photo.on.rectangle.angled")
-                                        .font(.system(size: 120))
-                                        .foregroundColor(.white.opacity(0.6))
-                                        .overlay(
-                                            Text("Sample Photo")
-                                                .font(.system(size: 20, weight: .bold))
-                                                .foregroundColor(.white.opacity(0.8))
-                                                .padding(.top, 160)
-                                        )
-                                }
-                            }
-                        )
-                    
-                    // Like button and count overlay
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            HStack(spacing: 5) {
-                                Button(action: {}) {
-                                    Image(systemName: "heart.fill")
-                                        .font(.system(size: 24))
-                                        .foregroundColor(.white)
-                                }
-                                
-                                Text("15")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-                            .padding(.trailing, 40)
-                            .padding(.bottom, 40)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 600)
-                }
-                
-                // Contest tag
-                Text("sleepest pet")
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundColor(Color.pawseOffWhite)
-                    .padding(.top, 20)
+                .background(
+                    // Subtle gradient for better text visibility
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color.black.opacity(0.7), Color.clear]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 100)
+                )
                 
                 Spacer()
+            }
+            
+            // Bottom overlay with contest info and like button - only for public (contest) photos
+            if let photo = photo, photo.privacy == "public" {
+                VStack {
+                    Spacer()
+                    
+                    HStack {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("sleepest pet")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                        
+                        Spacer()
+                        
+                        // Like button and count
+                        HStack(spacing: 8) {
+                            Button(action: {}) {
+                                Image(systemName: "heart.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(.red)
+                            }
+                            
+                            Text("15")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 40)
+                    .background(
+                        // Subtle gradient for better text visibility
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.clear, Color.black.opacity(0.7)]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(height: 120)
+                    )
+                }
             }
             
             // Custom share dialog overlay

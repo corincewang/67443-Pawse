@@ -58,16 +58,21 @@ struct UploadPhotoView: View {
     }
     
     private var mainContent: some View {
-        VStack(spacing: 0) {
-            backButton
-            
-            Spacer()
-            
-            contentSection
-            
-            Spacer()
-            
-            uploadButton
+        ScrollView {
+            VStack(spacing: 0) {
+                backButton
+                
+                Spacer(minLength: 50)
+                
+                contentSection
+                
+                Spacer(minLength: 50)
+                
+                uploadButton
+                
+                // Extra padding to account for bottom bar
+                Spacer(minLength: 120)
+            }
         }
     }
     
