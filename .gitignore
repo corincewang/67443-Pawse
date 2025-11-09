@@ -13,6 +13,9 @@ DerivedData/
 *.xcworkspace/xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 
+# Ignore project.pbxproj
+*.xcodeproj/project.pbxproj
+
 # Xcode Version Compatibility
 *.xcscmblueprint
 *.xccheckout
