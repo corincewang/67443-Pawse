@@ -95,10 +95,10 @@ struct PhotoGalleryView: View {
                         
                         // Contest photos section
                         VStack(alignment: .leading, spacing: 15) {
+
                             Text("Contests")
-                                .font(.custom("Gabarito", size: 36))
-                                .fontWeight(.semibold)
-                                .foregroundColor(Color(hex: "FB8053"))
+                                .font(.system(size: 36, weight: .bold))
+                                .foregroundColor(Color.pawseOrange)
                             
                             if photoViewModel.isLoading {
                                 ProgressView("Loading photos...")
@@ -129,9 +129,8 @@ struct PhotoGalleryView: View {
                         // Memories section
                         VStack(alignment: .leading, spacing: 15) {
                             Text("Memories")
-                                .font(.custom("Gabarito", size: 36))
-                                .fontWeight(.semibold)
-                                .foregroundColor(Color(hex: "FB8053"))
+                                .font(.system(size: 36, weight: .bold))
+                                .foregroundColor(Color.pawseOrange)
                             
                             if photoViewModel.isLoading {
                                 ProgressView("Loading photos...")
@@ -158,7 +157,12 @@ struct PhotoGalleryView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 30)
+                        
+                        // Bottom padding to account for contest banner and floating button overlays
+                        Spacer()
+                            .frame(height: 200)
                     }
+                    .padding(.top, 10)
                 }
             }
             
@@ -259,7 +263,7 @@ struct PhotoThumbnailView: View {
     
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            VStack(spacing: 0) {
+            ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color(hex: "F7D4BF"))
                     .frame(width: 106, height: 136)
@@ -289,14 +293,24 @@ struct PhotoThumbnailView: View {
                             }
                         }
                     )
+                    .cornerRadius(10)
                 
+                // Date overlay at the bottom of the photo
+                // this should be changed to prompt if the photo is part of a contest
                 Text(formatDate(photo.uploaded_at))
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(.white)
                     .frame(width: 106, height: 26)
                     .background(Color.pawseGolden)
+                    .clipShape(
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 0,
+                            bottomLeadingRadius: 10,
+                            bottomTrailingRadius: 10,
+                            topTrailingRadius: 0
+                        )
+                    )
             }
-            .cornerRadius(10)
             
             if showDelete {
                 Button(action: onDelete) {

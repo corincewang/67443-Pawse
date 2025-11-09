@@ -113,18 +113,18 @@ struct PhotoDetailView: View {
                         
                         Spacer()
                         
-                        // Like button and count
-                        HStack(spacing: 8) {
-                            Button(action: {}) {
-                                Image(systemName: "heart.fill")
-                                    .font(.system(size: 28))
-                                    .foregroundColor(.red)
-                            }
+                        // // Like button and count
+                        // HStack(spacing: 8) {
+                        //     Button(action: {}) {
+                        //         Image(systemName: "heart.fill")
+                        //             .font(.system(size: 28))
+                        //             .foregroundColor(.red)
+                        //     }
                             
-                            Text("15")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundColor(.white)
-                        }
+                        //     Text("15")
+                        //         .font(.system(size: 24, weight: .bold))
+                        //         .foregroundColor(.white)
+                        // }
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 40)
