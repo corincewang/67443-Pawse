@@ -35,4 +35,13 @@ final class GuardianController {
         try await db.collection(Collection.Guardians).document(requestId)
             .updateData(["status": "rejected"])
     }
+    
+    // Fetch all pets where the user is an approved guardian
+    func fetchPetsForGuardian(guardianRef: String) async throws -> [Guardian] {
+        let snap = try await db.collection(Collection.Guardians)
+            .whereField("guardian", isEqualTo: guardianRef)
+            .whereField("status", isEqualTo: "approved")
+            .getDocuments()
+        return try snap.documents.compactMap { try $0.data(as: Guardian.self) }
+    }
 }

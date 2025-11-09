@@ -36,6 +36,12 @@ final class PhotoController {
         try await db.collection(Collection.photos).document(photoId).delete()
     }
     
+    func updatePhotoPrivacy(photoId: String, privacy: String) async throws {
+        try await db.collection(Collection.photos).document(photoId).updateData([
+            "privacy": privacy
+        ])
+    }
+    
     func fetchFriendsFeed() async throws -> [Photo] {
         guard let userId = FirebaseManager.shared.auth.currentUser?.uid else {
             throw AppError.noUser
