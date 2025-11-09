@@ -168,6 +168,20 @@ struct PhotoDetailView: View {
             )
         }
         .navigationBarBackButtonHidden(true)
+        .gesture(
+            DragGesture(minimumDistance: 20, coordinateSpace: .global)
+                .onEnded { value in
+                    // Left swipe: from left edge, swipe right
+                    let startX = value.startLocation.x
+                    let translationX = value.translation.width
+                    let translationY = value.translation.height
+                    
+                    // Check if swipe starts from left edge and moves right
+                    if startX < 50 && translationX > 50 && abs(translationY) < 100 {
+                        dismiss()
+                    }
+                }
+        )
         .onAppear {
             // Fast bottom bar hiding
             NotificationCenter.default.post(name: .hideBottomBar, object: nil)

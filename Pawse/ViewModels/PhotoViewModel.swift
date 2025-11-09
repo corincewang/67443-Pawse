@@ -21,10 +21,13 @@ class PhotoViewModel: ObservableObject {
     
     func fetchPhotos(for petId: String) async {
         isLoading = true
+        errorMessage = nil
         do {
             photos = try await photoController.fetchPhotos(for: petId)
+            print("✅ Fetched \(photos.count) photos for pet: \(petId)")
         } catch {
             errorMessage = error.localizedDescription
+            print("❌ Failed to fetch photos for pet \(petId): \(error)")
         }
         isLoading = false
     }
