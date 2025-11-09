@@ -37,7 +37,7 @@ struct ProfilePageView: View {
                             .minimumScaleFactor(0.5)
                         
                         // Conditional message based on whether user has pets
-                        if petViewModel.pets.isEmpty {
+                        if petViewModel.allPets.isEmpty {
                             Text("Create Your First Pet Album!")
                                 .font(.system(size: 24, weight: .regular))
                                 .foregroundColor(.pawseBrown)
@@ -84,7 +84,7 @@ struct ProfilePageView: View {
                     ProgressView()
                         .padding()
                     Spacer()
-                } else if petViewModel.pets.isEmpty {
+                } else if petViewModel.allPets.isEmpty {
                     // Empty state - show single add button, left-aligned
                     VStack(alignment: .leading, spacing: 0) {
                         NavigationLink(destination: PetFormView()) {
@@ -98,7 +98,7 @@ struct ProfilePageView: View {
                     // Show pets in horizontal scroll with add button at the end
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 20) {
-                            ForEach(petViewModel.pets) { pet in
+                            ForEach(petViewModel.allPets) { pet in
                                 NavigationLink(destination: PhotoGalleryView(petId: pet.id ?? "", petName: pet.name)) {
                                     PetCardView(pet: pet)
                                 }
@@ -138,6 +138,7 @@ struct ProfilePageView: View {
                         Spacer()
                         GuardianInvitationCard(
                             guardian: firstInvitation,
+                            petViewModel: petViewModel,
                             onDismiss: {
                                 withAnimation {
                                     showInvitationOverlay = false
@@ -157,6 +158,7 @@ struct ProfilePageView: View {
         .task {
             await userViewModel.fetchCurrentUser()
             await petViewModel.fetchUserPets()
+            await petViewModel.fetchGuardianPets()
             await guardianViewModel.fetchPendingInvitationsForCurrentUser()
             // Show overlay if there are invitations
             if !guardianViewModel.receivedInvitations.isEmpty {
@@ -164,8 +166,8 @@ struct ProfilePageView: View {
             }
             
             // Set selected pet name only if not already set (to keep it consistent during the session)
-            if selectedPetName == nil && !petViewModel.pets.isEmpty {
-                selectedPetName = petViewModel.pets.randomElement()?.name
+            if selectedPetName == nil && !petViewModel.allPets.isEmpty {
+                selectedPetName = petViewModel.allPets.randomElement()?.name
             }
         }
         .onChange(of: guardianViewModel.receivedInvitations.count) { _, newCount in
@@ -180,10 +182,10 @@ struct ProfilePageView: View {
 // Guardian Invitation Card Component
 struct GuardianInvitationCard: View {
     let guardian: Guardian
+    @ObservedObject var petViewModel: PetViewModel
     let onDismiss: () -> Void
     
     @StateObject private var userViewModel = UserViewModel()
-    @StateObject private var petViewModel = PetViewModel()
     @StateObject private var guardianViewModel = GuardianViewModel()
     @State private var ownerName: String = ""
     @State private var petName: String = ""
@@ -222,7 +224,7 @@ struct GuardianInvitationCard: View {
                 }
             } else {
                 VStack(spacing: 20) {
-                    Text("@\(ownerName) invites you to be a co-owner for @\(petName)")
+                    Text("@\(ownerName) invites you to be a guardian for @\(petName)")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.pawseOliveGreen)
                         .multilineTextAlignment(.center)
@@ -319,6 +321,9 @@ struct GuardianInvitationCard: View {
         await guardianViewModel.approveGuardianRequest(requestId: requestId, petId: petId)
         
         if guardianViewModel.error == nil {
+            // Refresh guardian pets to show the newly accepted pet
+            await petViewModel.fetchGuardianPets()
+            
             // Show checkmark animation
             withAnimation {
                 showAcceptedAnimation = true

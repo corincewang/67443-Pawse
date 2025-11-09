@@ -185,10 +185,10 @@ struct PetFormView: View {
                                     }
                                 }
                                 
-                                // Invite Co-owner
+                                // Invite Guardian
                                 VStack(alignment: .leading, spacing: 12) {
                                     HStack(spacing: 12) {
-                                        Text("Invite Co-owner")
+                                        Text("Invite Guardian")
                                             .font(.system(size: 18, weight: .bold))
                                             .foregroundColor(.pawseBrown)
                                         
@@ -210,7 +210,7 @@ struct PetFormView: View {
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     
-                                    // Show approved co-owners list
+                                    // Show approved guardians list
                                     if !guardianViewModel.approvedGuardians.isEmpty {
                                         VStack(alignment: .leading, spacing: 8) {
                                             ForEach(guardianViewModel.approvedGuardians, id: \.id) { guardian in
@@ -441,7 +441,7 @@ struct PetFormView: View {
             // Floating window for invite using reusable component
             InputFloatingWindow(
                 isPresented: showInviteFloatingWindow,
-                title: "Invite Co-owner",
+                title: "Invite Guardian",
                 placeholder: "search for account email",
                 inputText: $inviteEmail,
                 confirmText: "invite",

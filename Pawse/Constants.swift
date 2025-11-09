@@ -5,8 +5,8 @@ enum Collection {
     static let contests = "contests"
     static let contestPhotos = "contest_photos"
     static let connections = "connections"
-    static let coowners = "coowners"
-    static let Guardians = "coowners"  // Alias for Guardian model
+    static let coowners = "coowners"  // Database collection name - this is the ACTIVE collection used by the app
+    static let Guardians = "coowners"  // Alias for Guardian model - points to coowners collection (NOT guardians collection)
 }
 
 enum AppError: Error {

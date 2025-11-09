@@ -28,4 +28,33 @@ final class PetController {
     func deletePet(petId: String) async throws {
         try await db.collection(Collection.pets).document(petId).delete()
     }
+    
+    // Fetch pets where the user is an approved guardian
+    // Flow: user -> guardian relationships -> pets
+    func fetchPetsForGuardian(userId: String) async throws -> [Pet] {
+        let guardianController = GuardianController()
+        let guardianRef = "users/\(userId)"
+        
+        // Step 1: Find all guardian relationships for this user
+        let guardians = try await guardianController.fetchPetsForGuardian(guardianRef: guardianRef)
+        
+        // Step 2: Extract pet IDs from guardian relationships
+        let petIds = guardians.map { guardian in
+            guardian.pet.replacingOccurrences(of: "pets/", with: "")
+        }
+        
+        // Step 3: Fetch all pets in batch (if possible) or individually
+        var fetchedPets: [Pet] = []
+        for petId in petIds {
+            do {
+                let pet = try await fetchPet(petId: petId)
+                fetchedPets.append(pet)
+            } catch {
+                // Skip pets that can't be fetched (might be deleted)
+                continue
+            }
+        }
+        
+        return fetchedPets
+    }
 }
