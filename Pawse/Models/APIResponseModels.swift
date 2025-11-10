@@ -3,26 +3,36 @@ import Foundation
 // MARK: - Friends Feed Item
 struct FriendsFeedItem: Codable, Identifiable {
     let id: UUID = UUID()
+    let photo_id: String
     let pet_name: String
-    let votes_from_friends: Int
+    let owner_nickname: String
+    let owner_id: String
+    let image_link: String
+    let votes: Int
     let posted_at: String
-    let score: Double
+    var has_voted: Bool
     
     enum CodingKeys: String, CodingKey {
-        case pet_name, votes_from_friends, posted_at, score
+        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted
     }
 }
 
 // MARK: - Contest Feed Item
 struct ContestFeedItem: Codable, Identifiable {
     let id: UUID = UUID()
+    let contest_photo_id: String
     let pet_name: String
-    let votes_from_contest: Int
+    let owner_nickname: String
+    let owner_id: String
+    let image_link: String
+    let votes: Int
     let submitted_at: String
-    let score: Double
+    let contest_tag: String
+    var has_voted: Bool
+    var score: Double
     
     enum CodingKeys: String, CodingKey {
-        case pet_name, votes_from_contest, submitted_at, score
+        case contest_photo_id, pet_name, owner_nickname, owner_id, image_link, votes, submitted_at, contest_tag, has_voted, score
     }
 }
 
@@ -32,24 +42,25 @@ struct LeaderboardEntry: Codable, Identifiable {
     let rank: Int
     let pet_name: String
     let owner_nickname: String
-    let photo_url: String
+    let image_link: String
     let votes: Int
-    let score: Double
     
     enum CodingKeys: String, CodingKey {
-        case rank, pet_name, owner_nickname, photo_url, votes, score
+        case rank, pet_name, owner_nickname
+        case image_link
+        case votes
     }
 }
 
 // MARK: - Leaderboard Response
 struct LeaderboardResponse: Codable {
-    let contest_name: String
-    let leaderboard_updated: String
-    let top_entries: [LeaderboardEntry]
+    let contest_id: String
+    let contest_prompt: String
+    let leaderboard: [LeaderboardEntry]
     
     enum CodingKeys: String, CodingKey {
-        case contest_name
-        case leaderboard_updated
-        case top_entries
+        case contest_id
+        case contest_prompt
+        case leaderboard
     }
 }

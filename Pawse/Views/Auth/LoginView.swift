@@ -14,6 +14,8 @@ struct LoginView: View {
     @State private var password = ""
     @State private var showingRegister = false
     @State private var navigateToSetup = false
+    @State private var isEmailFieldFocused = false
+    @AppStorage("lastLoggedInEmail") private var lastLoggedInEmail: String = ""
     
     
     var body: some View {
@@ -44,6 +46,8 @@ struct LoginView: View {
                     .font(.system(size: 48, weight: .bold))
                     .foregroundColor(.pawseOliveGreen)
                     .multilineTextAlignment(.center)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 30)
                 
                 Spacer().frame(height: 60)
@@ -56,7 +60,16 @@ struct LoginView: View {
                             .font(.system(size: 22, weight: .bold))
                             .foregroundColor(.pawseBrown)
                         
-                        TextField("pawse@gmail.com", text: $email)
+                        ZStack(alignment: .leading) {
+                            if email.isEmpty && !isEmailFieldFocused {
+                                Text(lastLoggedInEmail.isEmpty ? "pawse@gmail.com" : lastLoggedInEmail)
+                                    .foregroundColor(.gray)
+                                    .padding(.leading, 16)
+                            }
+                            
+                            TextField("", text: $email, onEditingChanged: { focused in
+                                isEmailFieldFocused = focused
+                            })
                             .padding()
                             .background(Color.white)
                             .cornerRadius(8)
@@ -68,6 +81,7 @@ struct LoginView: View {
                             .keyboardType(.emailAddress)
                             .textContentType(.emailAddress)
                             .foregroundColor(.black)
+                        }
                     }
                     
                     // Password
@@ -119,6 +133,9 @@ struct LoginView: View {
                         Task {
                             await userViewModel.login(email: email, password: password)
                             if userViewModel.errorMessage == nil, let user = userViewModel.currentUser {
+                                // Save last logged in email
+                                lastLoggedInEmail = email
+                                
                                 // Check if user needs to complete profile setup
                                 if user.nick_name.isEmpty {
                                     navigateToSetup = true
@@ -156,6 +173,12 @@ struct LoginView: View {
         .navigationDestination(isPresented: $navigateToSetup) {
             AccountSetupView()
                 .environmentObject(userViewModel)
+        }
+        .onAppear {
+            // Pre-populate email with last logged in email
+            if !lastLoggedInEmail.isEmpty && email.isEmpty {
+                email = lastLoggedInEmail
+            }
         }
     }
 }

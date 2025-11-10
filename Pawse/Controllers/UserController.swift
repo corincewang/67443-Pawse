@@ -13,4 +13,17 @@ final class UserController {
         try await db.collection(Collection.users).document(uid)
             .updateData(["nick_name": nickName, "preferred_setting": preferred])
     }
+    
+    func searchUserByEmail(email: String) async throws -> User? {
+        let snap = try await db.collection(Collection.users)
+            .whereField("email", isEqualTo: email)
+            .limit(to: 1)
+            .getDocuments()
+        
+        guard let document = snap.documents.first else {
+            return nil
+        }
+        
+        return try document.data(as: User.self)
+    }
 }

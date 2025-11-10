@@ -13,8 +13,9 @@ final class PhotoController {
         return (URL(string: data["uploadUrl"] as! String)!, data["s3Key"] as! String)
     }
 
-    func savePhotoRecord(photo: Photo) async throws {
-        _ = try await db.collection(Collection.photos).addDocument(from: photo)
+    func savePhotoRecord(photo: Photo) async throws -> String {
+        let docRef = try await db.collection(Collection.photos).addDocument(from: photo)
+        return docRef.documentID
     }
 
     func fetchPhotos(for petId: String) async throws -> [Photo] {
@@ -42,35 +43,23 @@ final class PhotoController {
         ])
     }
     
-    func fetchFriendsFeed() async throws -> [Photo] {
-        guard let userId = FirebaseManager.shared.auth.currentUser?.uid else {
-            throw AppError.noUser
-        }
-        
-        // Fetch user's connections first
-        let connectionsSnap = try await db.collection(Collection.connections)
-            .whereField("uid2", isEqualTo: userId)
-            .whereField("status", isEqualTo: "approved")
-            .getDocuments()
-        
-        let friendIds = connectionsSnap.documents.compactMap { doc in
-            try? doc.data(as: Connection.self).user2.replacingOccurrences(of: "users/", with: "")
-        }
-        
-        guard !friendIds.isEmpty else { return [] }
-        
-        // Fetch all photos from friends
-        var friendPhotos: [Photo] = []
-        for friendId in friendIds {
-            let snap = try await db.collection(Collection.photos)
-                .whereField("uploaded_by", isEqualTo: "users/\(friendId)")
-                .whereField("privacy", in: ["public", "friends_only"])
-                .order(by: "uploaded_at", descending: true)
-                .getDocuments()
-            
-            friendPhotos.append(contentsOf: try snap.documents.compactMap { try $0.data(as: Photo.self) })
-        }
-        
-        return friendPhotos.sorted { $0.uploaded_at > $1.uploaded_at }
+    // MARK: - Vote Management
+    
+    /// Toggle vote on a photo (increment or decrement)
+    func toggleVote(photoId: String, currentVotes: Int, hasVoted: Bool) async throws {
+        let newVotes = hasVoted ? currentVotes - 1 : currentVotes + 1
+        try await db.collection(Collection.photos).document(photoId).updateData([
+            "votes_from_friends": newVotes
+        ])
+        print("✅ Updated photo \(photoId) votes_from_friends to \(newVotes)")
+    }
+    
+    /// Toggle vote on a contest photo entry
+    func toggleContestVote(contestPhotoId: String, currentVotes: Int, hasVoted: Bool) async throws {
+        let newVotes = hasVoted ? currentVotes - 1 : currentVotes + 1
+        try await db.collection(Collection.contestPhotos).document(contestPhotoId).updateData([
+            "votes": newVotes
+        ])
+        print("✅ Updated contest photo \(contestPhotoId) votes to \(newVotes)")
     }
 }

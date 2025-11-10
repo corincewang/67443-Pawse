@@ -7,6 +7,7 @@ enum Collection {
     static let connections = "connections"
     static let coowners = "coowners"
     static let Guardians = "coowners"  // Alias for Guardian model
+    static let notifications = "notifications"
 }
 
 enum AppError: Error {
