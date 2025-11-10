@@ -135,7 +135,8 @@ struct RegisterView: View {
                     }
                     Task {
                         await userViewModel.register(email: email, password: password)
-                        if userViewModel.currentUser != nil {
+                        // Only navigate if registration was successful (no error and user exists)
+                        if userViewModel.currentUser != nil && userViewModel.errorMessage == nil {
                             navigateToSetup = true
                         }
                     }

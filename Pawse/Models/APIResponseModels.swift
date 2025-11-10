@@ -42,11 +42,12 @@ struct LeaderboardEntry: Codable, Identifiable {
     let rank: Int
     let pet_name: String
     let owner_nickname: String
+    let owner_id: String
     let image_link: String
     let votes: Int
     
     enum CodingKeys: String, CodingKey {
-        case rank, pet_name, owner_nickname
+        case rank, pet_name, owner_nickname, owner_id
         case image_link
         case votes
     }

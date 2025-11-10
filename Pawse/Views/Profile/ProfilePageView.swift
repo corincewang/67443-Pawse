@@ -402,7 +402,7 @@ struct PetCardView: View {
                                     .resizable()
                                     .scaledToFill()
                                     .frame(width: 200, height: 260)
-                                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                                    .clipped()
                             case .failure(_), .empty:
                                 // Fallback to initial if image fails to load
                                 Text(pet.name.prefix(1).uppercased())
@@ -414,7 +414,6 @@ struct PetCardView: View {
                                     .foregroundColor(.white.opacity(0.5))
                             }
                         }
-                        .background(cardColors.background) // Use card background color instead of white
                     } else {
                         // No profile photo - show initial
                         Text(pet.name.prefix(1).uppercased())
@@ -423,8 +422,8 @@ struct PetCardView: View {
                     }
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 20))
             .frame(width: 200, height: 260)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
             
             // Pet name - overlapping the bottom of the image
             Text(pet.name.lowercased())

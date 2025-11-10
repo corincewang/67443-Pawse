@@ -56,8 +56,18 @@ final class ConnectionController {
     }
 
     func fetchConnections(for uid: String) async throws -> [Connection] {
-        let snap = try await db.collection(Collection.connections)
+        // Fetch connections where user is uid2 (recipient)
+        let snap1 = try await db.collection(Collection.connections)
             .whereField("uid2", isEqualTo: uid).getDocuments()
-        return try snap.documents.compactMap { try $0.data(as: Connection.self) }
+        
+        // Fetch connections where user is uid1 (sender)
+        let snap2 = try await db.collection(Collection.connections)
+            .whereField("uid1", isEqualTo: uid).getDocuments()
+        
+        // Combine both results and remove duplicates
+        let connections1 = try snap1.documents.compactMap { try $0.data(as: Connection.self) }
+        let connections2 = try snap2.documents.compactMap { try $0.data(as: Connection.self) }
+        
+        return connections1 + connections2
     }
 }

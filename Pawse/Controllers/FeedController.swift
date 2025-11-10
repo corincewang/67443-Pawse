@@ -101,6 +101,7 @@ final class FeedController {
                 rank: index + 1,
                 pet_name: pet.name,
                 owner_nickname: owner.nick_name,
+                owner_id: ownerId,
                 image_link: photo.image_link,
                 votes: contestPhoto.votes
             )

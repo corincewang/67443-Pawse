@@ -15,11 +15,39 @@ class FeedViewModel: ObservableObject {
     @Published var error: String?
     
     // Track which photos user has voted on (photo_id or contest_photo_id)
+    // Store in UserDefaults to persist across app launches and view recreations
     @Published var userVotedPhotoIds: Set<String> = []
     
     private let feedController = FeedController()
     private let photoController = PhotoController()
     private var cancellables = Set<AnyCancellable>()
+    
+    // UserDefaults key for persisting votes
+    private var votesStorageKey: String {
+        guard let userId = FirebaseManager.shared.auth.currentUser?.uid else {
+            return "userVotedPhotoIds_unknown"
+        }
+        return "userVotedPhotoIds_\(userId)"
+    }
+    
+    init() {
+        // Load persisted votes on initialization
+        loadPersistedVotes()
+    }
+    
+    // MARK: - Persistence
+    
+    private func loadPersistedVotes() {
+        if let savedVotes = UserDefaults.standard.array(forKey: votesStorageKey) as? [String] {
+            userVotedPhotoIds = Set(savedVotes)
+            print("📥 Loaded \(userVotedPhotoIds.count) persisted votes for current user")
+        }
+    }
+    
+    private func persistVotes() {
+        UserDefaults.standard.set(Array(userVotedPhotoIds), forKey: votesStorageKey)
+        print("💾 Persisted \(userVotedPhotoIds.count) votes for current user")
+    }
     
     // MARK: - Refresh Timers
     
@@ -115,6 +143,9 @@ class FeedViewModel: ObservableObject {
                 userVotedPhotoIds.insert(item.photo_id)
             }
             
+            // Persist the updated votes
+            persistVotes()
+            
             // No need to refresh - optimistic UI update in card handles display
         } catch {
             self.error = "Failed to vote: \(error.localizedDescription)"
@@ -136,6 +167,9 @@ class FeedViewModel: ObservableObject {
             } else {
                 userVotedPhotoIds.insert(item.contest_photo_id)
             }
+            
+            // Persist the updated votes
+            persistVotes()
             
             // No need to refresh feeds - optimistic UI update in card handles display
             // Leaderboard will update on next manual refresh or auto-refresh cycle
