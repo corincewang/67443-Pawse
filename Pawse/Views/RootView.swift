@@ -12,6 +12,7 @@ struct RootView: View {
     @StateObject private var userViewModel = UserViewModel()
     @State private var isAuthenticated = false
     @State private var isCheckingAuth = true
+    @AppStorage("hasLaunchedBefore") private var hasLaunchedBefore = false
     
     var body: some View {
         Group {
@@ -34,10 +35,20 @@ struct RootView: View {
             } else if isAuthenticated {
                 // User is logged in - show main app
                 AppView()
+                    .environmentObject(userViewModel)
             } else {
-                // User is not logged in - show onboarding/auth flow
+                // User is not logged in - show onboarding for first launch, login for returning users
                 NavigationStack {
-                    Landing1View()
+                    if hasLaunchedBefore {
+                        // Returning user who signed out - go directly to login
+                        LoginView()
+                            .environmentObject(userViewModel)
+                            .navigationBarBackButtonHidden(true)
+                    } else {
+                        // First time launch - show onboarding
+                        Landing1View()
+                            .environmentObject(userViewModel)
+                    }
                 }
             }
         }
@@ -45,16 +56,23 @@ struct RootView: View {
             checkAuthenticationState()
         }
         .onChange(of: userViewModel.currentUser) { _, newValue in
-            isAuthenticated = newValue != nil
+            // Only consider user authenticated if they have a nickname (profile completed)
+            isAuthenticated = newValue != nil && !(newValue?.nick_name.isEmpty ?? true)
         }
     }
     
     private func checkAuthenticationState() {
+        // Mark that the app has been launched
+        if !hasLaunchedBefore {
+            hasLaunchedBefore = true
+        }
+        
         // Check if user is already logged in
         if Auth.auth().currentUser != nil {
             Task {
                 await userViewModel.fetchCurrentUser()
-                isAuthenticated = userViewModel.currentUser != nil
+                // Only authenticate if user has completed profile (has nickname)
+                isAuthenticated = userViewModel.currentUser != nil && !(userViewModel.currentUser?.nick_name.isEmpty ?? true)
                 isCheckingAuth = false
             }
         } else {

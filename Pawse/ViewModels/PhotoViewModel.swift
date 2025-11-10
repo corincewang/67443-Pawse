@@ -32,10 +32,10 @@ class PhotoViewModel: ObservableObject {
         isLoading = false
     }
     
-    func uploadPhoto(petId: String, privacy: String, imageData: Data) async {
+    func uploadPhoto(petId: String, privacy: String, imageData: Data) async -> String? {
         guard let uid = authController.currentUID() else {
             errorMessage = "No user logged in"
-            return
+            return nil
         }
         
         isUploading = true
@@ -60,12 +60,15 @@ class PhotoViewModel: ObservableObject {
                 uploaded_by: "users/\(uid)",
                 votes_from_friends: 0
             )
-            try await photoController.savePhotoRecord(photo: photo)
+            let photoId = try await photoController.savePhotoRecord(photo: photo)
             
             print("✅ Photo uploaded successfully: \(s3Key)")
             
             // Refresh photos after successful upload
             await fetchPhotos(for: petId)
+            
+            isUploading = false
+            return photoId
             
         } catch let error as AWSError {
             errorMessage = error.errorDescription
@@ -76,6 +79,7 @@ class PhotoViewModel: ObservableObject {
         }
         
         isUploading = false
+        return nil
     }
     
     func deletePhoto(photoId: String, petId: String) async {

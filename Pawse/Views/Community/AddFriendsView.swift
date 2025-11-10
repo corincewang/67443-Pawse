@@ -46,6 +46,7 @@ struct AddFriendsView: View {
                     
                     TextField("Search by username or email", text: $searchText)
                         .autocapitalization(.none)
+                        .foregroundColor(.black)
                         .onSubmit {
                             // TODO: Implement user search
                             // For now, this is a placeholder

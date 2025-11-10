@@ -33,6 +33,13 @@ class ContestViewModel: ObservableObject {
         error = nil
         do {
             activeContests = try await contestController.fetchActiveContests()
+            
+            // If no active contests exist, create a default one
+            if activeContests.isEmpty {
+                try await contestController.ensureActiveContest()
+                activeContests = try await contestController.fetchActiveContests()
+            }
+            
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -70,10 +77,27 @@ class ContestViewModel: ObservableObject {
     }
     
     func fetchContestFeed() async {
+        guard let userId = FirebaseManager.shared.auth.currentUser?.uid else {
+            error = "No user logged in"
+            return
+        }
+        
+        // Get active contest ID
+        guard let contestId = activeContests.first?.id else {
+            print("⚠️ No active contest found for feed")
+            contestFeed = []
+            return
+        }
+        
         isLoading = true
         error = nil
         do {
-            contestFeed = try await feedController.fetchContestFeedItems()
+            // Use empty set for now - we'll implement vote tracking later if needed
+            contestFeed = try await feedController.fetchContestFeedItems(
+                for: userId,
+                contestId: contestId,
+                userVotedPhotoIds: []
+            )
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -102,16 +126,22 @@ class ContestViewModel: ObservableObject {
         error = nil
         successMessage = nil
         
+        print("🏆 ContestViewModel: Joining contest \(contestId) with photo \(photoId)")
+        
         do {
             try await contestController.joinContest(contestId: contestId, photoId: photoId)
+            print("✅ ContestViewModel: Successfully joined contest")
             successMessage = "Successfully submitted photo to contest!"
             
             // Refresh contest feed and leaderboard
+            print("🔄 ContestViewModel: Refreshing feeds...")
             await fetchContestFeed()
             await fetchLeaderboard()
+            print("✅ ContestViewModel: Feeds refreshed - contest feed count: \(contestFeed.count)")
             
             error = nil
         } catch {
+            print("❌ ContestViewModel: Error joining contest - \(error.localizedDescription)")
             self.error = error.localizedDescription
         }
         isLoading = false
@@ -133,6 +163,27 @@ class ContestViewModel: ObservableObject {
     
     func clearSuccessMessage() {
         successMessage = nil
+    }
+    
+    // MARK: - Create New Contest
+    
+    func createNewContest(prompt: String, durationDays: Int = 7) async {
+        isLoading = true
+        error = nil
+        
+        do {
+            _ = try await contestController.createContest(prompt: prompt, durationDays: durationDays)
+            successMessage = "New contest created: \(prompt)"
+            
+            // Refresh contests list
+            await fetchActiveContests()
+            
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
+        
+        isLoading = false
     }
     
     // MARK: - Helper Methods

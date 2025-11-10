@@ -16,7 +16,8 @@ struct ActiveContestBannerView: View {
     
     var body: some View {
         Button(action: {
-            // Action for when banner is tapped - can navigate to contest details
+            // Navigate to community page contest tab
+            NotificationCenter.default.post(name: .navigateToCommunityContest, object: nil)
         }) {
             ZStack(alignment: .topLeading) {
                 // Gradient background

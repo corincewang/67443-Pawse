@@ -19,11 +19,14 @@ class UserViewModel: ObservableObject {
     
     func fetchCurrentUser() async {
         guard let uid = authController.currentUID() else {
-            errorMessage = "No user logged in"
+            // No user logged in - clear any existing data and error
+            currentUser = nil
+            errorMessage = nil
             return
         }
         
         isLoading = true
+        errorMessage = nil // Clear any previous errors
         do {
             currentUser = try await userController.fetchUser(uid: uid)
         } catch {
@@ -47,6 +50,7 @@ class UserViewModel: ObservableObject {
     }
     
     func register(email: String, password: String) async {
+        errorMessage = nil // Clear any previous errors
         do {
             currentUser = try await authController.register(email: email, password: password)
         } catch {
@@ -55,6 +59,7 @@ class UserViewModel: ObservableObject {
     }
     
     func login(email: String, password: String) async {
+        errorMessage = nil // Clear any previous errors
         do {
             try await authController.login(email: email, password: password)
             await fetchCurrentUser()

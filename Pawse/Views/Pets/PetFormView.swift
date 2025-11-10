@@ -63,7 +63,7 @@ struct PetFormView: View {
                         Spacer()
                             .frame(height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
                         
-                        // Content with white background
+                        // Content with white background - extends all the way to eliminate black bar
                         VStack(spacing: 0) {
                             // Form section
                             VStack(alignment: .leading, spacing: 20) {
@@ -81,6 +81,7 @@ struct PetFormView: View {
                                         .background(Color.white)
                                         .cornerRadius(10)
                                         .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.black)
                                         .multilineTextAlignment(.leading)
                                 }
                                 
@@ -233,7 +234,6 @@ struct PetFormView: View {
                             .padding(.horizontal, 60)
                             .padding(.top, 0)
                             .padding(.bottom, 20)
-                            .background(Color.white)
                             
                             // Bottom button: Create Pet (new) or Delete Pet (edit)
                             if pet == nil {
@@ -272,10 +272,14 @@ struct PetFormView: View {
                                 .padding(.bottom, 150)
                                 .background(Color.white)
                             }
+                            .padding(.horizontal, 60)
+                            .padding(.bottom, 150)
                         }
+                        .background(Color.white)
                     }
                 }
                 .scrollIndicators(.hidden)
+                .background(Color.white) // Ensure entire scroll area has white background
                 
                 // Top section: Fixed 40% with gradient - always on top
                 ZStack {

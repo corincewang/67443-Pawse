@@ -115,6 +115,7 @@ struct InputFloatingWindow: View {
                     .autocapitalization(.none)
                     .keyboardType(.emailAddress)
                     .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.black)
                 
                 HStack(spacing: 15) {
                     // Confirm button - matches PetFormView "invite" button

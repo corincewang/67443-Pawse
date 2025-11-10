@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ProfilePageView: View {
     @StateObject private var petViewModel = PetViewModel()
-    @StateObject private var userViewModel = UserViewModel()
+    @EnvironmentObject var userViewModel: UserViewModel
     @StateObject private var guardianViewModel = GuardianViewModel()
     @State private var showInvitationOverlay = true
     @State private var selectedPetName: String? = nil // Store selected pet name for the session
@@ -52,18 +52,17 @@ struct ProfilePageView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     
                     // Settings button - circular in top right
-                    Button(action: {
-                        // TODO: Navigate to settings
-                    }) {
+                    NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
                         Circle()
                             .fill(Color.pawseWarmGrey)
-                            .frame(width: 44, height: 44)
+                            .frame(width: 56, height: 56) // larger tappable area
                             .overlay(
                                 Image(systemName: "gearshape")
                                     .font(.system(size: 20, weight: .medium))
                                     .foregroundColor(Color.white)
                             )
                             .padding(.top, -40)
+                            .contentShape(Rectangle())
                     }
                 }
                 .padding(.horizontal, 30)
@@ -149,6 +148,7 @@ struct ProfilePageView: View {
                                 }
                             }
                         )
+                        .environmentObject(guardianViewModel)
                         Spacer()
                     }
                 }
@@ -185,8 +185,9 @@ struct GuardianInvitationCard: View {
     @ObservedObject var petViewModel: PetViewModel
     let onDismiss: () -> Void
     
-    @StateObject private var userViewModel = UserViewModel()
-    @StateObject private var guardianViewModel = GuardianViewModel()
+    @EnvironmentObject var userViewModel: UserViewModel
+    @StateObject private var petViewModel = PetViewModel()
+    @EnvironmentObject var guardianViewModel: GuardianViewModel
     @State private var ownerName: String = ""
     @State private var petName: String = ""
     @State private var isLoading = true
@@ -479,5 +480,7 @@ struct RoundedCorners: Shape {
 #Preview {
     NavigationStack {
         ProfilePageView()
+            .environmentObject(UserViewModel())
+            .environmentObject(GuardianViewModel())
     }
 }
