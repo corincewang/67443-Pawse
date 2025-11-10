@@ -689,12 +689,12 @@ struct ActiveContestBanner: View {
     var body: some View {
         HStack {
             Image(systemName: "trophy.fill")
-                .font(.system(size: 24))
+                .font(.system(size: 22))
                 .foregroundColor(.yellow)
             
             VStack(alignment: .leading, spacing: 4) {
                 Text("Active Contest: \(contest.prompt)")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.white)
                 
                 Text("Ends: \(contest.end_date.formatted(.dateTime.month().day()))")

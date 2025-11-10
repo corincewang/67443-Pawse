@@ -36,13 +36,13 @@ struct ActiveContestBannerView: View {
                 HStack(alignment: .top) {
                     // Trophy icon
                     Image(systemName: "trophy.fill")
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundColor(.yellow)
                         .shadow(color: .black.opacity(0.3), radius: 2, x: 1, y: 1)
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Active Contest: \(contestTitle)")
-                            .font(.system(size: 22, weight: .bold))
+                            .font(.system(size: 20, weight: .bold))
                             .foregroundColor(.white)
                     }
                     

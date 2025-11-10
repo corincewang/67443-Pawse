@@ -120,8 +120,8 @@ struct ProfilePageView: View {
             VStack {
                 Spacer()
                 ActiveContestBannerView()
-                    .padding(.top, 280) // Position above bottom navigation (same as gallery)
-                    .padding(.bottom, 40) // Position above bottom navigation
+                    .padding(.top, 310) // Position above bottom navigation
+                    .padding(.bottom, 10) // Position above bottom navigation
             }
         }
         .overlay {
