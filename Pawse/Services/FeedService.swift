@@ -225,7 +225,7 @@ class FeedService {
                     votes: contestPhoto.votes,
                     submitted_at: contestPhoto.submitted_at.ISO8601Format(),
                     contest_tag: contest.prompt,
-                    has_voted: userVotedPhotoIds.contains(photoId),
+                    has_voted: userVotedPhotoIds.contains(contestPhotoId),
                     score: 0 // Will be calculated below
                 )
                 

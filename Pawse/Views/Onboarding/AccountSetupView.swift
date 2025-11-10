@@ -18,48 +18,37 @@ struct AccountSetupView: View {
     
     var body: some View {
         ZStack {
-            Color.pawseBackground
-                .ignoresSafeArea()
+            // Orange gradient background - full screen
+            LinearGradient(
+                colors: [
+                    Color.pawseOrange,
+                    Color(hex: "F8DEB8")
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Profile image section with card background extending up
-                ZStack(alignment: .bottom) {
-                    // Light card background extending to top
-                    Color(hex: "FAF7EB")
-                        .frame(height: 280)
-                        .ignoresSafeArea(edges: .top)
-                    
-                    // Profile image placeholder with add button
-                    ZStack(alignment: .bottomTrailing) {
-                        Circle()
-                            .fill(Color.pawseGolden.opacity(0.5))
-                            .frame(width: 140, height: 140)
-                            .overlay(
-                                Image(systemName: "person.fill")
-                                    .font(.system(size: 60))
-                                    .foregroundColor(.pawseOliveGreen.opacity(0.5))
-                            )
-                        
-                        // Add photo button
-                        Circle()
-                            .fill(Color.pawseOrange)
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Image(systemName: "plus")
-                                    .font(.system(size: 20, weight: .bold))
-                                    .foregroundColor(.white)
-                            )
-                    }
-                    .offset(y: 70)
-                }
+                // Title at top on gradient background
+                Text("Account Setting")
+                    .font(.system(size: 42, weight: .bold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 30)
+                    .padding(.top, 80)
                 
-                // Card containing editable fields (continuing the same background)
+                Spacer()
+                    .frame(height: 80)
+                
+                // White card containing form
                 VStack(alignment: .leading, spacing: 18) {
                     Text("Nickname")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.pawseBrown)
                     
-                    TextField("Nickname", text: $nickName)
+                    TextField("Corince", text: $nickName)
                         .padding()
                         .background(Color.white)
                         .cornerRadius(8)
@@ -69,7 +58,7 @@ struct AccountSetupView: View {
                         )
                         .foregroundColor(.black)
                     
-                    Text("Prefered Setting")
+                    Text("Preferred Settings")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.pawseBrown)
                     
@@ -125,10 +114,13 @@ struct AccountSetupView: View {
                         .disabled(nickName.isEmpty)
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 90)
-                .padding(.bottom, 24)
-                .background(Color(hex: "FAF7EB"))
+                .padding(.horizontal, 30)
+                .padding(.top, 30)
+                .padding(.bottom, 30)
+                .background(Color.white)
+                .cornerRadius(25)
+                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+                .padding(.horizontal, 30)
                 
                 Spacer()
             }

@@ -96,8 +96,8 @@ struct CommunityView: View {
                     }
                     .padding(.trailing, 20)
                 }
-                .padding(.top, 60)
-                .padding(.bottom, 20)
+                .padding(.top, 50)
+                .padding(.bottom, 16)
                 
                 // Content based on selected tab with swipe gestures
                 TabView(selection: $selectedTab) {
@@ -109,6 +109,20 @@ struct CommunityView: View {
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: selectedTab)
+                .onChange(of: selectedTab) { newTab in
+                    // Refresh feed when switching tabs to ensure UI is up to date
+                    Task {
+                        switch newTab {
+                        case .friends:
+                            await feedViewModel.fetchFriendsFeed()
+                        case .contest:
+                            if let activeContest = contestViewModel.activeContests.first,
+                               let contestId = activeContest.id {
+                                await feedViewModel.fetchContestFeed(contestId: contestId)
+                            }
+                        }
+                    }
+                }
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -321,48 +335,55 @@ struct FriendPhotoCard: View {
             .buttonStyle(.plain)
             
             // Photo with like button overlay
-            ZStack(alignment: .bottomTrailing) {
-                if let imageData = imageData, let uiImage = UIImage(data: imageData) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 300)
-                        .clipped()
-                        .cornerRadius(12)
-                } else {
-                    Rectangle()
-                        .fill(Color.pawseGolden.opacity(0.3))
-                        .frame(height: 300)
-                        .cornerRadius(12)
-                        .overlay(
-                            ProgressView()
-                        )
-                }
+            GeometryReader { geometry in
+                let imageWidth = geometry.size.width * 0.95
+                let imageHeight = imageWidth  // Square 1:1 ratio
                 
-                // Like button
-                HStack(spacing: 6) {
-                    Button(action: {
-                        // Optimistically update UI
-                        isLiked.toggle()
-                        currentVotes += isLiked ? 1 : -1
-                        
-                        Task {
-                            await feedViewModel.toggleVoteOnFriendsPhoto(item: feedItem)
-                        }
-                    }) {
-                        Image(systemName: isLiked ? "heart.fill" : "heart")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(isLiked ? .red : .white)
-                            .shadow(color: .black.opacity(0.3), radius: 2)
+                ZStack {
+                    if let imageData = imageData, let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: imageWidth, height: imageHeight)
+                            .clipped()
+                            .cornerRadius(12)
+                    } else {
+                        Rectangle()
+                            .fill(Color.pawseGolden.opacity(0.3))
+                            .frame(width: imageWidth, height: imageHeight)
+                            .cornerRadius(12)
+                            .overlay(
+                                ProgressView()
+                            )
                     }
                     
-                    Text("\(currentVotes)")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.3), radius: 2)
+                    // Like button positioned absolutely
+                    HStack(spacing: 6) {
+                        Button(action: {
+                            // Optimistically update UI
+                            isLiked.toggle()
+                            currentVotes += isLiked ? 1 : -1
+                            
+                            Task {
+                                await feedViewModel.toggleVoteOnFriendsPhoto(item: feedItem)
+                            }
+                        }) {
+                            Image(systemName: isLiked ? "heart.fill" : "heart")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(isLiked ? .red : .white)
+                                .shadow(color: .black.opacity(0.3), radius: 2)
+                        }
+                        
+                        Text("\(currentVotes)")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.3), radius: 2)
+                    }
+                    .position(x: imageWidth - 30, y: imageHeight - 30)
                 }
-                .padding(12)
+                .frame(width: geometry.size.width, height: imageHeight, alignment: .center)
             }
+            .frame(height: UIScreen.main.bounds.width * 0.95)
         }
         .task {
             if !feedItem.image_link.isEmpty {
@@ -438,28 +459,30 @@ struct ContestPhotoCard: View {
             }
             .buttonStyle(.plain)
             
-            // Photo with vote and share buttons overlay
-            ZStack(alignment: .bottomTrailing) {
-                if let imageData = imageData, let uiImage = UIImage(data: imageData) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 300)
-                        .clipped()
-                        .cornerRadius(12)
-                } else {
-                    Rectangle()
-                        .fill(Color.pawseGolden.opacity(0.3))
-                        .frame(height: 300)
-                        .cornerRadius(12)
-                        .overlay(
-                            ProgressView()
-                        )
-                }
+                        // Photo with vote and share buttons overlay
+            GeometryReader { geometry in
+                let imageWidth = geometry.size.width * 0.95
+                let imageHeight = imageWidth  // Square 1:1 ratio
                 
-                // Vote and Share buttons
-                HStack(spacing: 12) {
-                    // Like button
+                ZStack {
+                    if let imageData = imageData, let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: imageWidth, height: imageHeight)
+                            .clipped()
+                            .cornerRadius(12)
+                    } else {
+                        Rectangle()
+                            .fill(Color.pawseGolden.opacity(0.3))
+                            .frame(width: imageWidth, height: imageHeight)
+                            .cornerRadius(12)
+                            .overlay(
+                                ProgressView()
+                            )
+                    }
+                    
+                    // Like button positioned absolutely
                     HStack(spacing: 6) {
                         Button(action: {
                             // Optimistically update UI
@@ -483,30 +506,11 @@ struct ContestPhotoCard: View {
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.3), radius: 2)
                     }
-                    
-                    // Share button
-                    Button(action: {
-                        showShare = true
-                    }) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.3), radius: 2)
-                    }
+                                        .position(x: imageWidth - 30, y: imageHeight - 30)
                 }
-                .padding(12)
+                .frame(width: geometry.size.width, height: imageHeight, alignment: .center)
             }
-            
-            // Votes
-            HStack(spacing: 6) {
-                Image(systemName: "heart.fill")
-                    .font(.system(size: 18))
-                    .foregroundColor(.pawseLightCoral)
-                
-                Text("\(currentVotes)")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.pawseBrown)
-            }
+            .frame(height: UIScreen.main.bounds.width * 0.95)
         }
         .task {
             if !feedItem.image_link.isEmpty {
@@ -523,41 +527,65 @@ struct ContestPhotoCard: View {
     }
 }
 
+// MARK: - Contest Photo Card
+
 // MARK: - Leaderboard View
 
 struct LeaderboardView: View {
     let leaderboard: LeaderboardResponse
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Contest title
+        VStack(spacing: 8) {
+            // Contest title - smaller and more compact
             Text(leaderboard.contest_prompt)
-                .font(.system(size: 28, weight: .bold))
+                .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.pawseOrange)
+                .padding(.bottom, 20)
             
-            // Top 3 podium
-            HStack(alignment: .bottom, spacing: 12) {
-                // 2nd place
-                if leaderboard.leaderboard.count > 1 {
-                    LeaderboardPodiumItem(entry: leaderboard.leaderboard[1], rank: 2)
-                }
+            // Top 3 podium - using GeometryReader with wider width
+            GeometryReader { geometry in
+                let containerWidth = geometry.size.width * 0.90 // Wider than photo cards
                 
-                // 1st place
-                if !leaderboard.leaderboard.isEmpty {
-                    LeaderboardPodiumItem(entry: leaderboard.leaderboard[0], rank: 1)
+                HStack(alignment: .bottom, spacing: 0) {
+                    // 2nd place
+                    if leaderboard.leaderboard.count > 1 {
+                        LeaderboardPodiumItem(entry: leaderboard.leaderboard[1], rank: 2)
+                            .frame(width: containerWidth / 3)
+                    }
+                    
+                    // 1st place
+                    if !leaderboard.leaderboard.isEmpty {
+                        LeaderboardPodiumItem(entry: leaderboard.leaderboard[0], rank: 1)
+                            .frame(width: containerWidth / 3)
+                    }
+                    
+                    // 3rd place
+                    if leaderboard.leaderboard.count > 2 {
+                        LeaderboardPodiumItem(entry: leaderboard.leaderboard[2], rank: 3)
+                            .frame(width: containerWidth / 3)
+                    }
                 }
-                
-                // 3rd place
-                if leaderboard.leaderboard.count > 2 {
-                    LeaderboardPodiumItem(entry: leaderboard.leaderboard[2], rank: 3)
-                }
+                .frame(width: containerWidth)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal)
+            .frame(height: 110)
+            .padding(.bottom, 14)
         }
-        .padding(.vertical, 20)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.5))
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.9),
+                            Color.pawseGolden.opacity(0.3)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
         )
     }
 }
@@ -565,6 +593,7 @@ struct LeaderboardView: View {
 struct LeaderboardPodiumItem: View {
     let entry: LeaderboardEntry
     let rank: Int
+    @State private var imageData: Data?
     
     var rankColor: Color {
         switch rank {
@@ -575,40 +604,80 @@ struct LeaderboardPodiumItem: View {
         }
     }
     
+    // Vertical offset for podium effect
+    var verticalOffset: CGFloat {
+        switch rank {
+        case 1: return -15  // 1st place higher
+        case 2: return 0    // 2nd place baseline
+        case 3: return 5    // 3rd place lower
+        default: return 0
+        }
+    }
+    
     var body: some View {
-        VStack(spacing: 8) {
-            // Profile circle
-            Circle()
-                .fill(Color.pawseGolden)
-                .frame(width: rank == 1 ? 70 : 60, height: rank == 1 ? 70 : 60)
-                .overlay(
-                    VStack {
+        NavigationLink {
+            OtherUserProfileView(userId: entry.owner_id)
+        } label: {
+            VStack(spacing: 3) {
+                // Profile circle with pet image
+                ZStack {
+                    Circle()
+                        .fill(Color.pawseGolden)
+                        .frame(width: rank == 1 ? 50 : 44, height: rank == 1 ? 50 : 44)
+                    
+                    if let imageData = imageData, let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: rank == 1 ? 50 : 44, height: rank == 1 ? 50 : 44)
+                            .clipShape(Circle())
+                    } else {
                         Text(String(entry.pet_name.prefix(1)))
-                            .font(.system(size: rank == 1 ? 30 : 24, weight: .bold))
+                            .font(.system(size: rank == 1 ? 22 : 18, weight: .bold))
                             .foregroundColor(.pawseOliveGreen)
                     }
-                )
-            
-            // Pet name
-            Text(entry.pet_name)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.pawseBrown)
-                .lineLimit(1)
-            
-            // Rank badge
-            Text("\(rank)")
-                .font(.system(size: rank == 1 ? 24 : 20, weight: .bold))
-                .foregroundColor(.white)
-                .frame(width: rank == 1 ? 50 : 44, height: rank == 1 ? 50 : 44)
-                .background(rankColor)
-                .clipShape(Circle())
-            
-            // Votes
-            Text("\(entry.votes) ♥︎")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.pawseLightCoral)
+                }
+                
+                // Pet name
+                Text(entry.pet_name)
+                    .font(.system(size: rank == 1 ? 12 : 10, weight: .semibold))
+                    .foregroundColor(.pawseBrown)
+                    .lineLimit(1)
+                
+                // Rank badge below name
+                Text("\(rank)")
+                    .font(.system(size: rank == 1 ? 18 : 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: rank == 1 ? 32 : 28, height: rank == 1 ? 32 : 28)
+                    .background(rankColor)
+                    .clipShape(Circle())
+                
+                // Votes
+                HStack(spacing: 2) {
+                    Text("\(entry.votes)")
+                        .font(.system(size: rank == 1 ? 13 : 11, weight: .semibold))
+                        .foregroundColor(.pawseLightCoral)
+                    Text("♥︎")
+                        .font(.system(size: rank == 1 ? 13 : 11, weight: .medium))
+                        .foregroundColor(.pawseLightCoral)
+                }
+            }
+            .offset(y: verticalOffset)
         }
-        .frame(height: rank == 1 ? 200 : 180)
+        .buttonStyle(.plain)
+        .task {
+            // Load pet profile image
+            if !entry.image_link.isEmpty {
+                do {
+                    let image = try await AWSManager.shared.downloadImage(from: entry.image_link)
+                    if let data = image?.jpegData(compressionQuality: 0.8) {
+                        imageData = data
+                    }
+                } catch {
+                    print("Failed to load leaderboard image: \(error)")
+                }
+            }
+        }
     }
 }
 
@@ -826,8 +895,13 @@ struct FriendRequestCard: View {
         .background(Color(hex: "FAF7EB"))
         .cornerRadius(12)
         .task {
-            // Fetch requester details
-            let userId = request.user2.replacingOccurrences(of: "users/", with: "")
+            // Fetch requester details - user1 is the sender, user2 is the recipient
+            // We need to fetch user1's details since they sent the request
+            let userId = request.user1?.replacingOccurrences(of: "users/", with: "") ?? request.uid1 ?? ""
+            guard !userId.isEmpty else {
+                requesterName = "Someone"
+                return
+            }
             do {
                 let userController = UserController()
                 let user = try await userController.fetchUser(uid: userId)

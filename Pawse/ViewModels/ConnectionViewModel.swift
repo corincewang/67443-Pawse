@@ -55,11 +55,23 @@ class ConnectionViewModel: ObservableObject {
     }
     
     private func fetchFriendDetails() async {
+        guard let currentUserId = getCurrentUserId() else { return }
         var friendsList: [User] = []
         
         for connection in approvedConnections {
             do {
-                let friendId = connection.user2.replacingOccurrences(of: "users/", with: "")
+                // Determine which user is the friend (not the current user)
+                let friendId: String
+                if connection.uid1 == currentUserId {
+                    // Current user is uid1, so friend is uid2
+                    friendId = connection.user2.replacingOccurrences(of: "users/", with: "")
+                } else {
+                    // Current user is uid2, so friend is uid1
+                    friendId = connection.user1?.replacingOccurrences(of: "users/", with: "") ?? connection.uid1 ?? ""
+                }
+                
+                guard !friendId.isEmpty else { continue }
+                
                 let friend = try await userController.fetchUser(uid: friendId)
                 friendsList.append(friend)
             } catch {
@@ -182,8 +194,16 @@ class ConnectionViewModel: ObservableObject {
     }
     
     func hasRequestPending(to userId: String) -> Bool {
-        connections.contains { 
-            $0.user2 == "users/\(userId)" && $0.status == "pending"
+        guard let currentUserId = getCurrentUserId() else { return false }
+        
+        // Check if there's a pending request involving both users
+        return connections.contains { connection in
+            connection.status == "pending" && (
+                // Current user sent request to userId
+                (connection.uid1 == currentUserId && connection.uid2 == userId) ||
+                // userId sent request to current user
+                (connection.uid1 == userId && connection.uid2 == currentUserId)
+            )
         }
     }
     
@@ -205,7 +225,20 @@ class ConnectionViewModel: ObservableObject {
     
     // Get user details for a connection
     func getUserDetails(for connection: Connection) async -> User? {
-        let userId = connection.user2.replacingOccurrences(of: "users/", with: "")
+        guard let currentUserId = getCurrentUserId() else { return nil }
+        
+        // Determine which user is the other person (not the current user)
+        let userId: String
+        if connection.uid1 == currentUserId {
+            // Current user is uid1, so get uid2
+            userId = connection.user2.replacingOccurrences(of: "users/", with: "")
+        } else {
+            // Current user is uid2, so get uid1
+            userId = connection.user1?.replacingOccurrences(of: "users/", with: "") ?? connection.uid1 ?? ""
+        }
+        
+        guard !userId.isEmpty else { return nil }
+        
         do {
             return try await userController.fetchUser(uid: userId)
         } catch {
