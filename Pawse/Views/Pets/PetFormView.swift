@@ -254,7 +254,6 @@ struct PetFormView: View {
                                 .disabled(!isFormValid || petViewModel.isLoading)
                                 .padding(.horizontal, 60)
                                 .padding(.bottom, 150)
-                                .background(Color.white)
                             } else {
                                 // Delete Pet button for existing pet
                                 Button(action: {
@@ -270,10 +269,7 @@ struct PetFormView: View {
                                 }
                                 .padding(.horizontal, 60)
                                 .padding(.bottom, 150)
-                                .background(Color.white)
                             }
-                            .padding(.horizontal, 60)
-                            .padding(.bottom, 150)
                         }
                         .background(Color.white)
                     }
@@ -490,25 +486,6 @@ struct PetFormView: View {
             }
         } message: {
             Text("Are you sure you want to delete \(petName)? This action cannot be undone.")
-        }
-        .onAppear {
-            // Load pet data if in edit mode
-            if let pet = pet {
-                petName = pet.name
-                petType = pet.type
-                petAge = "\(pet.age)"
-                selectedGender = pet.gender == "M" ? .male : .female
-                currentPetId = pet.id
-                hasSelectedType = true
-                hasSelectedAge = true
-                
-                // Load guardians for this pet
-                if let petId = pet.id {
-                    Task {
-                        await guardianViewModel.fetchGuardians(for: petId)
-                    }
-                }
-            }
         }
     }
     

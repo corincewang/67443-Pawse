@@ -186,7 +186,6 @@ struct GuardianInvitationCard: View {
     let onDismiss: () -> Void
     
     @EnvironmentObject var userViewModel: UserViewModel
-    @StateObject private var petViewModel = PetViewModel()
     @EnvironmentObject var guardianViewModel: GuardianViewModel
     @State private var ownerName: String = ""
     @State private var petName: String = ""
