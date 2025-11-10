@@ -1,13 +1,13 @@
 //
-//  CoOwnerInvitationView.swift
+//  GuardianInvitationView.swift
 //  Pawse
 //
-//  Co-owner invitation screen (profile_0_inviteowner)
+//  Guardian invitation screen (profile_0_inviteowner)
 //
 
 import SwiftUI
 
-struct CoOwnerInvitationView: View {
+struct GuardianInvitationView: View {
     let guardian: Guardian
     @StateObject private var guardianViewModel = GuardianViewModel()
     @StateObject private var userViewModel = UserViewModel()
@@ -43,7 +43,7 @@ struct CoOwnerInvitationView: View {
                         .font(.system(size: 56, weight: .bold))
                         .foregroundColor(.pawseOliveGreen)
                     
-                    Text("You have a new co-owner invitation!")
+                    Text("You have a new guardian invitation!")
                         .font(.system(size: 26))
                         .foregroundColor(Color(hex: "3A3A38"))
                 }
@@ -62,7 +62,7 @@ struct CoOwnerInvitationView: View {
                         .shadow(radius: 5)
                     
                     VStack(spacing: 20) {
-                        Text("\(extractUsername(from: guardian.guardian)) invites you to be a co-owner")
+                        Text("\(extractUsername(from: guardian.guardian)) invites you to be a guardian")
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(.pawseOliveGreen)
                             .multilineTextAlignment(.center)
@@ -142,7 +142,7 @@ struct CoOwnerInvitationView: View {
         .alert("Invitation Accepted", isPresented: $showingAcceptAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("You are now a co-owner!")
+            Text("You are now a guardian!")
         }
         .alert("Error", isPresented: .constant(guardianViewModel.error != nil)) {
             Button("OK") {
@@ -186,5 +186,5 @@ struct CoOwnerInvitationView: View {
         pet: "pets/snowball",
         status: "pending"
     )
-    return CoOwnerInvitationView(guardian: sampleGuardian)
+    return GuardianInvitationView(guardian: sampleGuardian)
 }

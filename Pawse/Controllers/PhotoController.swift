@@ -18,12 +18,28 @@ final class PhotoController {
     }
 
     func fetchPhotos(for petId: String) async throws -> [Photo] {
+        let petRef = "pets/\(petId)"
         let snap = try await db.collection(Collection.photos)
-            .whereField("pet", isEqualTo: "pets/\(petId)")
+            .whereField("pet", isEqualTo: petRef)
             .getDocuments()
         
-        // Sort in memory instead of using Firestore ordering
-        let photos = try snap.documents.compactMap { try $0.data(as: Photo.self) }
+        print("🔍 Fetching photos for pet: \(petRef), found \(snap.documents.count) documents")
+        
+        // Decode photos with better error handling
+        var photos: [Photo] = []
+        for document in snap.documents {
+            do {
+                let photo = try document.data(as: Photo.self)
+                photos.append(photo)
+            } catch {
+                // Log decoding errors but continue processing other documents
+                print("⚠️ Failed to decode photo \(document.documentID): \(error)")
+                print("   Document data: \(document.data())")
+                continue
+            }
+        }
+        
+        // Sort by uploaded_at descending (newest first)
         return photos.sorted { $0.uploaded_at > $1.uploaded_at }
     }
 
@@ -34,6 +50,12 @@ final class PhotoController {
 
     func deletePhoto(photoId: String) async throws {
         try await db.collection(Collection.photos).document(photoId).delete()
+    }
+    
+    func updatePhotoPrivacy(photoId: String, privacy: String) async throws {
+        try await db.collection(Collection.photos).document(photoId).updateData([
+            "privacy": privacy
+        ])
     }
     
     func fetchFriendsFeed() async throws -> [Photo] {

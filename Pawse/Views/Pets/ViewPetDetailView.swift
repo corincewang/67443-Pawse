@@ -31,7 +31,7 @@ struct ViewPetDetailView: View {
                         
                         // Content with white background
                         VStack(spacing: 0) {
-                            // Pet name - same font size as Co-Owners
+                            // Pet name - same font size as Guardians
                             Text(pet.name)
                                 .font(.system(size: 26, weight: .bold))
                                 .foregroundColor(.pawseBrown)
@@ -88,21 +88,21 @@ struct ViewPetDetailView: View {
                                 .background(Color.white)
                             }
                             
-                            // Co-Owners section
+                            // Guardians section
                             VStack(alignment: .leading, spacing: 15) {
-                                Text("Co-Owners")
+                                Text("Guardians")
                                     .font(.system(size: 26, weight: .bold))
                                     .foregroundColor(.pawseBrown)
                                 
                                 if guardianViewModel.isLoading {
                                     ProgressView()
                                 } else if guardianViewModel.guardians.isEmpty {
-                                    Text("No co-owners yet")
+                                    Text("No guardians yet")
                                         .font(.system(size: 14))
                                         .foregroundColor(.gray)
                                 } else {
                                     ForEach(guardianViewModel.guardians.filter { $0.status == "approved" }) { guardian in
-                                        CoOwnerRowView(guardian: guardian)
+                                        GuardianRowView(guardian: guardian)
                                     }
                                 }
                             }
@@ -239,8 +239,8 @@ struct ViewPetDetailView: View {
     }
 }
 
-// Co-Owner Row Component
-struct CoOwnerRowView: View {
+// Guardian Row Component
+struct GuardianRowView: View {
     let guardian: Guardian
     @State private var userEmail: String = ""
     @State private var isLoading = true

@@ -11,10 +11,12 @@ import SwiftUI
 @MainActor
 class PetViewModel: ObservableObject {
     @Published var pets: [Pet] = []
+    @Published var guardianPets: [Pet] = [] // Pets where user is a guardian
     @Published var isLoading = false
     @Published var errorMessage: String?
     
     private let petController = PetController()
+    private let guardianController = GuardianController()
     private let authController = AuthController()
     
     func fetchUserPets() async {
@@ -87,6 +89,37 @@ class PetViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+    
+    // Fetch pets where the current user is an approved guardian
+    // Flow: user -> guardian relationships -> pets
+    func fetchGuardianPets() async {
+        guard let uid = authController.currentUID() else {
+            errorMessage = "No user logged in"
+            return
+        }
+        
+        isLoading = true
+        do {
+            // Use PetController method that follows: user -> guardian -> pet flow
+            guardianPets = try await petController.fetchPetsForGuardian(userId: uid)
+        } catch {
+            errorMessage = error.localizedDescription
+            guardianPets = []
+        }
+        isLoading = false
+    }
+    
+    // Get all pets: owned + guardian pets
+    var allPets: [Pet] {
+        // Combine owned pets and guardian pets, removing duplicates by ID
+        var combinedPets = pets
+        for guardianPet in guardianPets {
+            if !combinedPets.contains(where: { $0.id == guardianPet.id }) {
+                combinedPets.append(guardianPet)
+            }
+        }
+        return combinedPets
     }
 }
 

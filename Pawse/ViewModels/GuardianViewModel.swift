@@ -5,7 +5,7 @@ import Combine
 //  GuardianViewModel.swift
 //  Pawse
 //
-//  ViewModel for managing pet co-owners/guardians
+//  ViewModel for managing pet guardians
 //
 
 @MainActor
@@ -85,7 +85,7 @@ class GuardianViewModel: ObservableObject {
                 guardianRef: "users/\(guardianUID)",
                 ownerRef: "users/\(uid)"
             )
-            successMessage = "Co-owner invitation sent"
+            successMessage = "Guardian invitation sent"
             
             // Refresh guardians
             await fetchGuardians(for: petId)
@@ -106,7 +106,7 @@ class GuardianViewModel: ObservableObject {
         
         do {
             try await guardianController.approveGuardian(requestId: requestId)
-            successMessage = "Co-owner request approved"
+            successMessage = "Guardian request approved"
             
             // Refresh guardians
             await fetchGuardians(for: petId)
@@ -127,7 +127,7 @@ class GuardianViewModel: ObservableObject {
         
         do {
             try await guardianController.rejectGuardian(requestId: requestId)
-            successMessage = "Co-owner request rejected"
+            successMessage = "Guardian request rejected"
             
             // Refresh guardians if petId is provided
             if let petId = petId {
@@ -163,7 +163,7 @@ class GuardianViewModel: ObservableObject {
         FirebaseManager.shared.auth.currentUser?.uid
     }
     
-    func isCoOwner(_ userId: String) -> Bool {
+    func isGuardian(_ userId: String) -> Bool {
         approvedGuardians.contains { 
             $0.guardian == "users/\(userId)"
         }
@@ -183,7 +183,7 @@ class GuardianViewModel: ObservableObject {
         successMessage = nil
     }
     
-    var coOwnerCount: Int {
+    var guardianCount: Int {
         approvedGuardians.count
     }
     

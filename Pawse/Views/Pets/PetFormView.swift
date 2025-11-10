@@ -21,6 +21,8 @@ struct PetFormView: View {
     @State private var petType = "Cat"
     @State private var petAge = ""
     @State private var selectedGender: PetGender = .female
+    @State private var hasSelectedType = false
+    @State private var hasSelectedAge = false
     @State private var showingSuccess = false
     @State private var selectedImage: PhotosPickerItem?
     @State private var profileImage: Image?
@@ -72,7 +74,7 @@ struct PetFormView: View {
                                         .foregroundColor(.pawseBrown)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     
-                                    TextField("Snowball", text: $petName)
+                                    TextField("enter your pet name!", text: $petName)
                                         .padding(.horizontal, 0)
                                         .padding(.vertical, 16)
                                         .frame(height: 52)
@@ -93,12 +95,15 @@ struct PetFormView: View {
                                         
                                         Menu {
                                             ForEach(petTypes, id: \.self) { type in
-                                                Button(type) { petType = type }
+                                                Button(type) {
+                                                    petType = type
+                                                    hasSelectedType = true
+                                                }
                                             }
                                         } label: {
                                             HStack {
-                                                Text(petType)
-                                                    .foregroundColor(.black)
+                                                Text(pet == nil && !hasSelectedType ? "Select type" : petType)
+                                                    .foregroundColor(pet == nil && !hasSelectedType ? .gray : .black)
                                                     .font(.system(size: 16, weight: .bold))
                                                     .frame(maxWidth: .infinity, alignment: .leading)
                                                 Spacer()
@@ -124,11 +129,14 @@ struct PetFormView: View {
                                         
                                         Menu {
                                             ForEach(1...20, id: \.self) { age in
-                                                Button("\(age)") { petAge = "\(age)" }
+                                                Button("\(age)") {
+                                                    petAge = "\(age)"
+                                                    hasSelectedAge = true
+                                                }
                                             }
                                         } label: {
                                             HStack {
-                                                Text(petAge.isEmpty ? "7" : petAge)
+                                                Text(petAge.isEmpty ? "Select age" : petAge)
                                                     .foregroundColor(petAge.isEmpty ? .gray : .black)
                                                     .font(.system(size: 16, weight: .bold))
                                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -177,10 +185,10 @@ struct PetFormView: View {
                                     }
                                 }
                                 
-                                // Invite Co-owner
+                                // Invite Guardian
                                 VStack(alignment: .leading, spacing: 12) {
                                     HStack(spacing: 12) {
-                                        Text("Invite Co-owner")
+                                        Text("Invite Guardian")
                                             .font(.system(size: 18, weight: .bold))
                                             .foregroundColor(.pawseBrown)
                                         
@@ -202,7 +210,7 @@ struct PetFormView: View {
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     
-                                    // Show approved co-owners list
+                                    // Show approved guardians list
                                     if !guardianViewModel.approvedGuardians.isEmpty {
                                         VStack(alignment: .leading, spacing: 8) {
                                             ForEach(guardianViewModel.approvedGuardians, id: \.id) { guardian in
@@ -227,21 +235,43 @@ struct PetFormView: View {
                             .padding(.bottom, 20)
                             .background(Color.white)
                             
-                            // Delete Pet button
-                            Button(action: {
-                                showingDeleteConfirmation = true
-                            }) {
-                                Text("Delete Pet")
-                                    .font(.system(size: 20, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 50)
-                                    .background(Color.pawseOrange)
-                                    .cornerRadius(20)
+                            // Bottom button: Create Pet (new) or Delete Pet (edit)
+                            if pet == nil {
+                                // Create Pet button for new pet
+                                Button(action: {
+                                    Task {
+                                        await savePet()
+                                    }
+                                }) {
+                                    Text("Create Pet")
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 50)
+                                        .background(isFormValid ? Color.pawseOrange : Color.pawseOrange.opacity(0.5))
+                                        .cornerRadius(20)
+                                }
+                                .disabled(!isFormValid || petViewModel.isLoading)
+                                .padding(.horizontal, 60)
+                                .padding(.bottom, 150)
+                                .background(Color.white)
+                            } else {
+                                // Delete Pet button for existing pet
+                                Button(action: {
+                                    showingDeleteConfirmation = true
+                                }) {
+                                    Text("Delete Pet")
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 50)
+                                        .background(Color.pawseOrange)
+                                        .cornerRadius(20)
+                                }
+                                .padding(.horizontal, 60)
+                                .padding(.bottom, 150)
+                                .background(Color.white)
                             }
-                            .padding(.horizontal, 60)
-                            .padding(.bottom, 150)
-                            .background(Color.white)
                         }
                     }
                 }
@@ -381,6 +411,8 @@ struct PetFormView: View {
                 petAge = String(existingPet.age)
                 selectedGender = existingPet.gender == "M" ? .male : .female
                 currentPetId = existingPet.id
+                hasSelectedType = true
+                hasSelectedAge = true
                 
                 // Load existing profile photo if available
                 if !existingPet.profile_photo.isEmpty {
@@ -405,83 +437,25 @@ struct PetFormView: View {
                 await guardianViewModel.fetchGuardians(for: petId)
             }
         }
-        .alert("Delete Pet", isPresented: $showingDeleteConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                // TODO: Implement delete pet functionality
-                // This would require a pet ID, which is not available in create mode
-                // For now, this is a placeholder
-            }
-        } message: {
-            Text("Are you sure you want to delete this pet? This action cannot be undone.")
-        }
         .overlay {
-            // Floating window for invite
-            if showInviteFloatingWindow {
-                ZStack {
-                    // Semi-transparent background
-                    Color.black.opacity(0.3)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            showInviteFloatingWindow = false
-                            inviteEmail = ""
-                        }
-                    
-                    // Floating window
-                    VStack(spacing: 20) {
-                        TextField("search for account email", text: $inviteEmail)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 16)
-                            .frame(height: 52)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color(hex: "9B7EDE"), style: StrokeStyle(lineWidth: 2, dash: [5, 5]))
-                            )
-                            .autocapitalization(.none)
-                            .keyboardType(.emailAddress)
-                            .font(.system(size: 16, weight: .bold))
-                        
-                        HStack(spacing: 15) {
-                            // Invite button
-                            Button(action: {
-                                Task {
-                                    await handleInvite()
-                                }
-                            }) {
-                                Text("invite")
-                                    .font(.system(size: 20, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 50)
-                                    .background(Color.pawseOrange)
-                                    .cornerRadius(25)
-                            }
-                            .disabled(inviteEmail.isEmpty || guardianViewModel.isLoading)
-                            
-                            // Cancel button
-                            Button(action: {
-                                showInviteFloatingWindow = false
-                                inviteEmail = ""
-                            }) {
-                                Text("cancel")
-                                    .font(.system(size: 20, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 50)
-                                    .background(Color(hex: "DFA894"))
-                                    .cornerRadius(25)
-                            }
-                        }
+            // Floating window for invite using reusable component
+            InputFloatingWindow(
+                isPresented: showInviteFloatingWindow,
+                title: "Invite Guardian",
+                placeholder: "search for account email",
+                inputText: $inviteEmail,
+                confirmText: "invite",
+                confirmAction: {
+                    Task {
+                        await handleInvite()
                     }
-                    .padding(24)
-                    .background(Color.white)
-                    .cornerRadius(20)
-                    .shadow(radius: 10)
-                    .padding(.horizontal, 40)
-                }
-            }
+                },
+                cancelAction: {
+                    showInviteFloatingWindow = false
+                    inviteEmail = ""
+                },
+                isLoading: guardianViewModel.isLoading
+            )
         }
         .alert("Error", isPresented: .constant(guardianViewModel.error != nil)) {
             Button("OK") {
@@ -521,6 +495,8 @@ struct PetFormView: View {
                 petAge = "\(pet.age)"
                 selectedGender = pet.gender == "M" ? .male : .female
                 currentPetId = pet.id
+                hasSelectedType = true
+                hasSelectedAge = true
                 
                 // Load guardians for this pet
                 if let petId = pet.id {

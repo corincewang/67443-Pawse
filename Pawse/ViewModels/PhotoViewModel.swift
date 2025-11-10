@@ -21,10 +21,13 @@ class PhotoViewModel: ObservableObject {
     
     func fetchPhotos(for petId: String) async {
         isLoading = true
+        errorMessage = nil
         do {
             photos = try await photoController.fetchPhotos(for: petId)
+            print("✅ Fetched \(photos.count) photos for pet: \(petId)")
         } catch {
             errorMessage = error.localizedDescription
+            print("❌ Failed to fetch photos for pet \(petId): \(error)")
         }
         isLoading = false
     }
@@ -80,6 +83,24 @@ class PhotoViewModel: ObservableObject {
             try await photoController.deletePhoto(photoId: photoId)
             // Refresh photos after successful deletion
             await fetchPhotos(for: petId)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+    
+    func updatePhotoPrivacy(photoId: String, privacy: String) async {
+        do {
+            try await photoController.updatePhotoPrivacy(photoId: photoId, privacy: privacy)
+            // Update the local photo object if it exists
+            if let index = photos.firstIndex(where: { $0.id == photoId }) {
+                var updatedPhoto = photos[index]
+                updatedPhoto.privacy = privacy
+                photos[index] = updatedPhoto
+            }
+            // Update selected photo if it matches
+            if selectedPhoto?.id == photoId {
+                selectedPhoto?.privacy = privacy
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
