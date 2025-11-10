@@ -51,10 +51,10 @@ struct BottomBarView: View {
                     Spacer()
                         .frame(width: geometry.size.width / 4 - 45)
                 }
-                .frame(height: 120)
+                .frame(height: 90)
             }
         }
-        .frame(height: 120)
+        .frame(height: 90)
         .edgesIgnoringSafeArea(.bottom)
     }
 }
@@ -159,11 +159,11 @@ struct TabButton: View {
                 if isSelected {
                     Circle()
                         .fill(Color.pawseOrange)
-                        .frame(width: 56, height: 56)
+                        .frame(width: 50, height: 56)
                 }
                 
                 Image(systemName: tab.iconName)
-                    .font(.system(size: 25, weight: .medium))
+                    .font(.system(size: 20, weight: .medium))
                     .foregroundColor(isSelected ? .white : Color.pawseBrown)  // Muted brown for unselected
             }
             .frame(width: 60, height: 60)
