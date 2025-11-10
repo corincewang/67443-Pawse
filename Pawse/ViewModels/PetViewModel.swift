@@ -34,6 +34,16 @@ class PetViewModel: ObservableObject {
         isLoading = false
     }
     
+    func fetchPetsForUser(userId: String) async {
+        isLoading = true
+        do {
+            pets = try await petController.fetchPets(for: userId)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+    
     func createPet(name: String, type: String, age: Int, gender: String, profilePhoto: String = "") async {
         guard let uid = authController.currentUID() else {
             errorMessage = "No user logged in"

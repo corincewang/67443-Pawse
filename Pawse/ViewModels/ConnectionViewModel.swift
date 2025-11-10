@@ -71,6 +71,23 @@ class ConnectionViewModel: ObservableObject {
         friends = friendsList
     }
     
+    // MARK: - Search User
+    
+    func searchUserByEmail(email: String) async -> User? {
+        isLoading = true
+        error = nil
+        
+        do {
+            let user = try await userController.searchUserByEmail(email: email)
+            isLoading = false
+            return user
+        } catch {
+            self.error = error.localizedDescription
+            isLoading = false
+            return nil
+        }
+    }
+    
     // MARK: - Send Friend Request
     
     func sendFriendRequest(to friendId: String) async {
@@ -89,7 +106,7 @@ class ConnectionViewModel: ObservableObject {
                 to: friendId,
                 ref2: "users/\(friendId)"
             )
-            successMessage = "Friend request sent"
+            successMessage = "Friend request sent!"
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -125,12 +142,31 @@ class ConnectionViewModel: ObservableObject {
         error = nil
         successMessage = nil
         
-        // Add rejection method to ConnectionController if needed
-        // For now, we could update status or delete
-        successMessage = "Friend request rejected"
+        do {
+            try await connectionController.removeFriend(connectionId: connectionId)
+            successMessage = "Friend request rejected"
+            await fetchConnections()
+        } catch {
+            self.error = error.localizedDescription
+        }
         
-        // Refresh connections
-        await fetchConnections()
+        isLoading = false
+    }
+    
+    // MARK: - Remove Friend
+    
+    func removeFriend(connectionId: String) async {
+        isLoading = true
+        error = nil
+        successMessage = nil
+        
+        do {
+            try await connectionController.removeFriend(connectionId: connectionId)
+            successMessage = "Friend removed"
+            await fetchConnections()
+        } catch {
+            self.error = error.localizedDescription
+        }
         
         isLoading = false
     }
@@ -165,5 +201,15 @@ class ConnectionViewModel: ObservableObject {
     
     var pendingRequestCount: Int {
         pendingRequests.count
+    }
+    
+    // Get user details for a connection
+    func getUserDetails(for connection: Connection) async -> User? {
+        let userId = connection.user2.replacingOccurrences(of: "users/", with: "")
+        do {
+            return try await userController.fetchUser(uid: userId)
+        } catch {
+            return nil
+        }
     }
 }

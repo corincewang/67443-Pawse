@@ -12,6 +12,7 @@ struct UploadPhotoView: View {
     let petId: String
     @Environment(\.dismiss) var dismiss
     @StateObject private var photoViewModel = PhotoViewModel()
+    @StateObject private var contestViewModel = ContestViewModel()
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImage: UIImage?
     @State private var selectedPrivacy: PhotoPrivacy = .privatePhoto
@@ -199,14 +200,61 @@ struct UploadPhotoView: View {
         Task {
             // Use AWSManager to process image for optimal upload
             if let imageData = AWSManager.shared.processImageForUpload(selectedImage) {
-                await photoViewModel.uploadPhoto(petId: petId, privacy: selectedPrivacy.rawValue, imageData: imageData)
+                print("📸 Uploading photo with privacy: \(selectedPrivacy.rawValue)")
+                let photoId = await photoViewModel.uploadPhoto(petId: petId, privacy: selectedPrivacy.rawValue, imageData: imageData)
                 
-                // Only dismiss if upload was successful
-                if photoViewModel.errorMessage == nil {
-                    dismiss()
+                // Only proceed if upload was successful
+                if photoViewModel.errorMessage == nil, let photoId = photoId {
+                    print("✅ Photo uploaded successfully with ID: \(photoId)")
+                    
+                    // If public (contest), join the active contest
+                    if selectedPrivacy == .publicPhoto {
+                        print("🏆 Attempting to join contest...")
+                        // Get active contests
+                        await contestViewModel.fetchActiveContests()
+                        print("📋 Active contests count: \(contestViewModel.activeContests.count)")
+                        
+                        if let activeContest = contestViewModel.activeContests.first, let contestId = activeContest.id {
+                            print("🎯 Joining contest ID: \(contestId) with photo ID: \(photoId)")
+                            // Join the contest with this photo
+                            await contestViewModel.joinContest(contestId: contestId, photoId: photoId)
+                            
+                            if let error = contestViewModel.error {
+                                print("❌ Contest join error: \(error)")
+                                photoViewModel.errorMessage = "Photo uploaded but failed to join contest: \(error)"
+                            } else {
+                                print("✅ Successfully joined contest!")
+                            }
+                            
+                            // Navigate to community contest tab
+                            dismiss()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                print("🔄 Navigating to contest tab...")
+                                NotificationCenter.default.post(name: .navigateToCommunityContest, object: nil)
+                            }
+                        } else {
+                            print("⚠️ No active contest found")
+                            photoViewModel.errorMessage = "Photo uploaded but no active contest found"
+                            dismiss()
+                        }
+                    } else if selectedPrivacy == .friendsOnly {
+                        print("👥 Navigating to friends feed...")
+                        // Navigate to community friends tab
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            NotificationCenter.default.post(name: .navigateToCommunity, object: nil)
+                        }
+                    } else {
+                        // Private photo - just dismiss
+                        print("🔒 Private photo uploaded")
+                        dismiss()
+                    }
+                } else {
+                    print("❌ Photo upload failed: \(photoViewModel.errorMessage ?? "unknown error")")
                 }
             } else {
                 photoViewModel.errorMessage = "Failed to process image"
+                print("❌ Failed to process image")
             }
         }
     }

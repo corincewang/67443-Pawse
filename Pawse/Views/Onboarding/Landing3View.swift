@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct Landing3View: View {
+    @EnvironmentObject var userViewModel: UserViewModel
+    @State private var showingSignOutAlert = false
+
     var body: some View {
         ZStack {
             // Gradient background
@@ -22,7 +25,7 @@ struct Landing3View: View {
             .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Back button
+                // Back button and optional sign out
                 HStack {
                     Button(action: {}) {
                         Image(systemName: "chevron.backward")
@@ -30,7 +33,18 @@ struct Landing3View: View {
                             .foregroundColor(.pawseOliveGreen)
                     }
                     .padding(.leading, 20)
+
                     Spacer()
+
+                    // Small sign out button for first-user flow (final onboarding screen)
+                    Button(action: {
+                        showingSignOutAlert = true
+                    }) {
+                        Text("Log Out")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.pawseBrown)
+                    }
+                    .padding(.trailing, 20)
                 }
                 .padding(.top, 60)
                 
@@ -72,10 +86,19 @@ struct Landing3View: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .alert("Sign Out", isPresented: $showingSignOutAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Sign Out", role: .destructive) {
+                userViewModel.signOut()
+            }
+        } message: {
+            Text("Are you sure you want to sign out?")
+        }
     }
 }
 
 #Preview {
     Landing3View()
+        .environmentObject(UserViewModel())
 }
 

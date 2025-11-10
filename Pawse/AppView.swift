@@ -26,7 +26,7 @@ struct AppView: View {
                     }
                 case .community:
                     NavigationStack {
-                        ContestParticipantsView()
+                        CommunityView()
                     }
                 }
             }
@@ -51,6 +51,20 @@ struct AppView: View {
                 hideBottomBar = false
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToCommunity)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedTab = .community
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToCommunityContest)) { notification in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedTab = .community
+            }
+            // Post a notification to switch to contest tab within CommunityView
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                NotificationCenter.default.post(name: .switchToContestTab, object: nil)
+            }
+        }
     }
 }
 
@@ -58,6 +72,9 @@ struct AppView: View {
 extension Notification.Name {
     static let hideBottomBar = Notification.Name("hideBottomBar")
     static let showBottomBar = Notification.Name("showBottomBar")
+    static let navigateToCommunity = Notification.Name("navigateToCommunity")
+    static let navigateToCommunityContest = Notification.Name("navigateToCommunityContest")
+    static let switchToContestTab = Notification.Name("switchToContestTab")
 }
 
 

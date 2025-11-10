@@ -9,12 +9,12 @@ import SwiftUI
 
 struct RegisterView: View {
     @Environment(\.dismiss) var dismiss
-    @StateObject private var userViewModel = UserViewModel()
+    @EnvironmentObject var userViewModel: UserViewModel
     @State private var email = ""
     @State private var password = ""
     @State private var confirmPassword = ""
-    @State private var navigateToApp = false
     @State private var passwordMismatch = false
+    @State private var navigateToSetup = false
     
     var body: some View {
         ZStack {
@@ -67,6 +67,7 @@ struct RegisterView: View {
                             .autocapitalization(.none)
                             .keyboardType(.emailAddress)
                             .textContentType(.emailAddress)
+                            .foregroundColor(.black)
                     }
                     
                     // Password
@@ -84,6 +85,7 @@ struct RegisterView: View {
                                     .stroke(Color(red: 217/255, green: 217/255, blue: 217/255), lineWidth: 1)
                             )
                             .textContentType(.newPassword)
+                            .foregroundColor(.black)
                     }
                     
                     // Confirm Password
@@ -101,6 +103,7 @@ struct RegisterView: View {
                                     .stroke(passwordMismatch ? Color.red : Color(red: 217/255, green: 217/255, blue: 217/255), lineWidth: 1)
                             )
                             .textContentType(.newPassword)
+                            .foregroundColor(.black)
                             .onChange(of: confirmPassword) { _, _ in
                                 passwordMismatch = !password.isEmpty && !confirmPassword.isEmpty && password != confirmPassword
                             }
@@ -133,7 +136,7 @@ struct RegisterView: View {
                     Task {
                         await userViewModel.register(email: email, password: password)
                         if userViewModel.currentUser != nil {
-                            navigateToApp = true
+                            navigateToSetup = true
                         }
                     }
                 }) {
@@ -158,9 +161,9 @@ struct RegisterView: View {
         }
         .navigationBarBackButtonHidden(false)
         .swipeBack(dismiss: dismiss)
-        .navigationDestination(isPresented: $navigateToApp) {
-            AppView()
-                .navigationBarBackButtonHidden(true)
+        .navigationDestination(isPresented: $navigateToSetup) {
+            AccountSetupView()
+                .environmentObject(userViewModel)
         }
     }
     
@@ -172,5 +175,6 @@ struct RegisterView: View {
 #Preview {
     NavigationStack {
         RegisterView()
+            .environmentObject(UserViewModel())
     }
 }
