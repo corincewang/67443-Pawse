@@ -44,6 +44,73 @@ final class AWSManager {
         return UIImage(data: data)
     }
     
+    // MARK: - Delete Image
+    func deleteFromS3(s3Key: String) async throws {
+        let url = buildS3URL(for: s3Key)
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        
+        let (_, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AWSError.invalidResponse
+        }
+        
+        // Handle specific error cases
+        switch httpResponse.statusCode {
+        case 200...299:
+            print("✅ Delete successful - Key: \(s3Key)")
+            return
+        case 403:
+            print("❌ Delete failed - Permission denied (403). S3 bucket may not allow DELETE operations.")
+            print("   Consider using Firebase Functions for secure deletion or updating bucket policies.")
+            throw AWSError.permissionDenied
+        case 404:
+            print("⚠️ Delete skipped - Object not found (404). Key: \(s3Key)")
+            // Don't throw error for 404, as the object is already gone
+            return
+        default:
+            print("❌ Delete failed - Status: \(httpResponse.statusCode), Key: \(s3Key)")
+            throw AWSError.deleteFailed(statusCode: httpResponse.statusCode)
+        }
+    }
+    
+    // MARK: - Delete Pet Folder
+    func deletePetFolderFromS3(petId: String) async throws {
+        print("🗂️ Attempting final cleanup of pet folder from S3: pets/\(petId)/")
+        
+        // This method serves as a final cleanup for any potential orphaned files
+        // The main deletion is handled by:
+        // 1. Pet profile photo deletion (using exact S3 key from pet.profile_photo)
+        // 2. Individual photo deletion (using exact S3 keys from photo.image_link)
+        
+        // Attempt to delete any potential orphaned files with common patterns
+        let imageExtensions = ["jpg", "jpeg", "png", "gif", "heic", "webp"]
+        
+        for ext in imageExtensions {
+            let commonPatterns = [
+                "pets/\(petId)/profile.\(ext)",
+                "pets/\(petId)/avatar.\(ext)",
+                "pets/\(petId)/temp.\(ext)"
+            ]
+            
+            for key in commonPatterns {
+                do {
+                    try await deleteFromS3(s3Key: key)
+                    print("✅ Cleaned up orphaned file: \(key)")
+                } catch AWSError.permissionDenied {
+                    throw AWSError.permissionDenied
+                } catch {
+                    // Continue - file might not exist
+                    continue
+                }
+            }
+        }
+        
+        print("✅ Pet folder final cleanup completed for: pets/\(petId)/")
+    }
+    
     // MARK: - Image Processing
     func processImageForUpload(_ image: UIImage) -> Data? {
         let resizedImage = resizeImage(image, maxDimension: 2048)
@@ -135,6 +202,8 @@ extension AWSManager {
 enum AWSError: LocalizedError {
     case uploadFailed(statusCode: Int)
     case downloadFailed(statusCode: Int)
+    case deleteFailed(statusCode: Int)
+    case permissionDenied
     case imageProcessingFailed
     case invalidData
     case invalidResponse
@@ -146,6 +215,10 @@ enum AWSError: LocalizedError {
             return "Upload failed with status code: \(statusCode)"
         case .downloadFailed(let statusCode):
             return "Download failed with status code: \(statusCode)"
+        case .deleteFailed(let statusCode):
+            return "Delete failed with status code: \(statusCode)"
+        case .permissionDenied:
+            return "Permission denied. S3 bucket may not allow DELETE operations."
         case .imageProcessingFailed:
             return "Failed to process image"
         case .invalidData:
