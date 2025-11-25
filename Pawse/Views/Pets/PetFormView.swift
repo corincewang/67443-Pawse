@@ -20,7 +20,7 @@ struct PetFormView: View {
     @State private var petName = ""
     @State private var petType = "Cat"
     @State private var petAge = ""
-    @State private var selectedGender: PetGender = .female
+    @State private var selectedGender: PetGender? = nil
     @State private var hasSelectedType = false
     @State private var hasSelectedAge = false
     @State private var showingSuccess = false
@@ -170,7 +170,7 @@ struct PetFormView: View {
                                                 .foregroundColor(.white)
                                                 .frame(maxWidth: .infinity)
                                                 .frame(height: 48)
-                                                .background(selectedGender == .male ? Color.pawseOliveGreen : Color.pawseOliveGreen.opacity(0.5))
+                                                .background(selectedGender == .male ? Color.pawseOliveGreen : Color.gray.opacity(0.4))
                                                 .cornerRadius(24)
                                         }
                                         
@@ -180,7 +180,7 @@ struct PetFormView: View {
                                                 .foregroundColor(.white)
                                                 .frame(maxWidth: .infinity)
                                                 .frame(height: 48)
-                                                .background(selectedGender == .female ? Color.pawseLightCoral : Color.pawseLightCoral.opacity(0.5))
+                                                .background(selectedGender == .female ? Color.pawseLightCoral : Color.gray.opacity(0.4))
                                                 .cornerRadius(24)
                                         }
                                     }
@@ -490,11 +490,11 @@ struct PetFormView: View {
     }
     
     private var isFormValid: Bool {
-        !petName.isEmpty && !petType.isEmpty && !petAge.isEmpty
+        !petName.isEmpty && !petType.isEmpty && !petAge.isEmpty && selectedGender != nil
     }
     
     private func savePet(showSuccess: Bool = true) async -> String? {
-        guard let age = Int(petAge) else { return nil }
+        guard let age = Int(petAge), let gender = selectedGender else { return nil }
         
         // Upload profile photo if selected
         var profilePhotoURL = pet?.profile_photo ?? ""
@@ -527,7 +527,7 @@ struct PetFormView: View {
                 name: petName,
                 type: petType,
                 age: age,
-                gender: selectedGender.firebaseValue,
+                gender: gender.firebaseValue,
                 profilePhoto: profilePhotoURL.isEmpty ? (pet?.profile_photo ?? "") : profilePhotoURL
             )
             
@@ -545,7 +545,7 @@ struct PetFormView: View {
             name: petName,
             type: petType,
             age: age,
-            gender: selectedGender.firebaseValue,
+            gender: gender.firebaseValue,
             profilePhoto: profilePhotoURL.contains("temp") ? "" : profilePhotoURL
         )
         
@@ -577,7 +577,7 @@ struct PetFormView: View {
                                 name: petName,
                                 type: petType,
                                 age: age,
-                                gender: selectedGender.firebaseValue,
+                                gender: gender.firebaseValue,
                                 profilePhoto: s3Key
                             )
                         } catch {
