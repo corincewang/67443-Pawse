@@ -7,6 +7,7 @@
 
 import SwiftUI
 import PhotosUI
+import Foundation
 
 struct PetFormView: View {
     let pet: Pet? // Optional pet for edit mode
@@ -16,6 +17,10 @@ struct PetFormView: View {
     @StateObject private var guardianViewModel = GuardianViewModel()
     
     private let authController = AuthController()
+    private let userController = UserController()
+    
+    // Cache for guardian user names
+    @State private var guardianUserNames: [String: String] = [:]
     
     @State private var petName = ""
     @State private var petType = "Cat"
@@ -216,7 +221,7 @@ struct PetFormView: View {
                                         VStack(alignment: .leading, spacing: 8) {
                                             ForEach(guardianViewModel.approvedGuardians, id: \.id) { guardian in
                                                 HStack {
-                                                    Text(extractEmailFromGuardian(guardian))
+                                                    Text(extractNameFromGuardian(guardian))
                                                         .font(.system(size: 16, weight: .medium))
                                                         .foregroundColor(.pawseBrown)
                                                     Spacer()
@@ -228,6 +233,14 @@ struct PetFormView: View {
                                             }
                                         }
                                         .padding(.top, 8)
+                                        .task {
+                                            await fetchGuardianUserNames()
+                                        }
+                                        .onChange(of: guardianViewModel.approvedGuardians.count) { _, _ in
+                                            Task {
+                                                await fetchGuardianUserNames()
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -612,6 +625,12 @@ struct PetFormView: View {
     }
     
     private func handleInvite() async {
+        // Validate that email belongs to a registered Pawse user
+        guard await isValidPawseUser(inviteEmail) else {
+            guardianViewModel.error = "invalid user email address, try again"
+            return
+        }
+        
         var petId: String? = currentPetId
         
         // If pet hasn't been saved yet, save it first
@@ -640,15 +659,66 @@ struct PetFormView: View {
             guardianEmail: inviteEmail
         )
         
-        // Refresh guardians list
-        await guardianViewModel.fetchGuardians(for: petId)
+        // If successful, set success message
+        if guardianViewModel.error == nil {
+            guardianViewModel.successMessage = "invite success"
+        }
     }
     
-    private func extractEmailFromGuardian(_ guardian: Guardian) -> String {
+    private func isValidPawseUser(_ email: String) async -> Bool {
+        // First validate email format
+        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
+        guard emailPredicate.evaluate(with: email) else {
+            return false
+        }
+        
+        // Then check if user exists in Pawse
+        do {
+            let user = try await userController.searchUserByEmail(email: email)
+            return user != nil
+        } catch {
+            return false
+        }
+    }
+    
+    private func extractNameFromGuardian(_ guardian: Guardian) -> String {
         // Extract UID from "users/{uid}" format
         let uid = guardian.guardian.replacingOccurrences(of: "users/", with: "")
-        // For now, return the UID. In a real app, you'd fetch the user's email
+        
+        // Return cached name if available
+        if let name = guardianUserNames[uid], !name.isEmpty {
+            return name
+        }
+        
+        // Otherwise return UID as fallback (will be updated when user is fetched)
         return uid
+    }
+    
+    @MainActor
+    private func fetchGuardianUserNames() async {
+        var updatedNames: [String: String] = guardianUserNames
+        
+        for guardian in guardianViewModel.approvedGuardians {
+            let uid = guardian.guardian.replacingOccurrences(of: "users/", with: "")
+            
+            // Skip if already cached
+            if updatedNames[uid] != nil {
+                continue
+            }
+            
+            // Fetch user info
+            do {
+                let user = try await userController.fetchUser(uid: uid)
+                updatedNames[uid] = user.nick_name.isEmpty ? user.email : user.nick_name
+            } catch {
+                // If fetch fails, use UID as fallback
+                updatedNames[uid] = uid
+            }
+        }
+        
+        // Update state to trigger UI refresh
+        guardianUserNames = updatedNames
     }
 }
 
