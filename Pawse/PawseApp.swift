@@ -8,7 +8,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         // Use Firebase library to configure APIs
         FirebaseApp.configure()
+        
+        // Contest system will be initialized after user authentication
+        // See AppView.swift or RootView.swift for initialization
+        
         return true
+    }
+    
+    func applicationWillTerminate(_ application: UIApplication) {
+        // Stop the contest rotation service when app terminates
+        ContestRotationService.shared.stopService()
     }
 }
 

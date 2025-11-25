@@ -10,6 +10,7 @@ import SwiftUI
 struct AppView: View {
     @State private var selectedTab: TabItem = .profile
     @State private var hideBottomBar: Bool = false
+    @State private var hasInitializedContest = false
     
     var body: some View {
         ZStack {
@@ -65,6 +66,18 @@ struct AppView: View {
                 NotificationCenter.default.post(name: .switchToContestTab, object: nil)
             }
         }
+        .task {
+            // Initialize contest system once user is authenticated
+            if !hasInitializedContest {
+                await initializeContestSystem()
+                hasInitializedContest = true
+            }
+        }
+    }
+    
+    private func initializeContestSystem() async {
+        await ContestRotationService.shared.initializeSystem()
+        ContestRotationService.shared.startService()
     }
 }
 
