@@ -10,14 +10,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         FirebaseApp.configure()
         
         // Contest system will be initialized after user authentication
-        // See AppView.swift or RootView.swift for initialization
+        // See AppView.swift for initialization
         
         return true
-    }
-    
-    func applicationWillTerminate(_ application: UIApplication) {
-        // Stop the contest rotation service when app terminates
-        ContestRotationService.shared.stopService()
     }
 }
 

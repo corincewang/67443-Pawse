@@ -69,15 +69,10 @@ struct AppView: View {
         .task {
             // Initialize contest system once user is authenticated
             if !hasInitializedContest {
-                await initializeContestSystem()
+                await ContestRotationService.shared.initializeSystem()
                 hasInitializedContest = true
             }
         }
-    }
-    
-    private func initializeContestSystem() async {
-        await ContestRotationService.shared.initializeSystem()
-        ContestRotationService.shared.startService()
     }
 }
 
