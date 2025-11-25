@@ -29,10 +29,31 @@ final class ContestController {
             .filter { $0.end_date > now && $0.active_status }
             .sorted { $0.start_date < $1.start_date }
     }
+    
+    /// Fetch the current active contest (should be only one)
+    func fetchCurrentContest() async throws -> Contest? {
+        let activeContests = try await fetchActiveContests()
+        return activeContests.first
+    }
 
     func fetchLeaderboard() async throws -> [ContestPhoto] {
+        // Get the current active contest
+        let activeContests = try await fetchActiveContests()
+        guard let activeContest = activeContests.first,
+              let contestId = activeContest.id else {
+            print("⚠️ No active contest found for leaderboard")
+            return []
+        }
+        
+        let contestRef = "contests/\(contestId)"
+        
+        // Fetch only photos from the current active contest
         let snap = try await db.collection(Collection.contestPhotos)
-            .order(by: "votes", descending: true).limit(to: 20).getDocuments()
+            .whereField("contest", isEqualTo: contestRef)
+            .order(by: "votes", descending: true)
+            .limit(to: 20)
+            .getDocuments()
+        
         return try snap.documents.compactMap { try $0.data(as: ContestPhoto.self) }
     }
     

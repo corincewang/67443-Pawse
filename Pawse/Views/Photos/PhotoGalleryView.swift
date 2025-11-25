@@ -12,6 +12,7 @@ struct PhotoGalleryView: View {
     let petName: String? // Add pet name parameter
     @StateObject private var photoViewModel = PhotoViewModel()
     @StateObject private var petViewModel = PetViewModel()
+    @StateObject private var contestViewModel = ContestViewModel()
     @State private var showingDeleteConfirmation = false
     @State private var selectedPhotoForDelete: Photo? = nil
     @State private var currentPet: Pet? = nil
@@ -169,7 +170,7 @@ struct PhotoGalleryView: View {
             // Contest banner at bottom
             VStack {
                 Spacer()
-                ActiveContestBannerView()
+                ActiveContestBannerView(contestTitle: contestViewModel.currentContest?.prompt ?? "No Active Contest")
                     .padding(.top, 310) // Position above bottom navigation
                     .padding(.bottom, 10) // Position above bottom navigation
             }
@@ -214,6 +215,7 @@ struct PhotoGalleryView: View {
         .task {
             await photoViewModel.fetchPhotos(for: petId)
             await loadCurrentPet()
+            await contestViewModel.fetchCurrentContest()
         }
         .alert("Delete Photo", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}

@@ -251,6 +251,12 @@ struct ContestTabView: View {
                 // Active contest banner
                 if let firstContest = contestViewModel.activeContests.first {
                     ActiveContestBanner(contest: firstContest)
+                        .onAppear {
+                            // Refresh contest data when banner appears to ensure it's current
+                            Task {
+                                await contestViewModel.fetchActiveContests()
+                            }
+                        }
                 }
                 
                 // Leaderboard

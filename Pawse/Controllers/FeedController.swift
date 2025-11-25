@@ -47,17 +47,10 @@ final class FeedController {
     
     func fetchLeaderboardResponse() async throws -> LeaderboardResponse {
         let db = FirebaseManager.shared.db
+        let contestController = ContestController()
         
-        // Get active contest
-        let contestsSnap = try await db.collection(Collection.contests)
-            .whereField("start_date", isLessThanOrEqualTo: Date())
-            .getDocuments()
-        
-        let activeContests = contestsSnap.documents
-            .compactMap { try? $0.data(as: Contest.self) }
-            .filter { Date() < $0.end_date }
-        
-        guard let activeContest = activeContests.first,
+        // Get current active contest using ContestController to ensure consistency
+        guard let activeContest = try await contestController.fetchCurrentContest(),
               let contestId = activeContest.id else {
             print("⚠️ No active contest for leaderboard")
             return LeaderboardResponse(
