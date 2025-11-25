@@ -9,6 +9,7 @@ import SwiftUI
 
 struct PhotoDetailView: View {
     @State private var showingShareOptions = false
+    @State private var showShareSuccess = false
     @StateObject private var photoViewModel = PhotoViewModel()
     @Environment(\.dismiss) var dismiss
     let testPhoto: UIImage? // Add parameter for test photo
@@ -158,6 +159,23 @@ struct PhotoDetailView: View {
                     if let photo = photo, let photoId = photo.id, photo.privacy == "private" {
                         Task {
                             await photoViewModel.updatePhotoPrivacy(photoId: photoId, privacy: "friends_only")
+                            
+                            // Show success feedback if update was successful
+                            if photoViewModel.errorMessage == nil {
+                                await MainActor.run {
+                                    withAnimation {
+                                        showShareSuccess = true
+                                    }
+                                }
+                                
+                                // Auto-dismiss after 1.5 seconds
+                                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                                await MainActor.run {
+                                    withAnimation {
+                                        showShareSuccess = false
+                                    }
+                                }
+                            }
                         }
                     }
                     showingShareOptions = false
@@ -166,6 +184,9 @@ struct PhotoDetailView: View {
                     showingShareOptions = false
                 }
             )
+            
+            // Success toast bar
+            SuccessToastBar(message: "share success", isPresented: $showShareSuccess)
         }
         .navigationBarBackButtonHidden(true)
         .gesture(
