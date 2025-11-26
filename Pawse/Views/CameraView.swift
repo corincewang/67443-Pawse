@@ -80,6 +80,23 @@ struct CameraView: View {
         } message: {
             Text(cameraManager.errorMessage ?? "")
         }
+        .gesture(
+            DragGesture(minimumDistance: 20, coordinateSpace: .global)
+                .onEnded { value in
+                    // Check if swipe starts from left edge (within 50 points from left)
+                    // and swipes right (width > 50) with minimal vertical movement
+                    let startX = value.startLocation.x
+                    let translationX = value.translation.width
+                    let translationY = value.translation.height
+                    
+                    if startX < 50 && translationX > 50 && abs(translationY) < 100 {
+                        // Show bottom bar before navigating
+                        NotificationCenter.default.post(name: .showBottomBar, object: nil)
+                        // Navigate to profile
+                        NotificationCenter.default.post(name: .navigateToProfile, object: nil)
+                    }
+                }
+        )
     }
     
     private var cameraInterface: some View {
@@ -320,11 +337,6 @@ struct CameraView: View {
                 }
                 .padding(.horizontal, 40)
                 .padding(.bottom, 50) 
-                
-                    // Rectangular bar below buttons
-                    Rectangle()
-                        .fill(Color(hex: "F9F3D7"))
-                        .frame(height: 20)
                 }
                 .background(Color(hex: "F9F3D7")) // Background color for button area
             }
