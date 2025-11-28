@@ -13,13 +13,20 @@ enum CommunityTab: Hashable {
 }
 
 struct CommunityView: View {
-    @StateObject private var feedViewModel = FeedViewModel()
-    @StateObject private var contestViewModel = ContestViewModel()
+    // Use environment objects to persist ViewModels across navigation
+    @EnvironmentObject var feedViewModel: FeedViewModel
+    @EnvironmentObject var contestViewModel: ContestViewModel
     @StateObject private var connectionViewModel = ConnectionViewModel()
     @State private var selectedTab: CommunityTab = .friends
     @State private var showAddFriends = false
     @State private var showNotifications = false
     @State private var searchEmail = ""
+    @State private var hasLoadedInitialData = false
+    @State private var scrollToTopTrigger = false
+    
+    // Use @AppStorage to persist scroll positions across navigation
+    @AppStorage("friendsScrollPosition") private var friendsScrollPosition: String = ""
+    @AppStorage("contestScrollPosition") private var contestScrollPosition: String = ""
     
     var body: some View {
         ZStack {
@@ -55,8 +62,13 @@ struct CommunityView: View {
                     HStack(spacing: 0) {
                         // Friends tab
                         Button(action: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                selectedTab = .friends
+                            if selectedTab == .friends {
+                                // Double tap - scroll to top
+                                scrollToTopTrigger.toggle()
+                            } else {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    selectedTab = .friends
+                                }
                             }
                         }) {
                             Text("friends")
@@ -69,8 +81,13 @@ struct CommunityView: View {
                         
                         // Contest tab
                         Button(action: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                selectedTab = .contest
+                            if selectedTab == .contest {
+                                // Double tap - scroll to top
+                                scrollToTopTrigger.toggle()
+                            } else {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    selectedTab = .contest
+                                }
                             }
                         }) {
                             Text("contest")
@@ -101,46 +118,56 @@ struct CommunityView: View {
                 
                 // Content based on selected tab with swipe gestures
                 TabView(selection: $selectedTab) {
-                    FriendsTabView(feedViewModel: feedViewModel)
-                        .tag(CommunityTab.friends)
+                    FriendsTabView(
+                        feedViewModel: feedViewModel,
+                        scrollPosition: Binding(
+                            get: { friendsScrollPosition.isEmpty ? nil : friendsScrollPosition },
+                            set: { friendsScrollPosition = $0 ?? "" }
+                        ),
+                        scrollToTopTrigger: scrollToTopTrigger
+                    )
+                    .tag(CommunityTab.friends)
                     
-                    ContestTabView(contestViewModel: contestViewModel, feedViewModel: feedViewModel)
-                        .tag(CommunityTab.contest)
+                    ContestTabView(
+                        contestViewModel: contestViewModel,
+                        feedViewModel: feedViewModel,
+                        scrollPosition: Binding(
+                            get: { contestScrollPosition.isEmpty ? nil : contestScrollPosition },
+                            set: { contestScrollPosition = $0 ?? "" }
+                        ),
+                        scrollToTopTrigger: scrollToTopTrigger
+                    )
+                    .tag(CommunityTab.contest)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: selectedTab)
-                .onChange(of: selectedTab) { newTab in
-                    // Refresh feed when switching tabs to ensure UI is up to date
-                    Task {
-                        switch newTab {
-                        case .friends:
-                            await feedViewModel.fetchFriendsFeed()
-                        case .contest:
-                            if let activeContest = contestViewModel.activeContests.first,
-                               let contestId = activeContest.id {
-                                await feedViewModel.fetchContestFeed(contestId: contestId)
-                            }
-                        }
-                    }
-                }
             }
         }
         .navigationBarBackButtonHidden(true)
         .task {
-            await contestViewModel.fetchActiveContests()
+            // Only fetch data once on initial load, not when navigating back
+            // Check if ViewModels already have data
+            let hasData = !feedViewModel.friendsFeed.isEmpty || !feedViewModel.contestFeed.isEmpty
             
-            // Always fetch friends feed
-            await feedViewModel.fetchFriendsFeed()
-            
-            // Get active contest ID for contest feed
-            if let activeContest = contestViewModel.activeContests.first, let contestId = activeContest.id {
-                await feedViewModel.fetchContestFeed(contestId: contestId)
-                await feedViewModel.fetchLeaderboard()
+            if !hasLoadedInitialData && !hasData {
+                print("🔄 Loading community data for the first time")
+                await contestViewModel.fetchActiveContests()
+                await feedViewModel.fetchFriendsFeed()
+                
+                // Get active contest ID for contest feed
+                if let activeContest = contestViewModel.activeContests.first, let contestId = activeContest.id {
+                    await feedViewModel.fetchContestFeed(contestId: contestId)
+                    await feedViewModel.fetchLeaderboard()
+                } else {
+                    print("⚠️ No active contest found")
+                }
+                
+                await connectionViewModel.fetchConnections()
+                hasLoadedInitialData = true
+                print("✅ Community data loaded, will not reload on return")
             } else {
-                print("⚠️ No active contest found")
+                print("⏩ Skipping data reload - ViewModels have cached data (friends: \(feedViewModel.friendsFeed.count), contest: \(feedViewModel.contestFeed.count))")
             }
-            
-            await connectionViewModel.fetchConnections()
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchToContestTab)) { _ in
             withAnimation(.easeInOut(duration: 0.3)) {
@@ -208,33 +235,81 @@ struct CommunityView: View {
 
 struct FriendsTabView: View {
     @ObservedObject var feedViewModel: FeedViewModel
+    @Binding var scrollPosition: String?
+    @State private var shouldRestoreScroll = true
+    @State private var isRefreshing = false
+    let scrollToTopTrigger: Bool
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                if feedViewModel.isLoadingFriends {
-                    ProgressView()
-                        .padding(.top, 40)
-                } else if feedViewModel.friendsFeed.isEmpty {
-                    VStack(spacing: 15) {
-                        Image(systemName: "photo.on.rectangle.angled")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray.opacity(0.5))
-                        
-                        Text("No photos from friends yet")
-                            .font(.system(size: 18))
-                            .foregroundColor(.gray)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 20) {
+                    if feedViewModel.isLoadingFriends || isRefreshing {
+                        ProgressView()
+                            .padding(.top, 40)
+                    } else if feedViewModel.friendsFeed.isEmpty {
+                        VStack(spacing: 15) {
+                            Image(systemName: "photo.on.rectangle.angled")
+                                .font(.system(size: 60))
+                                .foregroundColor(.gray.opacity(0.5))
+                            
+                            Text("No photos from friends yet")
+                                .font(.system(size: 18))
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.top, 60)
+                    } else {
+                        ForEach(feedViewModel.friendsFeed, id: \.photo_id) { item in
+                            FriendPhotoCard(feedItem: item, feedViewModel: feedViewModel)
+                                .id(item.photo_id)
+                                .onAppear {
+                                    if !shouldRestoreScroll {
+                                        scrollPosition = item.photo_id
+                                        print("📍 Tracking friends position: \(item.photo_id)")
+                                    }
+                                }
+                        }
                     }
-                    .padding(.top, 60)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .padding(.bottom, 100)
+            }
+            .refreshable {
+                isRefreshing = true
+                print("🔄 Refreshing friends feed...")
+                await feedViewModel.fetchFriendsFeed()
+                isRefreshing = false
+                print("✅ Friends feed refreshed")
+            }
+            .onAppear {
+                print("🔍 Friends onAppear - shouldRestore: \(shouldRestoreScroll), position: \(scrollPosition ?? "nil")")
+                if shouldRestoreScroll, let position = scrollPosition, !position.isEmpty {
+                    print("🔄 Attempting to restore friends scroll to: \(position)")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        proxy.scrollTo(position, anchor: .top)
+                        print("✅ Scroll command sent")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            shouldRestoreScroll = false
+                            print("🏁 Friends restore complete")
+                        }
+                    }
                 } else {
-                    ForEach(feedViewModel.friendsFeed, id: \.photo_id) { item in
-                        FriendPhotoCard(feedItem: item, feedViewModel: feedViewModel)
+                    shouldRestoreScroll = false
+                }
+            }
+            .onDisappear {
+                shouldRestoreScroll = true
+                print("👋 Friends disappeared, saved position: \(scrollPosition ?? "nil")")
+            }
+            .onChange(of: scrollToTopTrigger) { _ in
+                print("🔝 Scrolling friends to top")
+                withAnimation {
+                    if let firstId = feedViewModel.friendsFeed.first?.photo_id {
+                        proxy.scrollTo(firstId, anchor: .top)
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
-            .padding(.bottom, 100)
         }
     }
 }
@@ -244,51 +319,97 @@ struct FriendsTabView: View {
 struct ContestTabView: View {
     @ObservedObject var contestViewModel: ContestViewModel
     @ObservedObject var feedViewModel: FeedViewModel
+    @Binding var scrollPosition: String?
+    @State private var shouldRestoreScroll = true
+    @State private var isRefreshing = false
+    let scrollToTopTrigger: Bool
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Active contest banner
-                if let firstContest = contestViewModel.activeContests.first {
-                    ActiveContestBanner(contest: firstContest)
-                        .onAppear {
-                            // Refresh contest data when banner appears to ensure it's current
-                            Task {
-                                await contestViewModel.fetchActiveContests()
-                            }
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 20) {
+                    // Active contest banner
+                    if let firstContest = contestViewModel.activeContests.first {
+                        ActiveContestBanner(contest: firstContest)
+                            .id("contest_banner")
+                    }
+                    
+                    // Leaderboard
+                    if let leaderboard = feedViewModel.leaderboard {
+                        LeaderboardView(leaderboard: leaderboard)
+                            .id("leaderboard")
+                            .padding(.top, 10)
+                    }
+                    
+                    // Contest feed
+                    if feedViewModel.isLoadingContest || isRefreshing {
+                        ProgressView()
+                            .padding(.top, 40)
+                    } else if feedViewModel.contestFeed.isEmpty {
+                        VStack(spacing: 15) {
+                            Image(systemName: "trophy")
+                                .font(.system(size: 60))
+                                .foregroundColor(.gray.opacity(0.5))
+                            
+                            Text("No contest entries yet")
+                                .font(.system(size: 18))
+                                .foregroundColor(.gray)
                         }
-                }
-                
-                // Leaderboard
-                if let leaderboard = feedViewModel.leaderboard {
-                    LeaderboardView(leaderboard: leaderboard)
-                        .padding(.top, 10)
-                }
-                
-                // Contest feed
-                if feedViewModel.isLoadingContest {
-                    ProgressView()
                         .padding(.top, 40)
-                } else if feedViewModel.contestFeed.isEmpty {
-                    VStack(spacing: 15) {
-                        Image(systemName: "trophy")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray.opacity(0.5))
-                        
-                        Text("No contest entries yet")
-                            .font(.system(size: 18))
-                            .foregroundColor(.gray)
+                    } else {
+                        ForEach(feedViewModel.contestFeed, id: \.contest_photo_id) { item in
+                            ContestPhotoCard(feedItem: item, feedViewModel: feedViewModel, contestViewModel: contestViewModel)
+                                .id(item.contest_photo_id)
+                                .onAppear {
+                                    if !shouldRestoreScroll {
+                                        scrollPosition = item.contest_photo_id
+                                        print("📍 Tracking contest position: \(item.contest_photo_id)")
+                                    }
+                                }
+                        }
                     }
-                    .padding(.top, 40)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .padding(.bottom, 100)
+            }
+            .refreshable {
+                isRefreshing = true
+                print("🔄 Refreshing contest feed...")
+                await contestViewModel.fetchActiveContests()
+                if let activeContest = contestViewModel.activeContests.first, let contestId = activeContest.id {
+                    await feedViewModel.fetchContestFeed(contestId: contestId)
+                    await feedViewModel.fetchLeaderboard()
+                }
+                isRefreshing = false
+                print("✅ Contest feed refreshed")
+            }
+            .onAppear {
+                print("🔍 Contest onAppear - shouldRestore: \(shouldRestoreScroll), position: \(scrollPosition ?? "nil")")
+                if shouldRestoreScroll, let position = scrollPosition, !position.isEmpty {
+                    print("🔄 Attempting to restore contest scroll to: \(position)")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        proxy.scrollTo(position, anchor: .top)
+                        print("✅ Scroll command sent")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            shouldRestoreScroll = false
+                            print("🏁 Contest restore complete")
+                        }
+                    }
                 } else {
-                    ForEach(feedViewModel.contestFeed, id: \.contest_photo_id) { item in
-                        ContestPhotoCard(feedItem: item, feedViewModel: feedViewModel, contestViewModel: contestViewModel)
-                    }
+                    shouldRestoreScroll = false
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
-            .padding(.bottom, 100)
+            .onDisappear {
+                shouldRestoreScroll = true
+                print("👋 Contest disappeared, saved position: \(scrollPosition ?? "nil")")
+            }
+            .onChange(of: scrollToTopTrigger) { _ in
+                print("🔝 Scrolling contest to top")
+                withAnimation {
+                    proxy.scrollTo("contest_banner", anchor: .top)
+                }
+            }
         }
     }
 }

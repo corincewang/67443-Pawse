@@ -12,6 +12,10 @@ struct AppView: View {
     @State private var hideBottomBar: Bool = false
     @State private var hasInitializedContest = false
     
+    // Persistent ViewModels for Community tab
+    @StateObject private var feedViewModel = FeedViewModel()
+    @StateObject private var contestViewModel = ContestViewModel()
+    
     var body: some View {
         ZStack {
             // Main content area
@@ -28,6 +32,8 @@ struct AppView: View {
                 case .community:
                     NavigationStack {
                         CommunityView()
+                            .environmentObject(feedViewModel)
+                            .environmentObject(contestViewModel)
                     }
                 }
             }
