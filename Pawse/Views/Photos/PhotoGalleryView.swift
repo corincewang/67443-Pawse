@@ -18,6 +18,8 @@ struct PhotoGalleryView: View {
     @State private var currentPet: Pet? = nil
     @State private var petForEdit: Pet? = nil
     @State private var navigateToViewPet = false
+    @State private var photoContestMap: [String: String] = [:] // photoId -> contest prompt
+    @State private var isLoadingContestPrompts = true
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
@@ -101,7 +103,7 @@ struct PhotoGalleryView: View {
                                 .font(.system(size: 36, weight: .bold))
                                 .foregroundColor(Color.pawseOrange)
                             
-                            if photoViewModel.isLoading {
+                            if photoViewModel.isLoading || isLoadingContestPrompts {
                                 ProgressView("Loading photos...")
                                     .progressViewStyle(CircularProgressViewStyle(tint: .pawseOrange))
                                     .frame(maxWidth: .infinity, alignment: .center)
@@ -115,7 +117,11 @@ struct PhotoGalleryView: View {
                                 } else {
                                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
                                         ForEach(contestPhotos) { photo in
-                                            PhotoThumbnailView(photo: photo, showDelete: true) {
+                                            PhotoThumbnailView(
+                                                photo: photo,
+                                                showDelete: true,
+                                                contestPrompt: photoContestMap[photo.id ?? ""]
+                                            ) {
                                                 selectedPhotoForDelete = photo
                                                 showingDeleteConfirmation = true
                                             }
@@ -133,7 +139,7 @@ struct PhotoGalleryView: View {
                                 .font(.system(size: 36, weight: .bold))
                                 .foregroundColor(Color.pawseOrange)
                             
-                            if photoViewModel.isLoading {
+                            if photoViewModel.isLoading || isLoadingContestPrompts {
                                 ProgressView("Loading photos...")
                                     .progressViewStyle(CircularProgressViewStyle(tint: .pawseOrange))
                                     .frame(maxWidth: .infinity, alignment: .center)
@@ -147,7 +153,11 @@ struct PhotoGalleryView: View {
                                 } else {
                                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
                                         ForEach(memoryPhotos) { photo in
-                                            PhotoThumbnailView(photo: photo, showDelete: true) {
+                                            PhotoThumbnailView(
+                                                photo: photo,
+                                                showDelete: true,
+                                                contestPrompt: nil
+                                            ) {
                                                 selectedPhotoForDelete = photo
                                                 showingDeleteConfirmation = true
                                             }
@@ -213,9 +223,17 @@ struct PhotoGalleryView: View {
             }
         }
         .task {
-            await photoViewModel.fetchPhotos(for: petId)
-            await loadCurrentPet()
-            await contestViewModel.fetchCurrentContest()
+            // Load contest prompts first so they're available when photos render
+            await loadContestPrompts()
+            
+            // Then load everything else in parallel
+            async let photosTask = photoViewModel.fetchPhotos(for: petId)
+            async let petTask = loadCurrentPet()
+            async let contestTask = contestViewModel.fetchCurrentContest()
+            
+            await photosTask
+            await petTask
+            await contestTask
         }
         .alert("Delete Photo", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -258,10 +276,45 @@ struct PhotoGalleryView: View {
         }
     }
     
+    private func loadContestPrompts() async {
+        isLoadingContestPrompts = true
+        let db = FirebaseManager.shared.db
+        var newMap: [String: String] = [:]
+        
+        // Get all contest photos
+        do {
+            let contestPhotosSnap = try await db.collection(Collection.contestPhotos).getDocuments()
+            
+            for doc in contestPhotosSnap.documents {
+                guard let contestPhoto = try? doc.data(as: ContestPhoto.self),
+                      let contestPhotoId = contestPhoto.id else { continue }
+                
+                // Extract photo ID from reference
+                let photoId = contestPhoto.photo.replacingOccurrences(of: "photos/", with: "")
+                
+                // Extract contest ID from reference
+                let contestId = contestPhoto.contest.replacingOccurrences(of: "contests/", with: "")
+                
+                // Fetch contest to get prompt
+                if let contestSnap = try? await db.collection(Collection.contests).document(contestId).getDocument(),
+                   let contest = try? contestSnap.data(as: Contest.self) {
+                    newMap[photoId] = contest.prompt
+                }
+            }
+            
+            photoContestMap = newMap
+            isLoadingContestPrompts = false
+        } catch {
+            print("❌ Failed to load contest prompts: \(error)")
+            isLoadingContestPrompts = false
+        }
+    }
+    
     
     struct PhotoThumbnailView: View {
         let photo: Photo
         let showDelete: Bool
+        let contestPrompt: String?
         let onDelete: () -> Void
         @State private var thumbnailImage: UIImage?
         @State private var isLoading = true
@@ -300,21 +353,24 @@ struct PhotoGalleryView: View {
                         )
                         .cornerRadius(10)
                     
-                    // Date overlay at the bottom of the photo
-                    // this should be changed to prompt if the photo is part of a contest
-                    Text(formatDate(photo.uploaded_at))
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 106, height: 26)
-                        .background(Color.pawseGolden)
-                        .clipShape(
-                            UnevenRoundedRectangle(
-                                topLeadingRadius: 0,
-                                bottomLeadingRadius: 10,
-                                bottomTrailingRadius: 10,
-                                topTrailingRadius: 0
-                            )
+                    // Contest prompt or date overlay at the bottom of the photo
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        Text(contestPrompt ?? formatDate(photo.uploaded_at))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                            .padding(.horizontal, 8)
+                    }
+                    .frame(width: 106, height: 26)
+                    .background(Color.pawseGolden)
+                    .clipShape(
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 0,
+                            bottomLeadingRadius: 10,
+                            bottomTrailingRadius: 10,
+                            topTrailingRadius: 0
                         )
+                    )
                 }
                 
                 if showDelete {
