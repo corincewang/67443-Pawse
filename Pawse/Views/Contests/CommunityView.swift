@@ -16,6 +16,7 @@ struct CommunityView: View {
     // Use environment objects to persist ViewModels across navigation
     @EnvironmentObject var feedViewModel: FeedViewModel
     @EnvironmentObject var contestViewModel: ContestViewModel
+    @EnvironmentObject var userViewModel: UserViewModel
     @StateObject private var connectionViewModel = ConnectionViewModel()
     @State private var selectedTab: CommunityTab = .friends
     @State private var showAddFriends = false
@@ -103,13 +104,16 @@ struct CommunityView: View {
                     
                     Spacer()
                     
-                    // Settings/profile icon
-                    Button(action: {
-                        showAddFriends = true
-                    }) {
-                        Image(systemName: "person.badge.plus")
-                            .font(.system(size: 24))
-                            .foregroundColor(.pawseBrown)
+                    // Settings button - circular in top right
+                    NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
+                        Circle()
+                            .fill(Color.pawseWarmGrey)
+                            .frame(width: 44, height: 44)
+                            .overlay(
+                                Image(systemName: "gearshape")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundColor(Color.white)
+                            )
                     }
                     .padding(.trailing, 20)
                 }
