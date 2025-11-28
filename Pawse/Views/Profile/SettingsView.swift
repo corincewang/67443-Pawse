@@ -39,8 +39,8 @@ struct SettingsView: View {
                         
                     }
                     
-                    Text("Setting")
-                        .font(.system(size: 42, weight: .bold))
+                    Text("Settings")
+                        .font(.system(size: 46, weight: .bold))
                         .foregroundColor(.pawseOliveGreen)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.horizontal, 24)
