@@ -65,13 +65,10 @@ struct CameraView: View {
             NotificationCenter.default.post(name: .hideBottomBar, object: nil)
         }
         .onDisappear {
+            // Always show bottom bar when leaving camera view completely
+            NotificationCenter.default.post(name: .showBottomBar, object: nil)
             // Stop camera session when view disappears
             cameraManager.stopSession()
-            // Only show bottom bar when completely leaving camera view (not when switching to preview)
-            // Check if we're not showing preview - if showing preview, keep bottom bar hidden
-            if !showPhotoPreview {
-                NotificationCenter.default.post(name: .showBottomBar, object: nil)
-            }
         }
         .alert("Camera Error", isPresented: .constant(cameraManager.errorMessage != nil)) {
             Button("OK") {
@@ -100,15 +97,17 @@ struct CameraView: View {
     }
     
     private var cameraInterface: some View {
-        ZStack {
-            // Camera preview - full screen, no padding
+        VStack(spacing: 0) {
+            // Top section: Camera preview only
             cameraPreview
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea(.all)
+                .ignoresSafeArea(edges: .horizontal)
             
-            // Top left close button
+            // Bottom section: Control buttons
             VStack {
-                HStack {
+                // Control buttons row
+                HStack(spacing: 40) {
+                    // X button on left
                     Button(action: {
                         // Show bottom bar before navigating away
                         NotificationCenter.default.post(name: .showBottomBar, object: nil)
@@ -118,34 +117,8 @@ struct CameraView: View {
                         Image(systemName: "xmark")
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(.white)
-                            .frame(width: 44, height: 44)
-                            .background(Color.black.opacity(0.4))
-                            .clipShape(Circle())
-                    }
-                    .padding(.leading, 20)
-                    .padding(.top, 20)
-                    
-                    Spacer()
-                }
-                
-                Spacer()
-            }
-            
-            // Bottom controls overlay
-            VStack {
-                Spacer()
-                
-                // Control buttons row
-                HStack(spacing: 40) {
-                    // Flip camera button
-                    Button(action: {
-                        cameraManager.flipCamera()
-                    }) {
-                        Image(systemName: "camera.rotate")
-                            .font(.system(size: 28))
-                            .foregroundColor(.white)
                             .frame(width: 50, height: 50)
-                            .background(Color.black.opacity(0.3))
+                            .background(Color.black.opacity(0.4))
                             .clipShape(Circle())
                     }
                     
@@ -201,13 +174,22 @@ struct CameraView: View {
                     
                     Spacer()
                     
-                    // Placeholder to balance layout
-                    Color.clear
-                        .frame(width: 50, height: 50)
+                    // Flip camera button on right
+                    Button(action: {
+                        cameraManager.flipCamera()
+                    }) {
+                        Image(systemName: "camera.rotate")
+                            .font(.system(size: 28))
+                            .foregroundColor(.white)
+                            .frame(width: 50, height: 50)
+                            .background(Color.black.opacity(0.3))
+                            .clipShape(Circle())
+                    }
                 }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 50)
+                .padding(.horizontal, 30)
+                .padding(.vertical, 30)
             }
+            .background(Color(hex: "F9F3D7"))
         }
     }
     
@@ -240,163 +222,83 @@ struct CameraView: View {
         let _ = print("🖼️ showGallerySelection: \(showGallerySelection), showShareOptions: \(showShareOptions)")
         
         return VStack(spacing: 0) {
-            // Preview image - only show above buttons, not full screen
+            // Top section: Photo preview only
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
-                .frame(maxWidth: .infinity)
-                .frame(maxHeight: .infinity) // Will be constrained by buttons below
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
-                .background(Color.black)
+                .ignoresSafeArea(.all)
             
-            // Bottom controls - positioned at exact same position as camera interface
-            // Hide buttons when gallery selection is shown
+            // Bottom section: Control buttons - hide when gallery is showing
             if !showGallerySelection {
                 VStack {
-                    Spacer()
-                    
-                    // Bottom row: Left (back), Center (orange button), Right (share)
-                    // Use same layout and padding as camera interface
+                    // Control buttons row - EXACT same as camera interface
                     HStack(spacing: 40) {
-                    // Left: Back button - same size as flip camera button (50x50)
-                    Button(action: {
-                        print("🔙 Back button tapped")
-                        capturedImage = nil
-                        capturedDate = nil
-                        showPhotoPreview = false
-                        isCapturing = false
-                        // Restart camera session when going back
-                        cameraManager.requestPermissionAndSetup()
-                    }) {
-                        Image(systemName: "arrow.left")
-                            .font(.system(size: 28))
-                            .foregroundColor(.white)
-                            .frame(width: 50, height: 50)
-                            .background(Color.black.opacity(0.3))
-                            .clipShape(Circle())
-                    }
-                    .onAppear {
-                        print("✅ Left back button appeared")
-                    }
-                    
-                    Spacer()
-                    
-                    // Center: Orange button (exact same position as capture button)
-                    Button(action: {
-                        print("📥 Download/Gallery button tapped")
-                        // Toggle gallery selection
-                        let willShow = !showGallerySelection
-                        print("📥 Gallery selection will show: \(willShow)")
-                        withAnimation {
-                            showGallerySelection = willShow
-                        }
-                        // Fetch pets when showing gallery
-                        if willShow {
-                            Task {
-                                await petViewModel.fetchUserPets()
-                            }
-                        }
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.pawseOrange)
-                                .frame(width: 80, height: 80)
-                                .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 4)
-                            
-                            // White download icon in center
-                            Image(systemName: "arrow.down.to.line.compact")
-                                .font(.system(size: 32, weight: .semibold))
+                        // Left: X button - goes back to camera page
+                        Button(action: {
+                            print("🔙 X button tapped - going back to camera")
+                            capturedImage = nil
+                            capturedDate = nil
+                            showPhotoPreview = false
+                            isCapturing = false
+                            // Restart camera session when going back
+                            cameraManager.requestPermissionAndSetup()
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 20, weight: .semibold))
                                 .foregroundColor(.white)
+                                .frame(width: 50, height: 50)
+                                .background(Color.black.opacity(0.4))
+                                .clipShape(Circle())
                         }
-                    }
-                    .onAppear {
-                        print("✅ Center download button appeared")
-                    }
-                    
-                    Spacer()
-                    
-                    // Right: Share button - same size as flip camera button (50x50)
-                    Button(action: {
-                        print("📤 Share button tapped")
-                        // Toggle share options
-                        withAnimation {
-                            showShareOptions.toggle()
-                        }
-                        print("📤 Share options now: \(showShareOptions)")
-                    }) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 28))
-                            .foregroundColor(.white)
-                            .frame(width: 50, height: 50)
-                            .background(Color.black.opacity(0.3))
-                            .clipShape(Circle())
-                    }
-                    .onAppear {
-                        print("✅ Right share button appeared")
-                    }
-                }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 50) 
-                }
-                .background(Color(hex: "F9F3D7")) // Background color for button area
-            }
-        }
-        .background(Color(hex: "F9F3D7")) // Background color for entire view
-        .ignoresSafeArea()
-        .overlay(alignment: .trailing) {
-            // Share options toggle bar (vertical) - appears when share is clicked
-            if showShareOptions {
-                VStack {
-                    Spacer()
-                    
-                    HStack {
+                        
                         Spacer()
                         
-                        // Vertical toggle bar
-                        VStack(spacing: 12) {
-                            // Top: Friends icon
-                            Button(action: {
-                                withAnimation {
-                                    selectedPrivacy = .friendsOnly
-                                    showShareOptions = false
-                                }
-                                // Handle share with friends
-                            }) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(selectedPrivacy == .friendsOnly ? Color.pawseOrange : Color.white.opacity(0.3))
-                                        .frame(width: 50, height: 50)
-                                    
-                                    Image(systemName: "person.2.fill")
-                                        .font(.system(size: 20, weight: .semibold))
-                                        .foregroundColor(.white)
+                        // Center: Orange download button (exact same position as capture button)
+                        Button(action: {
+                            print("📥 Download/Gallery button tapped")
+                            // Toggle gallery selection
+                            let willShow = !showGallerySelection
+                            print("📥 Gallery selection will show: \(willShow)")
+                            withAnimation {
+                                showGallerySelection = willShow
+                            }
+                            // Fetch pets when showing gallery
+                            if willShow {
+                                Task {
+                                    await petViewModel.fetchUserPets()
                                 }
                             }
-                            
-                            // Bottom: Trophy icon
-                            Button(action: {
-                                withAnimation {
-                                    selectedPrivacy = .publicPhoto
-                                    showShareOptions = false
-                                }
-                                // Handle share publicly/contest
-                            }) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(selectedPrivacy == .publicPhoto ? Color.pawseOrange : Color.white.opacity(0.3))
-                                        .frame(width: 50, height: 50)
-                                    
-                                    Image(systemName: "trophy.fill")
-                                        .font(.system(size: 20, weight: .semibold))
-                                        .foregroundColor(.white)
-                                }
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.pawseOrange)
+                                    .frame(width: 80, height: 80)
+                                    .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 4)
+                                
+                                // White download icon in center
+                                Image(systemName: "arrow.down.to.line.compact")
+                                    .font(.system(size: 32, weight: .semibold))
+                                    .foregroundColor(.white)
                             }
                         }
-                        .padding(.trailing, 40)
-                        .padding(.bottom, 150) // Position above the buttons
+                        
+                        Spacer()
+                        
+                        // Right: Invisible button to balance layout (same size as left button)
+                        Button(action: {
+                            // Do nothing - just for layout balance
+                        }) {
+                            Color.clear
+                                .frame(width: 50, height: 50)
+                        }
+                        .disabled(true) // Disable interaction
                     }
+                    .padding(.horizontal, 40)
+                    .padding(.vertical, 30)
                 }
-                .transition(.opacity.combined(with: .scale))
+                .background(Color(hex: "F9F3D7"))
             }
         }
         .overlay(alignment: .bottom) {
@@ -418,32 +320,74 @@ struct CameraView: View {
                                 }
                             }
                         
-                        // Title - with left and right padding
-                        Text("Choose Gallery:")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.pawseBrown)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 30) // More padding on the right
-                            .padding(.top, 20)
-                            .padding(.bottom, 16)
+                        // Title with close button
+                        HStack {
+                            Text("Choose Gallery:")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.pawseBrown)
+                            
+                            Spacer()
+                            
+                            // Orange X button to close gallery and go back to camera
+                            Button(action: {
+                                print("🔙 Gallery X button tapped - going back to camera")
+                                capturedImage = nil
+                                capturedDate = nil
+                                showPhotoPreview = false
+                                isCapturing = false
+                                showGallerySelection = false
+                                // Restart camera session when going back
+                                cameraManager.requestPermissionAndSetup()
+                            }) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 32, height: 32)
+                                    .background(Color.pawseOrange)
+                                    .clipShape(Circle())
+                            }
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.top, 24)
+                        .padding(.bottom, 20)
                         
                         // Horizontal scrollable gallery
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 16) {
-                                ForEach(petViewModel.allPets) { pet in
-                                    GalleryPetCard(
-                                        pet: pet,
-                                        isSaved: savedPetIds.contains(pet.id ?? ""),
-                                        onDoubleTap: {
-                                            handleGalleryDoubleTap(pet: pet, image: image)
-                                        }
-                                    )
+                        ScrollViewReader { proxy in
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 16) {
+                                    // Add extra leading spacer for proper alignment
+                                    Spacer()
+                                        .frame(width: 24)
+                                        .id("leading-spacer")
+                                    
+                                    ForEach(Array(petViewModel.allPets.enumerated()), id: \.element.id) { index, pet in
+                                        GalleryPetCard(
+                                            pet: pet,
+                                            isSaved: savedPetIds.contains(pet.id ?? ""),
+                                            onDoubleTap: {
+                                                handleGalleryDoubleTap(pet: pet, image: image)
+                                            }
+                                        )
+                                        .id(pet.id)
+                                    }
+                                    
+                                    // Add trailing spacer
+                                    Spacer()
+                                        .frame(width: 24)
                                 }
                             }
-                            .padding(.horizontal, 30) // Padding on left and right
+                            .frame(height: 150)
+                            .ignoresSafeArea(edges: .horizontal)
+                            .onAppear {
+                                // Scroll to leading spacer to show first item properly
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    withAnimation(.none) {
+                                        proxy.scrollTo("leading-spacer", anchor: .leading)
+                                    }
+                                }
+                            }
                         }
-                        .frame(height: 140) // Increased height
-                        .padding(.bottom, 24)
+                        .padding(.bottom, 32)
                     }
                     .background(Color(hex: "FAF7EB"))
                     .cornerRadius(20, corners: [.topLeft, .topRight])
@@ -453,15 +397,6 @@ struct CameraView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .zIndex(200) // Above buttons to cover them
             }
-        }
-        .onAppear {
-            // Keep bottom bar hidden when photo preview appears
-            NotificationCenter.default.post(name: .hideBottomBar, object: nil)
-        }
-        .onDisappear {
-            // When leaving preview (going back to camera), keep bottom bar hidden
-            // because we're still in camera view
-            NotificationCenter.default.post(name: .hideBottomBar, object: nil)
         }
     }
     
@@ -867,13 +802,13 @@ struct GalleryPetCard: View {
     }
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             // Thumbnail
             ZStack {
                 // Background color
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 14)
                     .fill(cardColors.background)
-                    .frame(width: 100, height: 100)
+                    .frame(width: 120, height: 120)
                 
                 // Image or initial
                 Group {
@@ -884,39 +819,39 @@ struct GalleryPetCard: View {
                                 image
                                     .resizable()
                                     .scaledToFill()
-                                    .frame(width: 100, height: 100)
+                                    .frame(width: 120, height: 120)
                                     .clipped()
                             case .failure(_), .empty:
                                 Text(pet.name.prefix(1).uppercased())
-                                    .font(.system(size: 40, weight: .bold))
+                                    .font(.system(size: 48, weight: .bold))
                                     .foregroundColor(.white.opacity(0.5))
                             @unknown default:
                                 Text(pet.name.prefix(1).uppercased())
-                                    .font(.system(size: 40, weight: .bold))
+                                    .font(.system(size: 48, weight: .bold))
                                     .foregroundColor(.white.opacity(0.5))
                             }
                         }
                     } else {
                         Text(pet.name.prefix(1).uppercased())
-                            .font(.system(size: 40, weight: .bold))
+                            .font(.system(size: 48, weight: .bold))
                             .foregroundColor(.white.opacity(0.5))
                     }
                 }
-                .frame(width: 100, height: 100)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .frame(width: 120, height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
                 
                 // Dark overlay when saved
                 if isSaved {
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: 14)
                         .fill(Color.black.opacity(0.6))
-                        .frame(width: 100, height: 100)
+                        .frame(width: 120, height: 120)
                     
                     VStack(spacing: 4) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 24))
+                            .font(.system(size: 28))
                             .foregroundColor(.white)
                         Text("saved")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(.white)
                     }
                 }
@@ -924,11 +859,11 @@ struct GalleryPetCard: View {
             
             // Pet name
             Text(pet.name.lowercased())
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.pawseBrown)
                 .lineLimit(1)
         }
-        .frame(width: 100)
+        .frame(width: 120)
         .onTapGesture(count: 2) {
             onDoubleTap()
         }

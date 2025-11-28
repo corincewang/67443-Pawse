@@ -34,17 +34,17 @@ struct SettingsView: View {
                                 .foregroundColor(.pawseOliveGreen)
                                 .frame(width: 44, height: 44)
                         }
-                        .padding(.leading, 20)
+                        .padding(.leading, 24)
                         .padding(.top, 10)
                         
-                        Spacer()
                     }
                     
-                    Text("Account Setting")
-                        .font(.system(size: 42, weight: .bold))
+                    Text("Settings")
+                        .font(.system(size: 46, weight: .bold))
                         .foregroundColor(.pawseOliveGreen)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.horizontal, 24)
+                        .padding(.top, -10)
 
                 // Card containing editable fields
                 VStack(alignment: .leading, spacing: 18) {
@@ -90,44 +90,48 @@ struct SettingsView: View {
                         .padding(.top, 4)
                         .padding(.bottom, 12)
                     }
-                    .frame(maxHeight: 200) // Increased height for better visibility
+                    .frame(maxHeight: 160) // Increased height for better visibility
                 }
                 .padding(20)
                 .background(Color(hex: "FAF7EB"))
                 .cornerRadius(18)
                 .padding(.horizontal, 24)
                 
-                // Save button - outside the light yellow card, full width like Sign Out
-                Button(action: {
-                    Task {
-                        isSaving = true
-                        await userViewModel.updateProfile(nickName: nickName, preferredSettings: Array(preferred))
-                        isSaving = false
-                        showSaveConfirmation = true
+                // Save button - centered
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        Task {
+                            isSaving = true
+                            await userViewModel.updateProfile(nickName: nickName, preferredSettings: Array(preferred))
+                            isSaving = false
+                            showSaveConfirmation = true
+                        }
+                    }) {
+                        if isSaving {
+                            ProgressView()
+                                .tint(.white)
+                                .padding(.horizontal, 40)
+                                .padding(.vertical, 12)
+                                .background(Color.pawseOliveGreen)
+                                .foregroundColor(.white)
+                                .cornerRadius(20)
+                        } else {
+                            Text("Save")
+                                .font(.system(size: 20, weight: .bold))
+                                .padding(.horizontal, 40)
+                                .padding(.vertical, 12)
+                                .background(Color.pawseOliveGreen)
+                                .foregroundColor(.white)
+                                .cornerRadius(20)
+                        }
                     }
-                }) {
-                    if isSaving {
-                        ProgressView()
-                            .tint(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.pawseOliveGreen)
-                            .foregroundColor(.white)
-                            .cornerRadius(20)
-                    } else {
-                        Text("Save")
-                            .font(.system(size: 20, weight: .bold))
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.pawseOliveGreen)
-                            .foregroundColor(.white)
-                            .cornerRadius(20)
-                    }
+                    Spacer()
                 }
                 .padding(.horizontal, 30)
                 .padding(.top, 10)
 
-                // Sign Out button
+                // Sign Out button - white background with orange text
                 Button(role: .destructive) {
                     showingSignOutAlert = true
                 } label: {
@@ -135,9 +139,13 @@ struct SettingsView: View {
                         .font(.system(size: 20, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.red)
-                        .foregroundColor(.white)
+                        .background(Color.white)
+                        .foregroundColor(.pawseOrange)
                         .cornerRadius(20)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.pawseOrange, lineWidth: 2)
+                        )
                         .padding(.horizontal, 30)
                 }
                 .padding(.top, 5)
@@ -170,6 +178,14 @@ struct SettingsView: View {
                 }
             }
         }
+        .gesture(
+            DragGesture()
+                .onEnded { gesture in
+                    if gesture.translation.width > 100 {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+        )
         .alert("Sign Out", isPresented: $showingSignOutAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Sign Out", role: .destructive) {
