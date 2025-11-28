@@ -55,10 +55,10 @@ struct ProfilePageView: View {
                     NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
                         Circle()
                             .fill(Color.pawseWarmGrey)
-                            .frame(width: 56, height: 56) // larger tappable area
+                            .frame(width: 52, height: 52) 
                             .overlay(
                                 Image(systemName: "gearshape")
-                                    .font(.system(size: 20, weight: .medium))
+                                    .font(.system(size: 24, weight: .medium))
                                     .foregroundColor(Color.white)
                             )
                             .padding(.top, -40)

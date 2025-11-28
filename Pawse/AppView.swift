@@ -65,6 +65,11 @@ struct AppView: View {
                 NotificationCenter.default.post(name: .switchToContestTab, object: nil)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToProfile)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedTab = .profile
+            }
+        }
     }
 }
 
@@ -74,7 +79,9 @@ extension Notification.Name {
     static let showBottomBar = Notification.Name("showBottomBar")
     static let navigateToCommunity = Notification.Name("navigateToCommunity")
     static let navigateToCommunityContest = Notification.Name("navigateToCommunityContest")
+    static let navigateToProfile = Notification.Name("navigateToProfile")
     static let switchToContestTab = Notification.Name("switchToContestTab")
+    static let refreshPhotoGallery = Notification.Name("refreshPhotoGallery")
 }
 
 
