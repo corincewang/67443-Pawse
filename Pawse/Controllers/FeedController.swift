@@ -44,6 +44,13 @@ final class FeedController {
             userVotedPhotoIds: userVotedPhotoIds
         )
     }
+
+    func fetchGlobalFeedItems(for userId: String, userVotedPhotoIds: Set<String>) async throws -> [FriendsFeedItem] {
+        return try await FeedService.shared.generateGlobalFeed(
+            for: userId,
+            userVotedPhotoIds: userVotedPhotoIds
+        )
+    }
     
     func fetchLeaderboardResponse() async throws -> LeaderboardResponse {
         let db = FirebaseManager.shared.db

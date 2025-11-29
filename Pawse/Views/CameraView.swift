@@ -788,11 +788,8 @@ struct GalleryPetCard: View {
     
     // Get a consistent color for this pet based on its ID
     private var cardColors: (background: Color, accent: Color) {
-        guard let petId = pet.id else {
-            return Color.petCardColors[0]
-        }
-        let index = abs(petId.hashValue) % Color.petCardColors.count
-        return Color.petCardColors[index]
+        let identifier = pet.id ?? pet.name
+        return Color.petColorPair(for: identifier)
     }
     
     // Get profile photo URL from S3 key

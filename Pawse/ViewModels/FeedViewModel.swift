@@ -8,10 +8,12 @@ class FeedViewModel: ObservableObject {
     @Published var friendsFeed: [FriendsFeedItem] = []
     @Published var contestFeed: [ContestFeedItem] = []
     @Published var leaderboard: LeaderboardResponse?
+    @Published var globalFeed: [FriendsFeedItem] = []
     
     @Published var isLoadingFriends = false
     @Published var isLoadingContest = false
     @Published var isLoadingLeaderboard = false
+    @Published var isLoadingGlobal = false
     @Published var error: String?
     
     // Track which photos user has voted on (photo_id or contest_photo_id)
@@ -98,6 +100,27 @@ class FeedViewModel: ObservableObject {
         isLoadingContest = false
     }
     
+    func fetchGlobalFeed() async {
+        guard let userId = FirebaseManager.shared.auth.currentUser?.uid else {
+            error = "No user logged in"
+            return
+        }
+
+        isLoadingGlobal = true
+        error = nil
+        do {
+            globalFeed = try await feedController.fetchGlobalFeedItems(
+                for: userId,
+                userVotedPhotoIds: userVotedPhotoIds
+            )
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+            globalFeed = []
+        }
+        isLoadingGlobal = false
+    }
+
     func fetchLeaderboard() async {
         isLoadingLeaderboard = true
         error = nil
@@ -115,13 +138,14 @@ class FeedViewModel: ObservableObject {
     
     func refreshAllFeeds(contestId: String?) async {
         async let friendsTask: Void = fetchFriendsFeed()
+        async let globalTask: Void = fetchGlobalFeed()
         async let leaderboardTask: Void = fetchLeaderboard()
         
         if let contestId = contestId {
             async let contestTask: Void = fetchContestFeed(contestId: contestId)
-            _ = await (friendsTask, contestTask, leaderboardTask)
+            _ = await (friendsTask, globalTask, contestTask, leaderboardTask)
         } else {
-            _ = await (friendsTask, leaderboardTask)
+            _ = await (friendsTask, globalTask, leaderboardTask)
         }
     }
     
