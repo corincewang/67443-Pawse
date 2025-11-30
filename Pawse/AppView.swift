@@ -10,6 +10,7 @@ import SwiftUI
 struct AppView: View {
     @State private var selectedTab: TabItem = .profile
     @State private var hideBottomBar: Bool = false
+    @StateObject private var feedViewModel = FeedViewModel()
     
     var body: some View {
         ZStack {
@@ -24,9 +25,15 @@ struct AppView: View {
                     NavigationStack {
                         CameraView()
                     }
+                case .contest:
+                    NavigationStack {
+                        ContestView()
+                            .environmentObject(feedViewModel)
+                    }
                 case .community:
                     NavigationStack {
                         CommunityView()
+                            .environmentObject(feedViewModel)
                     }
                 }
             }
@@ -56,13 +63,9 @@ struct AppView: View {
                 selectedTab = .community
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .navigateToCommunityContest)) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToContest)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) {
-                selectedTab = .community
-            }
-            // Post a notification to switch to contest tab within CommunityView
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                NotificationCenter.default.post(name: .switchToContestTab, object: nil)
+                selectedTab = .contest
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToProfile)) { _ in
@@ -78,9 +81,8 @@ extension Notification.Name {
     static let hideBottomBar = Notification.Name("hideBottomBar")
     static let showBottomBar = Notification.Name("showBottomBar")
     static let navigateToCommunity = Notification.Name("navigateToCommunity")
-    static let navigateToCommunityContest = Notification.Name("navigateToCommunityContest")
+    static let navigateToContest = Notification.Name("navigateToContest")
     static let navigateToProfile = Notification.Name("navigateToProfile")
-    static let switchToContestTab = Notification.Name("switchToContestTab")
     static let refreshPhotoGallery = Notification.Name("refreshPhotoGallery")
 }
 

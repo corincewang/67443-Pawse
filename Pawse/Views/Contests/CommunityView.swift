@@ -2,21 +2,20 @@
 //  CommunityView.swift
 //  Pawse
 //
-//  Community page - main feed with friends and contest toggle
+//  Community page - main feed with friends and global public toggle
 //
 
 import SwiftUI
 
-enum CommunityTab: Hashable {
+enum CommunityFeedTab: Hashable {
     case friends
-    case contest
+    case global
 }
 
 struct CommunityView: View {
-    @StateObject private var feedViewModel = FeedViewModel()
-    @StateObject private var contestViewModel = ContestViewModel()
+    @EnvironmentObject var feedViewModel: FeedViewModel
     @StateObject private var connectionViewModel = ConnectionViewModel()
-    @State private var selectedTab: CommunityTab = .friends
+    @State private var selectedTab: CommunityFeedTab = .friends
     @State private var showAddFriends = false
     @State private var showNotifications = false
     @State private var searchEmail = ""
@@ -66,18 +65,18 @@ struct CommunityView: View {
                                 .background(selectedTab == .friends ? Color.pawseLightCoral : Color.pawseGolden)
                                 .clipShape(RoundedRectangle(cornerRadius: 22))
                         }
-                        
-                        // Contest tab
+                    
+                        // Global tab
                         Button(action: {
                             withAnimation(.easeInOut(duration: 0.3)) {
-                                selectedTab = .contest
+                                selectedTab = .global
                             }
                         }) {
-                            Text("contest")
+                            Text("global")
                                 .font(.system(size: 20, weight: .bold))
                                 .foregroundColor(.white)
                                 .frame(width: 120, height: 44)
-                                .background(selectedTab == .contest ? Color.pawseOliveGreen : Color.pawseGolden)
+                                .background(selectedTab == .global ? Color.pawseOliveGreen : Color.pawseGolden)
                                 .clipShape(RoundedRectangle(cornerRadius: 22))
                         }
                     }
@@ -102,10 +101,10 @@ struct CommunityView: View {
                 // Content based on selected tab with swipe gestures
                 TabView(selection: $selectedTab) {
                     FriendsTabView(feedViewModel: feedViewModel)
-                        .tag(CommunityTab.friends)
-                    
-                    ContestTabView(contestViewModel: contestViewModel, feedViewModel: feedViewModel)
-                        .tag(CommunityTab.contest)
+                        .tag(CommunityFeedTab.friends)
+
+                    GlobalTabView(feedViewModel: feedViewModel)
+                        .tag(CommunityFeedTab.global)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: selectedTab)
@@ -115,11 +114,8 @@ struct CommunityView: View {
                         switch newTab {
                         case .friends:
                             await feedViewModel.fetchFriendsFeed()
-                        case .contest:
-                            if let activeContest = contestViewModel.activeContests.first,
-                               let contestId = activeContest.id {
-                                await feedViewModel.fetchContestFeed(contestId: contestId)
-                            }
+                        case .global:
+                            await feedViewModel.fetchGlobalFeed()
                         }
                     }
                 }
@@ -127,25 +123,9 @@ struct CommunityView: View {
         }
         .navigationBarBackButtonHidden(true)
         .task {
-            await contestViewModel.fetchActiveContests()
-            
-            // Always fetch friends feed
-            await feedViewModel.fetchFriendsFeed()
-            
-            // Get active contest ID for contest feed
-            if let activeContest = contestViewModel.activeContests.first, let contestId = activeContest.id {
-                await feedViewModel.fetchContestFeed(contestId: contestId)
-                await feedViewModel.fetchLeaderboard()
-            } else {
-                print("⚠️ No active contest found")
-            }
-            
             await connectionViewModel.fetchConnections()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .switchToContestTab)) { _ in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                selectedTab = .contest
-            }
+            await feedViewModel.fetchFriendsFeed()
+            await feedViewModel.fetchGlobalFeed()
         }
         .overlay {
             // Add friend popup
@@ -228,6 +208,39 @@ struct FriendsTabView: View {
                     .padding(.top, 60)
                 } else {
                     ForEach(feedViewModel.friendsFeed, id: \.photo_id) { item in
+                        FriendPhotoCard(feedItem: item, feedViewModel: feedViewModel)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .padding(.bottom, 100)
+        }
+    }
+}
+
+struct GlobalTabView: View {
+    @ObservedObject var feedViewModel: FeedViewModel
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                if feedViewModel.isLoadingGlobal {
+                    ProgressView()
+                        .padding(.top, 40)
+                } else if feedViewModel.globalFeed.isEmpty {
+                    VStack(spacing: 15) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray.opacity(0.5))
+
+                        Text("No global posts yet")
+                            .font(.system(size: 18))
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.top, 60)
+                } else {
+                    ForEach(feedViewModel.globalFeed, id: \.photo_id) { item in
                         FriendPhotoCard(feedItem: item, feedViewModel: feedViewModel)
                     }
                 }
@@ -964,6 +977,7 @@ struct NotificationCard: View {
 #Preview {
     NavigationStack {
         CommunityView()
+            .environmentObject(FeedViewModel())
     }
 }
 
