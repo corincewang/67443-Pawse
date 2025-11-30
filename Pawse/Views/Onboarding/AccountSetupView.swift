@@ -40,7 +40,7 @@ struct AccountSetupView: View {
                     .padding(.top, 80)
                 
                 Spacer()
-                    .frame(height: 80)
+                    .frame(height: 40)
                 
                 // White card containing form
                 VStack(alignment: .leading, spacing: 18) {

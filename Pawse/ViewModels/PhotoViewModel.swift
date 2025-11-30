@@ -16,6 +16,9 @@ class PhotoViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var isUploading = false
     
+    // Optional captured date for photos taken with camera (preserves original capture time)
+    var capturedDate: Date?
+    
     private let photoController = PhotoController()
     private let authController = AuthController()
     
@@ -45,27 +48,39 @@ class PhotoViewModel: ObservableObject {
             // Generate S3 key for the photo
             let s3Key = AWSManager.shared.generateS3Key(for: petId)
             
-            // Simple S3 upload (no Firebase Functions needed)
+            // Upload to S3
             _ = try await AWSManager.shared.uploadToS3Simple(
                 imageData: imageData,
                 s3Key: s3Key
             )
             
-            // Save photo record to Firestore
+            // Save photo record to Firestore with capture date (or current date if not provided)
+            // Use capturedDate if set (for camera photos), otherwise use current date (for gallery uploads)
+            let uploadDate = capturedDate ?? Date()
             let photo = Photo(
                 image_link: s3Key,
                 pet: "pets/\(petId)",
                 privacy: privacy,
-                uploaded_at: Date(),
+                uploaded_at: uploadDate,
                 uploaded_by: "users/\(uid)",
                 votes_from_friends: 0
             )
             let photoId = try await photoController.savePhotoRecord(photo: photo)
             
-            print("✅ Photo uploaded successfully: \(s3Key)")
+            print("✅ Photo uploaded successfully: \(s3Key), date: \(photo.uploaded_at)")
+            
+            // Clear capturedDate after use
+            capturedDate = nil
             
             // Refresh photos after successful upload
             await fetchPhotos(for: petId)
+            
+            // Notify that photos have been updated for this pet
+            NotificationCenter.default.post(
+                name: .refreshPhotoGallery,
+                object: nil,
+                userInfo: ["petId": petId]
+            )
             
             isUploading = false
             return photoId

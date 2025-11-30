@@ -80,6 +80,17 @@ extension Color {
     static let pawseNeutral = pawseBrown
 }
 
+extension Color {
+    /// Returns a background + accent pair from the fixed palette for a given identifier.
+    static func petColorPair(for identifier: String) -> (background: Color, accent: Color) {
+        guard !petCardColors.isEmpty else {
+            return (pawseLightCoralBackground, pawseLightCoral)
+        }
+        let index = abs(identifier.hashValue) % petCardColors.count
+        return petCardColors[index]
+    }
+}
+
 // MARK: - Color Extension (for hex colors)
 extension Color {
     init(hex: String) {

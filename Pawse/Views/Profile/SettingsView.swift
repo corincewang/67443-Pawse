@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject var userViewModel: UserViewModel
@@ -12,19 +13,38 @@ struct SettingsView: View {
     @State private var showSaveConfirmation = false
     @State private var showResetConfirmation = false
     @State private var resetMessage: String = ""
+    
+    // 12 tags total - scrollable vertically
+    private let allOptions = ["cat lover", "dog lover", "no-insects", "small-pets", "bird lover", "reptile lover", "aquatic pets", "farm animals", "exotic pets", "outdoor pets", "indoor pets", "multi-pet"]
 
     var body: some View {
         ZStack {
             Color.pawseBackground
                 .ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                Text("Account Setting")
-                    .font(.system(size: 34, weight: .bold))
-                    .foregroundColor(.pawseOliveGreen)
-                    .padding(.top, 40)
-
-                Spacer()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Custom back button
+                    HStack {
+                        Button(action: {
+                            presentationMode.wrappedValue.dismiss()
+                        }) {
+                            Image(systemName: "chevron.backward")
+                                .font(.system(size: 24))
+                                .foregroundColor(.pawseOliveGreen)
+                                .frame(width: 44, height: 44)
+                        }
+                        .padding(.leading, 24)
+                        .padding(.top, 10)
+                        
+                    }
+                    
+                    Text("Settings")
+                        .font(.system(size: 46, weight: .bold))
+                        .foregroundColor(.pawseOliveGreen)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.horizontal, 24)
+                        .padding(.top, -10)
 
                 // Card containing editable fields
                 VStack(alignment: .leading, spacing: 18) {
@@ -42,14 +62,14 @@ struct SettingsView: View {
                         )
                         .foregroundColor(.black)
 
-                    Text("Prefered Setting")
+                    Text("Preferred Setting")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.pawseBrown)
 
-                    // Chips
-                    let options = ["cat lover", "dog lover", "no-insects", "small-pets"]
+                    // Scrollable tags - all tags in a scrollable grid
+                    ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 12)], spacing: 12) {
-                        ForEach(options, id: \.self) { option in
+                            ForEach(allOptions, id: \.self) { option in
                             Button(action: {
                                 if preferred.contains(option) {
                                     preferred.remove(option)
@@ -67,40 +87,70 @@ struct SettingsView: View {
                             }
                         }
                     }
-
-                    HStack {
-                        Spacer()
-                        Button(action: {
-                            Task {
-                                isSaving = true
-                                await userViewModel.updateProfile(nickName: nickName, preferredSettings: Array(preferred))
-                                isSaving = false
-                                showSaveConfirmation = true
-                            }
-                        }) {
-                            if isSaving {
-                                ProgressView()
-                                    .tint(.white)
-                                    .frame(width: 90, height: 44)
-                                    .background(Color.pawseOrange)
-                                    .cornerRadius(22)
-                            } else {
-                                Text("Save")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 90, height: 44)
-                                    .background(Color.pawseOrange)
-                                    .cornerRadius(22)
-                            }
-                        }
+                        .padding(.top, 4)
+                        .padding(.bottom, 12)
                     }
+                    .frame(maxHeight: 160) // Increased height for better visibility
                 }
-                .padding(24)
+                .padding(20)
                 .background(Color(hex: "FAF7EB"))
                 .cornerRadius(18)
                 .padding(.horizontal, 24)
+                
+                // Save button - centered
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        Task {
+                            isSaving = true
+                            await userViewModel.updateProfile(nickName: nickName, preferredSettings: Array(preferred))
+                            isSaving = false
+                            showSaveConfirmation = true
+                        }
+                    }) {
+                        if isSaving {
+                            ProgressView()
+                                .tint(.white)
+                                .padding(.horizontal, 40)
+                                .padding(.vertical, 12)
+                                .background(Color.pawseOliveGreen)
+                                .foregroundColor(.white)
+                                .cornerRadius(20)
+                        } else {
+                            Text("Save")
+                                .font(.system(size: 20, weight: .bold))
+                                .padding(.horizontal, 40)
+                                .padding(.vertical, 12)
+                                .background(Color.pawseOliveGreen)
+                                .foregroundColor(.white)
+                                .cornerRadius(20)
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 30)
+                .padding(.top, 10)
 
-                // Forget password link
+                // Sign Out button - white background with orange text
+                Button(role: .destructive) {
+                    showingSignOutAlert = true
+                } label: {
+                    Text("Sign Out")
+                        .font(.system(size: 20, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.white)
+                        .foregroundColor(.pawseOrange)
+                        .cornerRadius(20)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.pawseOrange, lineWidth: 2)
+                        )
+                        .padding(.horizontal, 30)
+                }
+                .padding(.top, 5)
+                
+                // Forget password link - below Sign Out
                 Button(action: {
                     Task {
                         if let email = userViewModel.currentUser?.email {
@@ -121,27 +171,21 @@ struct SettingsView: View {
                         .font(.system(size: 14))
                         .foregroundColor(.pawseOrange)
                         .underline()
-                        .padding(.leading, 24)
                 }
-
-                Spacer()
-
-                // Sign Out button at bottom
-                Button(role: .destructive) {
-                    showingSignOutAlert = true
-                } label: {
-                    Text("Sign Out")
-                        .font(.system(size: 20, weight: .bold))
                         .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                        .padding(.horizontal, 30)
-                }
+                .padding(.top, 10)
                 .padding(.bottom, 100)
+                }
             }
         }
+        .gesture(
+            DragGesture()
+                .onEnded { gesture in
+                    if gesture.translation.width > 100 {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+        )
         .alert("Sign Out", isPresented: $showingSignOutAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Sign Out", role: .destructive) {
@@ -162,6 +206,7 @@ struct SettingsView: View {
         } message: {
             Text(resetMessage)
         }
+        .navigationBarBackButtonHidden(true)
         .task {
             // Populate initial values
             if let user = userViewModel.currentUser {
@@ -176,6 +221,7 @@ struct SettingsView: View {
             }
         }
     }
+    
 }
 
 #Preview {

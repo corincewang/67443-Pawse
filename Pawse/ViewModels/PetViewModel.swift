@@ -14,6 +14,7 @@ class PetViewModel: ObservableObject {
     @Published var guardianPets: [Pet] = [] // Pets where user is a guardian
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var hasLoadedUserPets = false
     
     private let petController = PetController()
     private let guardianController = GuardianController()
@@ -28,8 +29,10 @@ class PetViewModel: ObservableObject {
         isLoading = true
         do {
             pets = try await petController.fetchPets(for: uid)
+            hasLoadedUserPets = true
         } catch {
             errorMessage = error.localizedDescription
+            hasLoadedUserPets = false
         }
         isLoading = false
     }

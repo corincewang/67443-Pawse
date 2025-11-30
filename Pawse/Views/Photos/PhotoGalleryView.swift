@@ -213,6 +213,23 @@ struct PhotoGalleryView: View {
             
             // Show bottom bar when this view appears
             NotificationCenter.default.post(name: .showBottomBar, object: nil)
+            
+            // Refresh photos when view appears (in case photos were added from camera)
+            Task {
+                await photoViewModel.fetchPhotos(for: petId)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .refreshPhotoGallery)) { notification in
+            // Refresh photos when notified (e.g., after uploading from camera)
+            if let userInfo = notification.userInfo,
+               let notifiedPetId = userInfo["petId"] as? String,
+               notifiedPetId == petId {
+                // Add a small delay to ensure Firestore write is complete
+                Task {
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
+                    await photoViewModel.fetchPhotos(for: petId)
+                }
+            }
         }
         .navigationDestination(item: $petForEdit) { pet in
             PetFormView(pet: pet)

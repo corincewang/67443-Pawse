@@ -56,10 +56,10 @@ struct ProfilePageView: View {
                     NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
                         Circle()
                             .fill(Color.pawseWarmGrey)
-                            .frame(width: 56, height: 56) // larger tappable area
+                            .frame(width: 52, height: 52) 
                             .overlay(
                                 Image(systemName: "gearshape")
-                                    .font(.system(size: 20, weight: .medium))
+                                    .font(.system(size: 24, weight: .medium))
                                     .foregroundColor(Color.white)
                             )
                             .padding(.top, -40)
@@ -371,12 +371,8 @@ struct PetCardView: View {
     
     // Get a consistent color for this pet based on its ID
     private var cardColors: (background: Color, accent: Color) {
-        guard let petId = pet.id else {
-            return Color.petCardColors[0]
-        }
-        // Use pet ID to consistently select a color
-        let index = abs(petId.hashValue) % Color.petCardColors.count
-        return Color.petCardColors[index]
+        let identifier = pet.id ?? pet.name
+        return Color.petColorPair(for: identifier)
     }
     
     // Get profile photo URL from S3 key

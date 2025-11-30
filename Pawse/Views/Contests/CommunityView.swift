@@ -2,14 +2,14 @@
 //  CommunityView.swift
 //  Pawse
 //
-//  Community page - main feed with friends and contest toggle
+//  Community page - main feed with friends and global public toggle
 //
 
 import SwiftUI
 
-enum CommunityTab: Hashable {
+enum CommunityFeedTab: Hashable {
     case friends
-    case contest
+    case global
 }
 
 struct CommunityView: View {
@@ -18,7 +18,7 @@ struct CommunityView: View {
     @EnvironmentObject var contestViewModel: ContestViewModel
     @EnvironmentObject var userViewModel: UserViewModel
     @StateObject private var connectionViewModel = ConnectionViewModel()
-    @State private var selectedTab: CommunityTab = .friends
+    @State private var selectedTab: CommunityFeedTab = .friends
     @State private var showAddFriends = false
     @State private var showNotifications = false
     @State private var searchEmail = ""
@@ -79,8 +79,8 @@ struct CommunityView: View {
                                 .background(selectedTab == .friends ? Color.pawseLightCoral : Color.pawseGolden)
                                 .clipShape(RoundedRectangle(cornerRadius: 22))
                         }
-                        
-                        // Contest tab
+                    
+                        // Global tab
                         Button(action: {
                             if selectedTab == .contest {
                                 // Double tap - scroll to top
@@ -91,11 +91,11 @@ struct CommunityView: View {
                                 }
                             }
                         }) {
-                            Text("contest")
+                            Text("global")
                                 .font(.system(size: 20, weight: .bold))
                                 .foregroundColor(.white)
                                 .frame(width: 120, height: 44)
-                                .background(selectedTab == .contest ? Color.pawseOliveGreen : Color.pawseGolden)
+                                .background(selectedTab == .global ? Color.pawseOliveGreen : Color.pawseGolden)
                                 .clipShape(RoundedRectangle(cornerRadius: 22))
                         }
                     }
@@ -314,6 +314,39 @@ struct FriendsTabView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+struct GlobalTabView: View {
+    @ObservedObject var feedViewModel: FeedViewModel
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                if feedViewModel.isLoadingGlobal {
+                    ProgressView()
+                        .padding(.top, 40)
+                } else if feedViewModel.globalFeed.isEmpty {
+                    VStack(spacing: 15) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray.opacity(0.5))
+
+                        Text("No global posts yet")
+                            .font(.system(size: 18))
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.top, 60)
+                } else {
+                    ForEach(feedViewModel.globalFeed, id: \.photo_id) { item in
+                        FriendPhotoCard(feedItem: item, feedViewModel: feedViewModel)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .padding(.bottom, 100)
         }
     }
 }
@@ -1095,6 +1128,7 @@ struct NotificationCard: View {
 #Preview {
     NavigationStack {
         CommunityView()
+            .environmentObject(FeedViewModel())
     }
 }
 

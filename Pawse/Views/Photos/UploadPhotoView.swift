@@ -230,7 +230,7 @@ struct UploadPhotoView: View {
                             dismiss()
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                 print("🔄 Navigating to contest tab...")
-                                NotificationCenter.default.post(name: .navigateToCommunityContest, object: nil)
+                                NotificationCenter.default.post(name: .navigateToContest, object: nil)
                             }
                         } else {
                             print("⚠️ No active contest found")

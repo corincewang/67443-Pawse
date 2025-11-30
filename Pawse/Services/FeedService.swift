@@ -112,6 +112,50 @@ class FeedService {
         print("✅ Generated friends feed: \(feedItems.count) items")
         return feedItems
     }
+
+    // MARK: - Global Feed Generation
+
+    func generateGlobalFeed(for userId: String, userVotedPhotoIds: Set<String>) async throws -> [FriendsFeedItem] {
+        let db = FirebaseManager.shared.db
+
+        let photosSnap = try await db.collection(Collection.photos)
+            .whereField("privacy", isEqualTo: "public")
+            .order(by: "uploaded_at", descending: true)
+            .limit(to: 100)
+            .getDocuments()
+
+        var feedItems: [FriendsFeedItem] = []
+
+        for photoDoc in photosSnap.documents {
+            guard let photo = try? photoDoc.data(as: Photo.self),
+                  let photoId = photo.id else { continue }
+
+            let petId = photo.pet.replacingOccurrences(of: "pets/", with: "")
+
+            guard let petSnap = try? await db.collection(Collection.pets).document(petId).getDocument(),
+                  let pet = try? petSnap.data(as: Pet.self) else { continue }
+
+            let ownerId = pet.owner.replacingOccurrences(of: "users/", with: "")
+            guard let ownerSnap = try? await db.collection(Collection.users).document(ownerId).getDocument(),
+                  let owner = try? ownerSnap.data(as: User.self) else { continue }
+
+            let feedItem = FriendsFeedItem(
+                photo_id: photoId,
+                pet_name: pet.name,
+                owner_nickname: owner.nick_name,
+                owner_id: ownerId,
+                image_link: photo.image_link,
+                votes: photo.votes_from_friends,
+                posted_at: photo.uploaded_at.ISO8601Format(),
+                has_voted: userVotedPhotoIds.contains(photoId)
+            )
+
+            feedItems.append(feedItem)
+        }
+
+        print("✅ Generated global feed: \(feedItems.count) items")
+        return feedItems
+    }
     
     // MARK: - Contest Feed Generation
     

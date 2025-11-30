@@ -12,8 +12,7 @@ struct ActiveContestBannerView: View {
     
     var body: some View {
         Button(action: {
-            // Navigate to community page contest tab
-            NotificationCenter.default.post(name: .navigateToCommunityContest, object: nil)
+            NotificationCenter.default.post(name: .navigateToContest, object: nil)
         }) {
             ZStack(alignment: .top) {
                 // Gradient background
@@ -25,7 +24,7 @@ struct ActiveContestBannerView: View {
                     startPoint: .leading,
                     endPoint: .trailing
                 )
-                .frame(height: 90)  
+                .frame(height: 90)
                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: -2)
                 
                 // Content - at top, centered horizontally
@@ -53,5 +52,4 @@ struct ActiveContestBannerView: View {
         Spacer()
         ActiveContestBannerView(contestTitle: "Most Adorable Sleeping Position")
     }
-    .background(Color.pawseBackground)
 }
