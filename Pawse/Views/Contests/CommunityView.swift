@@ -2,17 +2,105 @@
 //  CommunityView.swift
 //  Pawse
 //
-//  Community page - main feed with friends and global public toggle
+//  Community page - main feed with friends and contest toggle
 //
 
 import SwiftUI
 
 enum CommunityFeedTab: Hashable {
     case friends
-    case global
+    case contest
 }
 
 struct CommunityView: View {
+    // Extracted top navigation bar
+    private var topNavigation: some View {
+        HStack(spacing: 0) {
+            Button(action: { showNotifications = true }) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "bell.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.pawseBrown)
+                    if connectionViewModel.pendingRequestCount > 0 {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 10, height: 10)
+                            .offset(x: 4, y: -4)
+                    }
+                }
+            }
+            .padding(.leading, 20)
+            Spacer()
+            HStack(spacing: 0) {
+                Button(action: {
+                    if selectedTab == .friends { scrollToTopTrigger.toggle() }
+                    else { withAnimation(.easeInOut(duration: 0.3)) { selectedTab = .friends } }
+                }) {
+                    Text("friends")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 120, height: 44)
+                        .background(selectedTab == .friends ? Color.pawseLightCoral : Color.pawseGolden)
+                        .clipShape(RoundedRectangle(cornerRadius: 22))
+                }
+                Button(action: {
+                    if selectedTab == .contest { scrollToTopTrigger.toggle() }
+                    else { withAnimation(.easeInOut(duration: 0.3)) { selectedTab = .contest } }
+                }) {
+                    Text("global")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 120, height: 44)
+                        .background(selectedTab == .contest ? Color.pawseOliveGreen : Color.pawseGolden)
+                        .clipShape(RoundedRectangle(cornerRadius: 22))
+                }
+            }
+            .background(Color.pawseGolden)
+            .clipShape(RoundedRectangle(cornerRadius: 22))
+            Spacer()
+            NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
+                Circle()
+                    .fill(Color.pawseWarmGrey)
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(Color.white)
+                    )
+            }
+            .padding(.trailing, 20)
+        }
+        .padding(.top, 50)
+        .padding(.bottom, 16)
+    }
+
+    // Extracted tab content
+    private var tabContent: some View {
+        TabView(selection: $selectedTab) {
+            FriendsTabView(
+                feedViewModel: feedViewModel,
+                scrollPosition: Binding(
+                    get: { friendsScrollPosition.isEmpty ? nil : friendsScrollPosition },
+                    set: { friendsScrollPosition = $0 ?? "" }
+                ),
+                scrollToTopTrigger: scrollToTopTrigger
+            )
+            .tag(CommunityFeedTab.friends)
+
+            GlobalTabView(
+                //contestViewModel: contestViewModel,
+                feedViewModel: feedViewModel,
+                scrollPosition: Binding(
+                    get: { globalScrollPosition.isEmpty ? nil : globalScrollPosition },
+                    set: { globalScrollPosition = $0 ?? "" }
+                ),
+                scrollToTopTrigger: scrollToTopTrigger
+            )
+            .tag(CommunityFeedTab.contest)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .animation(.easeInOut, value: selectedTab)
+    }
     // Use environment objects to persist ViewModels across navigation
     @EnvironmentObject var feedViewModel: FeedViewModel
     @EnvironmentObject var contestViewModel: ContestViewModel
@@ -27,124 +115,14 @@ struct CommunityView: View {
     
     // Use @AppStorage to persist scroll positions across navigation
     @AppStorage("friendsScrollPosition") private var friendsScrollPosition: String = ""
-    @AppStorage("contestScrollPosition") private var contestScrollPosition: String = ""
+    @AppStorage("globalScrollPosition") private var globalScrollPosition: String = ""
     
     var body: some View {
         ZStack {
-            Color.pawseBackground
-                .ignoresSafeArea()
-            
+            Color.pawseBackground.ignoresSafeArea()
             VStack(spacing: 0) {
-                // Top navigation with toggle
-                HStack(spacing: 0) {
-                    // Bell icon (notifications)
-                    Button(action: {
-                        showNotifications = true
-                    }) {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: "bell.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(.pawseBrown)
-                            
-                            // Red dot for unread notifications
-                            if connectionViewModel.pendingRequestCount > 0 {
-                                Circle()
-                                    .fill(Color.red)
-                                    .frame(width: 10, height: 10)
-                                    .offset(x: 4, y: -4)
-                            }
-                        }
-                    }
-                    .padding(.leading, 20)
-                    
-                    Spacer()
-                    
-                    // Toggle buttons
-                    HStack(spacing: 0) {
-                        // Friends tab
-                        Button(action: {
-                            if selectedTab == .friends {
-                                // Double tap - scroll to top
-                                scrollToTopTrigger.toggle()
-                            } else {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    selectedTab = .friends
-                                }
-                            }
-                        }) {
-                            Text("friends")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 120, height: 44)
-                                .background(selectedTab == .friends ? Color.pawseLightCoral : Color.pawseGolden)
-                                .clipShape(RoundedRectangle(cornerRadius: 22))
-                        }
-                    
-                        // Global tab
-                        Button(action: {
-                            if selectedTab == .contest {
-                                // Double tap - scroll to top
-                                scrollToTopTrigger.toggle()
-                            } else {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    selectedTab = .contest
-                                }
-                            }
-                        }) {
-                            Text("global")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 120, height: 44)
-                                .background(selectedTab == .global ? Color.pawseOliveGreen : Color.pawseGolden)
-                                .clipShape(RoundedRectangle(cornerRadius: 22))
-                        }
-                    }
-                    .background(Color.pawseGolden)
-                    .clipShape(RoundedRectangle(cornerRadius: 22))
-                    
-                    Spacer()
-                    
-                    // Settings button - circular in top right
-                    NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
-                        Circle()
-                            .fill(Color.pawseWarmGrey)
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Image(systemName: "gearshape")
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundColor(Color.white)
-                            )
-                    }
-                    .padding(.trailing, 20)
-                }
-                .padding(.top, 50)
-                .padding(.bottom, 16)
-                
-                // Content based on selected tab with swipe gestures
-                TabView(selection: $selectedTab) {
-                    FriendsTabView(
-                        feedViewModel: feedViewModel,
-                        scrollPosition: Binding(
-                            get: { friendsScrollPosition.isEmpty ? nil : friendsScrollPosition },
-                            set: { friendsScrollPosition = $0 ?? "" }
-                        ),
-                        scrollToTopTrigger: scrollToTopTrigger
-                    )
-                    .tag(CommunityTab.friends)
-                    
-                    ContestTabView(
-                        contestViewModel: contestViewModel,
-                        feedViewModel: feedViewModel,
-                        scrollPosition: Binding(
-                            get: { contestScrollPosition.isEmpty ? nil : contestScrollPosition },
-                            set: { contestScrollPosition = $0 ?? "" }
-                        ),
-                        scrollToTopTrigger: scrollToTopTrigger
-                    )
-                    .tag(CommunityTab.contest)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut, value: selectedTab)
+                topNavigation
+                tabContent
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -318,8 +296,13 @@ struct FriendsTabView: View {
     }
 }
 
+
 struct GlobalTabView: View {
     @ObservedObject var feedViewModel: FeedViewModel
+    @Binding var scrollPosition: String?
+    @State private var shouldRestoreScroll = true
+    @State private var isRefreshing = false
+    let scrollToTopTrigger: Bool
 
     var body: some View {
         ScrollView {
@@ -1128,7 +1111,5 @@ struct NotificationCard: View {
 #Preview {
     NavigationStack {
         CommunityView()
-            .environmentObject(FeedViewModel())
     }
 }
-

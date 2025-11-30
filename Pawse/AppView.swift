@@ -33,6 +33,7 @@ struct AppView: View {
                     NavigationStack {
                         ContestView()
                             .environmentObject(feedViewModel)
+                            .environmentObject(contestViewModel)
                     }
                 case .community:
                     NavigationStack {
@@ -96,6 +97,7 @@ extension Notification.Name {
     static let navigateToContest = Notification.Name("navigateToContest")
     static let navigateToProfile = Notification.Name("navigateToProfile")
     static let refreshPhotoGallery = Notification.Name("refreshPhotoGallery")
+    static let switchToContestTab = Notification.Name("switchToContestTab")
 }
 
 
