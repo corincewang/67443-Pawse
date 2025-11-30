@@ -8,6 +8,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         // Use Firebase library to configure APIs
         FirebaseApp.configure()
+        
+        // Contest system will be initialized after user authentication
+        // See AppView.swift for initialization
+        
         return true
     }
 }

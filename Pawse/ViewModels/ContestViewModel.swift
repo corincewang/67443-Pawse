@@ -14,6 +14,7 @@ import Combine
 class ContestViewModel: ObservableObject {
     @Published var activeContests: [Contest] = []
     @Published var selectedContest: Contest?
+    @Published var currentContest: Contest?
     @Published var leaderboard: LeaderboardResponse?
     @Published var contestFeed: [ContestFeedItem] = []
     @Published var userContestPhotos: [ContestPhoto] = []
@@ -28,6 +29,24 @@ class ContestViewModel: ObservableObject {
     
     // MARK: - Fetch Operations
     
+    func fetchCurrentContest() async {
+        error = nil
+        do {
+            currentContest = try await contestController.fetchCurrentContest()
+            
+            // If no active contest exists, create one
+            if currentContest == nil {
+                try await contestController.ensureActiveContest()
+                currentContest = try await contestController.fetchCurrentContest()
+            }
+            
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+            currentContest = nil
+        }
+    }
+    
     func fetchActiveContests() async {
         isLoading = true
         error = nil
@@ -40,10 +59,14 @@ class ContestViewModel: ObservableObject {
                 activeContests = try await contestController.fetchActiveContests()
             }
             
+            // Update currentContest to the first active contest
+            currentContest = activeContests.first
+            
             error = nil
         } catch {
             self.error = error.localizedDescription
             activeContests = []
+            currentContest = nil
         }
         isLoading = false
     }

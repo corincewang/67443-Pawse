@@ -56,10 +56,8 @@ class FeedService {
         
         print("ℹ️ Found \(friendUserIds.count) friends for user \(userId)")
         
-        guard !friendUserIds.isEmpty else {
-            print("ℹ️ No mutual friends found")
-            return []
-        }
+        // Add current user to the list to include their own photos
+        friendUserIds.insert(userId)
         
         // 2. Get all photos from friends (publicPhoto and friendsOnly)
         var feedItems: [FriendsFeedItem] = []

@@ -11,6 +11,7 @@ struct ProfilePageView: View {
     @StateObject private var petViewModel = PetViewModel()
     @EnvironmentObject var userViewModel: UserViewModel
     @StateObject private var guardianViewModel = GuardianViewModel()
+    @StateObject private var contestViewModel = ContestViewModel()
     @State private var showInvitationOverlay = true
     @State private var selectedPetName: String? = nil // Store selected pet name for the session
     
@@ -119,7 +120,7 @@ struct ProfilePageView: View {
             // Active Contest Banner at bottom (above bottom bar)
             VStack {
                 Spacer()
-                ActiveContestBannerView()
+                ActiveContestBannerView(contestTitle: contestViewModel.currentContest?.prompt ?? "No Active Contest")
                     .padding(.top, 310) // Position above bottom navigation
                     .padding(.bottom, 10) // Position above bottom navigation
             }
@@ -160,6 +161,7 @@ struct ProfilePageView: View {
             await petViewModel.fetchUserPets()
             await petViewModel.fetchGuardianPets()
             await guardianViewModel.fetchPendingInvitationsForCurrentUser()
+            await contestViewModel.fetchCurrentContest()
             // Show overlay if there are invitations
             if !guardianViewModel.receivedInvitations.isEmpty {
                 showInvitationOverlay = true

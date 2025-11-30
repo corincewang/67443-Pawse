@@ -9,16 +9,13 @@ import SwiftUI
 
 struct ActiveContestBannerView: View {
     let contestTitle: String
-
-    init(contestTitle: String = "Sleepiest Pet!") {
-        self.contestTitle = contestTitle
-    }
-
+    
     var body: some View {
         Button(action: {
             NotificationCenter.default.post(name: .navigateToContest, object: nil)
         }) {
-            ZStack(alignment: .topLeading) {
+            ZStack(alignment: .top) {
+                // Gradient background
                 LinearGradient(
                     colors: [
                         Color.pawseOrange,
@@ -29,25 +26,30 @@ struct ActiveContestBannerView: View {
                 )
                 .frame(height: 90)
                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: -2)
-
-                HStack(spacing: 6) {
+                
+                // Content - at top, centered horizontally
+                HStack(spacing: 10) {
+                    // Trophy icon
                     Image(systemName: "trophy.fill")
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.system(size: 15, weight: .bold))
                         .foregroundColor(.yellow)
                         .shadow(color: .black.opacity(0.3), radius: 2, x: 1, y: 1)
-
+                    
                     Text("Active Contest: \(contestTitle)")
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.system(size: 15, weight: .bold))
                         .foregroundColor(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.65)
-                        .multilineTextAlignment(.leading)
                 }
-                .padding(.horizontal, 48)
-                .padding(.top, 14)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 15)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+#Preview {
+    VStack {
+        Spacer()
+        ActiveContestBannerView(contestTitle: "Most Adorable Sleeping Position")
     }
 }

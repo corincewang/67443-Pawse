@@ -10,7 +10,11 @@ import SwiftUI
 struct AppView: View {
     @State private var selectedTab: TabItem = .profile
     @State private var hideBottomBar: Bool = false
+    @State private var hasInitializedContest = false
+    
+    // Persistent ViewModels for Community tab
     @StateObject private var feedViewModel = FeedViewModel()
+    @StateObject private var contestViewModel = ContestViewModel()
     
     var body: some View {
         ZStack {
@@ -34,6 +38,7 @@ struct AppView: View {
                     NavigationStack {
                         CommunityView()
                             .environmentObject(feedViewModel)
+                            .environmentObject(contestViewModel)
                     }
                 }
             }
@@ -71,6 +76,13 @@ struct AppView: View {
         .onReceive(NotificationCenter.default.publisher(for: .navigateToProfile)) { _ in
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedTab = .profile
+            }
+        }
+        .task {
+            // Initialize contest system once user is authenticated
+            if !hasInitializedContest {
+                await ContestRotationService.shared.initializeSystem()
+                hasInitializedContest = true
             }
         }
     }

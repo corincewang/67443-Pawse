@@ -29,10 +29,31 @@ final class ContestController {
             .filter { $0.end_date > now && $0.active_status }
             .sorted { $0.start_date < $1.start_date }
     }
+    
+    /// Fetch the current active contest (should be only one)
+    func fetchCurrentContest() async throws -> Contest? {
+        let activeContests = try await fetchActiveContests()
+        return activeContests.first
+    }
 
     func fetchLeaderboard() async throws -> [ContestPhoto] {
+        // Get the current active contest
+        let activeContests = try await fetchActiveContests()
+        guard let activeContest = activeContests.first,
+              let contestId = activeContest.id else {
+            print("⚠️ No active contest found for leaderboard")
+            return []
+        }
+        
+        let contestRef = "contests/\(contestId)"
+        
+        // Fetch only photos from the current active contest
         let snap = try await db.collection(Collection.contestPhotos)
-            .order(by: "votes", descending: true).limit(to: 20).getDocuments()
+            .whereField("contest", isEqualTo: contestRef)
+            .order(by: "votes", descending: true)
+            .limit(to: 20)
+            .getDocuments()
+        
         return try snap.documents.compactMap { try $0.data(as: ContestPhoto.self) }
     }
     
@@ -44,7 +65,7 @@ final class ContestController {
         return try snap.documents.compactMap { try $0.data(as: ContestPhoto.self) }
     }
     
-    // MARK: - Create Contest (Admin/Helper)
+    // MARK: - Contest Creation
     
     func createContest(prompt: String, durationDays: Int = 7) async throws -> String {
         let startDate = Date()
@@ -62,14 +83,87 @@ final class ContestController {
         return docRef.documentID
     }
     
-    // Create a default contest if none exist
+    /// Create a new contest using a random theme
+    /// This will deactivate any existing active contests to ensure only one is active
+    func createContestFromRandomTheme(durationDays: Int = 7) async throws -> String {
+        // First, deactivate any existing active contests
+        let activeContests = try await fetchActiveContests()
+        for contest in activeContests {
+            guard let contestId = contest.id else { continue }
+            try await db.collection(Collection.contests).document(contestId)
+                .updateData(["active_status": false])
+            print("⏰ Deactivated existing contest: \(contest.prompt)")
+        }
+        
+        // Now create the new contest
+        let theme = ContestThemeGenerator.getRandomTheme()
+        return try await createContest(prompt: theme, durationDays: durationDays)
+    }
+    
+    // MARK: - Automatic Contest Rotation
+    
+    /// Check for expired contests and create new ones automatically
+    func rotateExpiredContests() async throws {
+        let now = Date()
+        
+        // Get all contests
+        let snap = try await db.collection(Collection.contests).getDocuments()
+        let allContests = try snap.documents.compactMap { try $0.data(as: Contest.self) }
+        
+        // Find expired active contests
+        let expiredContests = allContests.filter { $0.active_status && $0.end_date < now }
+        
+        // Deactivate expired contests
+        for contest in expiredContests {
+            guard let contestId = contest.id else { continue }
+            try await db.collection(Collection.contests).document(contestId)
+                .updateData(["active_status": false])
+            print("⏰ Deactivated expired contest: \(contest.prompt)")
+        }
+        
+        // Check if we need to create a new active contest
+        let activeContests = allContests.filter { $0.active_status && $0.end_date > now }
+        
+        if activeContests.isEmpty && !expiredContests.isEmpty {
+            print("🔄 Creating new contest to replace expired ones...")
+            _ = try await createContestFromRandomTheme(durationDays: 7)
+        }
+    }
+    
+    /// Ensure there's always exactly one active contest
     func ensureActiveContest() async throws {
         let activeContests = try await fetchActiveContests()
         
         if activeContests.isEmpty {
-            print("⚠️ No active contests found. Creating default contest...")
-            _ = try await createContest(prompt: "Sleepiest Pet", durationDays: 7)
-            print("✅ Default contest created")
+            print("⚠️ No active contests found. Creating new contest...")
+            _ = try await createContestFromRandomTheme(durationDays: 7)
+            print("✅ New contest created")
+        } else if activeContests.count > 1 {
+            print("⚠️ Multiple active contests found (\(activeContests.count)). Keeping only the newest one...")
+            // Keep the most recent contest, deactivate the rest
+            let sortedContests = activeContests.sorted { $0.start_date > $1.start_date }
+            for contest in sortedContests.dropFirst() {
+                guard let contestId = contest.id else { continue }
+                try await db.collection(Collection.contests).document(contestId)
+                    .updateData(["active_status": false])
+                print("⏰ Deactivated older contest: \(contest.prompt)")
+            }
+            print("✅ Kept newest active contest: \(sortedContests.first?.prompt ?? "Unknown")")
+        } else {
+            print("✅ Active contest exists: \(activeContests.first?.prompt ?? "Unknown")")
         }
+    }
+    
+    /// Initialize the contest system (call once when app starts or when setting up)
+    func initializeContestSystem() async throws {
+        print("🚀 Initializing contest system...")
+        
+        // Rotate any expired contests
+        try await rotateExpiredContests()
+        
+        // Ensure we have at least one active contest
+        try await ensureActiveContest()
+        
+        print("✅ Contest system initialized")
     }
 }
