@@ -160,7 +160,7 @@ struct RegisterView: View {
                 .padding(.bottom, 40)
             }
         }
-        .navigationBarBackButtonHidden(false)
+        .navigationBarBackButtonHidden(true)
         .swipeBack(dismiss: dismiss)
         .navigationDestination(isPresented: $navigateToSetup) {
             AccountSetupView()

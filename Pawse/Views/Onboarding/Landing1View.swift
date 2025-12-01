@@ -54,8 +54,8 @@ struct Landing1View: View {
                 
                 Spacer()
                 
-                // Get Started button - Navigate to Login
-                NavigationLink(destination: LoginView().environmentObject(userViewModel)) {
+                // Get Started button - Navigate to Welcome
+                NavigationLink(destination: WelcomeView().environmentObject(userViewModel)) {
                     Text("Get Started")
                         .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.white)

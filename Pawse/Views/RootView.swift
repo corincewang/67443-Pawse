@@ -37,19 +37,9 @@ struct RootView: View {
                 AppView()
                     .environmentObject(userViewModel)
             } else {
-                // User is not logged in - show onboarding for first launch, login for returning users
-                NavigationStack {
-                    if hasLaunchedBefore {
-                        // Returning user who signed out - go directly to login
-                        LoginView()
-                            .environmentObject(userViewModel)
-                            .navigationBarBackButtonHidden(true)
-                    } else {
-                        // First time launch - show onboarding
-                        Landing1View()
-                            .environmentObject(userViewModel)
-                    }
-                }
+                // User is not logged in - show welcome screen
+                WelcomeView()
+                    .environmentObject(userViewModel)
             }
         }
         .onAppear {
