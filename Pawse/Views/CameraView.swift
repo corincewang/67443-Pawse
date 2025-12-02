@@ -87,9 +87,7 @@ struct CameraView: View {
                     let translationY = value.translation.height
                     
                     if startX < 50 && translationX > 50 && abs(translationY) < 100 {
-                        // Show bottom bar before navigating
-                        NotificationCenter.default.post(name: .showBottomBar, object: nil)
-                        // Navigate to profile
+                        // Navigate to profile (bottom bar will show via onDisappear)
                         NotificationCenter.default.post(name: .navigateToProfile, object: nil)
                     }
                 }
@@ -97,21 +95,17 @@ struct CameraView: View {
     }
     
     private var cameraInterface: some View {
-        VStack(spacing: 0) {
-            // Top section: Camera preview only
-            cameraPreview
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea(edges: .horizontal)
-            
-            // Bottom section: Control buttons
-            VStack {
-                // Control buttons row
-                HStack(spacing: 40) {
-                    // X button on left
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // Top 75%: Camera preview
+                cameraPreview
+                    .frame(width: geometry.size.width, height: geometry.size.height * 0.75)
+                
+                // Bottom 25%: Control buttons
+                HStack(spacing: 25) {
+                    // X button
                     Button(action: {
-                        // Show bottom bar before navigating away
-                        NotificationCenter.default.post(name: .showBottomBar, object: nil)
-                        // Navigate back to profile
+                        // Navigate to profile (bottom bar will show via onDisappear)
                         NotificationCenter.default.post(name: .navigateToProfile, object: nil)
                     }) {
                         Image(systemName: "xmark")
@@ -124,46 +118,28 @@ struct CameraView: View {
                     
                     Spacer()
                     
-                    // Capture button - white with orange border, turns orange when pressed
+                    // Capture button
                     Button(action: {
-                        print("📸 Capture button pressed")
                         isCapturing = true
-                        print("📸 isCapturing set to true")
                         cameraManager.capturePhoto { image in
-                            print("📸 capturePhoto completion called, image: \(image != nil ? "exists" : "nil")")
                             DispatchQueue.main.async {
                                 guard let image = image else {
-                                    print("❌ Image is nil, returning")
                                     isCapturing = false
                                     return
                                 }
-                                print("✅ Image received, size: \(image.size)")
-                                // Set captured image and date
                                 capturedImage = image
-                                capturedDate = Date() // Store the capture date
-                                print("✅ capturedImage set, capture date: \(capturedDate?.description ?? "nil")")
-                                // Stop camera session to "freeze" the preview
+                                capturedDate = Date()
                                 cameraManager.stopSession()
-                                print("✅ Camera session stopped")
-                                // Keep isCapturing true to show orange button state
-                                // Immediately show preview - the image is already captured
                                 showPhotoPreview = true
-                                print("✅ showPhotoPreview set to true")
-                                // Keep isCapturing true so button stays orange
-                                // isCapturing will be reset when going back to camera
-                                print("✅ Button stays orange (isCapturing remains true)")
-                                print("📸 Final state - showPhotoPreview: \(showPhotoPreview), capturedImage: \(capturedImage != nil ? "exists" : "nil")")
                             }
                         }
                     }) {
                         ZStack {
-                            // Outer circle - orange border when not capturing, orange fill when capturing
                             Circle()
                                 .fill(isCapturing ? Color.pawseOrange : Color.white)
                                 .frame(width: 80, height: 80)
                                 .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 4)
                             
-                            // Inner circle - white border when not capturing, hidden when capturing
                             if !isCapturing {
                                 Circle()
                                     .stroke(Color.pawseOrange, lineWidth: 4)
@@ -174,7 +150,7 @@ struct CameraView: View {
                     
                     Spacer()
                     
-                    // Flip camera button on right
+                    // Flip camera button
                     Button(action: {
                         cameraManager.flipCamera()
                     }) {
@@ -187,10 +163,11 @@ struct CameraView: View {
                     }
                 }
                 .padding(.horizontal, 30)
-                .padding(.vertical, 30)
+                .frame(width: geometry.size.width, height: geometry.size.height * 0.25)
+                .background(Color(hex: "F9F3D7"))
             }
-            .background(Color(hex: "F9F3D7"))
         }
+        .ignoresSafeArea()
     }
     
     private var cameraPreview: some View {
@@ -218,149 +195,107 @@ struct CameraView: View {
     }
     
     private func photoPreviewView(image: UIImage) -> some View {
-        let _ = print("🖼️ photoPreviewView called, image size: \(image.size)")
-        let _ = print("🖼️ showGallerySelection: \(showGallerySelection), showShareOptions: \(showShareOptions)")
-        
-        return VStack(spacing: 0) {
-            // Top section: Photo preview only
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-                .ignoresSafeArea(.all)
-            
-            // Bottom section: Control buttons - hide when gallery is showing
-            if !showGallerySelection {
-                VStack {
-                    // Control buttons row - EXACT same as camera interface
-                    HStack(spacing: 40) {
-                        // Left: X button - goes back to camera page
-                        Button(action: {
-                            print("🔙 X button tapped - going back to camera")
-                            capturedImage = nil
-                            capturedDate = nil
-                            showPhotoPreview = false
-                            isCapturing = false
-                            // Restart camera session when going back
-                            cameraManager.requestPermissionAndSetup()
-                        }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 50, height: 50)
-                                .background(Color.black.opacity(0.4))
-                                .clipShape(Circle())
-                        }
-                        
-                        Spacer()
-                        
-                        // Center: Orange download button (exact same position as capture button)
-                        Button(action: {
-                            print("📥 Download/Gallery button tapped")
-                            // Toggle gallery selection
-                            let willShow = !showGallerySelection
-                            print("📥 Gallery selection will show: \(willShow)")
-                            withAnimation {
-                                showGallerySelection = willShow
-                            }
-                            // Fetch pets when showing gallery
-                            if willShow {
-                                Task {
-                                    await petViewModel.fetchUserPets()
-                                }
-                            }
-                        }) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.pawseOrange)
-                                    .frame(width: 80, height: 80)
-                                    .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 4)
-                                
-                                // White download icon in center
-                                Image(systemName: "arrow.down.to.line.compact")
-                                    .font(.system(size: 32, weight: .semibold))
-                                    .foregroundColor(.white)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        // Right: Invisible button to balance layout (same size as left button)
-                        Button(action: {
-                            // Do nothing - just for layout balance
-                        }) {
-                            Color.clear
-                                .frame(width: 50, height: 50)
-                        }
-                        .disabled(true) // Disable interaction
-                    }
-                    .padding(.horizontal, 40)
-                    .padding(.vertical, 30)
-                }
-                .background(Color(hex: "F9F3D7"))
-            }
-        }
-        .overlay(alignment: .bottom) {
-            // Gallery selection bar (horizontal) - appears when download is clicked
-            // This should COVER the buttons, not appear above them
-            if showGallerySelection {
-                VStack {
-                    Spacer()
-                    
-                    // Horizontal gallery bar - covers the button area
-                    VStack(spacing: 0) {
-                        // Clickable area above scroll bar to go back
-                        Color.clear
-                            .frame(height: 20)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                withAnimation {
-                                    showGallerySelection = false
-                                }
-                            }
-                        
-                        // Title with close button
-                        HStack {
-                            Text("Choose Gallery:")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundColor(.pawseBrown)
-                            
-                            Spacer()
-                            
-                            // Orange X button to close gallery and go back to camera
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // Top 75%: Photo preview - fills without space
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: geometry.size.width, height: geometry.size.height * 0.75)
+                    .clipped()
+                
+                // Bottom 25%: Control buttons or Gallery selection
+                ZStack {
+                    if !showGallerySelection {
+                        // Control buttons
+                        HStack(spacing: 25) {
+                            // X button
                             Button(action: {
-                                print("🔙 Gallery X button tapped - going back to camera")
                                 capturedImage = nil
                                 capturedDate = nil
                                 showPhotoPreview = false
                                 isCapturing = false
-                                showGallerySelection = false
-                                // Restart camera session when going back
+                                savedPetIds.removeAll()
                                 cameraManager.requestPermissionAndSetup()
                             }) {
                                 Image(systemName: "xmark")
-                                    .font(.system(size: 16, weight: .semibold))
+                                    .font(.system(size: 20, weight: .semibold))
                                     .foregroundColor(.white)
-                                    .frame(width: 32, height: 32)
-                                    .background(Color.pawseOrange)
+                                    .frame(width: 50, height: 50)
+                                    .background(Color.black.opacity(0.4))
                                     .clipShape(Circle())
                             }
+                            
+                            Spacer()
+                            
+                            // Download button
+                            Button(action: {
+                                withAnimation {
+                                    showGallerySelection.toggle()
+                                }
+                                if showGallerySelection {
+                                    Task {
+                                        await petViewModel.fetchUserPets()
+                                    }
+                                }
+                            }) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.pawseOrange)
+                                        .frame(width: 80, height: 80)
+                                        .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 4)
+                                    
+                                    Image(systemName: "arrow.down.to.line.compact")
+                                        .font(.system(size: 32, weight: .semibold))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            // Invisible button for layout balance
+                            Color.clear
+                                .frame(width: 50, height: 50)
                         }
-                        .padding(.horizontal, 24)
-                        .padding(.top, 24)
-                        .padding(.bottom, 20)
-                        
-                        // Horizontal scrollable gallery
-                        ScrollViewReader { proxy in
+                        .padding(.horizontal, 30)
+                        .frame(width: geometry.size.width, height: geometry.size.height * 0.25)
+                        .background(Color(hex: "F9F3D7"))
+                    } else {
+                        // Gallery selection
+                        VStack(spacing: 0) {
+                            // Title with close button
+                            HStack {
+                                Text("Choose Gallery:")
+                                    .font(.system(size: 24, weight: .bold))
+                                    .foregroundColor(.pawseBrown)
+                                
+                                Spacer()
+                                
+                                // Orange X button
+                                Button(action: {
+                                    capturedImage = nil
+                                    capturedDate = nil
+                                    showPhotoPreview = false
+                                    isCapturing = false
+                                    showGallerySelection = false
+                                    savedPetIds.removeAll()
+                                    cameraManager.requestPermissionAndSetup()
+                                }) {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .frame(width: 32, height: 32)
+                                        .background(Color.pawseOrange)
+                                        .clipShape(Circle())
+                                }
+                            }
+                            .padding(.horizontal, 30)
+                            .padding(.bottom, 16)
+                            
+                            // Gallery ScrollView
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 16) {
-                                    // Add extra leading spacer for proper alignment
-                                    Spacer()
-                                        .frame(width: 24)
-                                        .id("leading-spacer")
-                                    
-                                    ForEach(Array(petViewModel.allPets.enumerated()), id: \.element.id) { index, pet in
+                                    ForEach(petViewModel.allPets) { pet in
                                         GalleryPetCard(
                                             pet: pet,
                                             isSaved: savedPetIds.contains(pet.id ?? ""),
@@ -368,36 +303,19 @@ struct CameraView: View {
                                                 handleGalleryDoubleTap(pet: pet, image: image)
                                             }
                                         )
-                                        .id(pet.id)
-                                    }
-                                    
-                                    // Add trailing spacer
-                                    Spacer()
-                                        .frame(width: 24)
-                                }
-                            }
-                            .frame(height: 150)
-                            .ignoresSafeArea(edges: .horizontal)
-                            .onAppear {
-                                // Scroll to leading spacer to show first item properly
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    withAnimation(.none) {
-                                        proxy.scrollTo("leading-spacer", anchor: .leading)
                                     }
                                 }
+                                .padding(.horizontal, 30)
                             }
                         }
-                        .padding(.bottom, 32)
+                        .frame(width: geometry.size.width, height: geometry.size.height * 0.25)
+                        .background(Color(hex: "FAF7EB"))
+                        .transition(.move(edge: .bottom))
                     }
-                    .background(Color(hex: "FAF7EB"))
-                    .cornerRadius(20, corners: [.topLeft, .topRight])
                 }
-                .frame(maxHeight: .infinity, alignment: .bottom)
-                .ignoresSafeArea(.all, edges: .bottom)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .zIndex(200) // Above buttons to cover them
             }
         }
+        .ignoresSafeArea()
     }
     
     private func sharePhoto(image: UIImage) {
@@ -456,7 +374,18 @@ struct CameraView: View {
     private func handleGalleryDoubleTap(pet: Pet, image: UIImage) {
         guard let petId = pet.id else { return }
         
-        print("📸 Double-tapped gallery: \(pet.name) (ID: \(petId))")
+        // Prevent duplicate saves - only check if this pet was already saved
+        guard !savedPetIds.contains(petId) else {
+            print("⚠️ Already saved to this pet's gallery, ignoring tap")
+            return
+        }
+        
+        print("📸 Tapped gallery: \(pet.name) (ID: \(petId))")
+        
+        // Immediately mark as saved (so user can't tap this pet again)
+        withAnimation {
+            savedPetIds.insert(petId)
+        }
         
         // Save to local photo library
         savePhotoToLibrary(image: image)
@@ -481,11 +410,6 @@ struct CameraView: View {
                     print("❌ Failed to upload photo: \(photoViewModel.errorMessage ?? "Unknown error")")
                 }
             }
-        }
-        
-        // Mark as saved - keep it saved (don't auto-hide)
-        withAnimation {
-            savedPetIds.insert(petId)
         }
     }
     
@@ -799,13 +723,13 @@ struct GalleryPetCard: View {
     }
     
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             // Thumbnail
             ZStack {
                 // Background color
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 12)
                     .fill(cardColors.background)
-                    .frame(width: 120, height: 120)
+                    .frame(width: 90, height: 90)
                 
                 // Image or initial
                 Group {
@@ -816,39 +740,39 @@ struct GalleryPetCard: View {
                                 image
                                     .resizable()
                                     .scaledToFill()
-                                    .frame(width: 120, height: 120)
+                                    .frame(width: 90, height: 90)
                                     .clipped()
                             case .failure(_), .empty:
                                 Text(pet.name.prefix(1).uppercased())
-                                    .font(.system(size: 48, weight: .bold))
+                                    .font(.system(size: 36, weight: .bold))
                                     .foregroundColor(.white.opacity(0.5))
                             @unknown default:
                                 Text(pet.name.prefix(1).uppercased())
-                                    .font(.system(size: 48, weight: .bold))
+                                    .font(.system(size: 36, weight: .bold))
                                     .foregroundColor(.white.opacity(0.5))
                             }
                         }
                     } else {
                         Text(pet.name.prefix(1).uppercased())
-                            .font(.system(size: 48, weight: .bold))
+                            .font(.system(size: 36, weight: .bold))
                             .foregroundColor(.white.opacity(0.5))
                     }
                 }
-                .frame(width: 120, height: 120)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .frame(width: 90, height: 90)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
                 
                 // Dark overlay when saved
                 if isSaved {
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: 12)
                         .fill(Color.black.opacity(0.6))
-                        .frame(width: 120, height: 120)
+                        .frame(width: 90, height: 90)
                     
-                    VStack(spacing: 4) {
+                    VStack(spacing: 3) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 28))
+                            .font(.system(size: 24))
                             .foregroundColor(.white)
                         Text("saved")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(.white)
                     }
                 }
@@ -856,13 +780,17 @@ struct GalleryPetCard: View {
             
             // Pet name
             Text(pet.name.lowercased())
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.pawseBrown)
                 .lineLimit(1)
         }
-        .frame(width: 120)
-        .onTapGesture(count: 2) {
-            onDoubleTap()
+        .frame(width: 90)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            // Only allow tap if not saved
+            if !isSaved {
+                onDoubleTap()
+            }
         }
     }
 }
