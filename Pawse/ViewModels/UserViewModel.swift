@@ -76,5 +76,20 @@ class UserViewModel: ObservableObject {
             errorMessage = error.localizedDescription
         }
     }
+    
+    func markTutorialCompleted() async {
+        guard let uid = authController.currentUID() else {
+            errorMessage = "No user logged in"
+            return
+        }
+        
+        do {
+            try await userController.markTutorialCompleted(uid: uid)
+            // Update local user object
+            await fetchCurrentUser()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }
 
