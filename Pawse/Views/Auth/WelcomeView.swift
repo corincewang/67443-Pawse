@@ -9,6 +9,7 @@ import SwiftUI
 
 struct WelcomeView: View {
     @EnvironmentObject var userViewModel: UserViewModel
+    @AppStorage("hasLaunchedBefore") private var hasLaunchedBefore = false
     @State private var showAuthOptions = false
     @State private var navigateToLogin = false
     @State private var navigateToSignup = false
@@ -91,6 +92,12 @@ struct WelcomeView: View {
             .navigationDestination(isPresented: $navigateToSignup) {
                 RegisterView()
                     .environmentObject(userViewModel)
+            }
+        }
+        .onAppear {
+            // If the app has been launched before, skip "Get Started" and show auth options
+            if hasLaunchedBefore {
+                showAuthOptions = true
             }
         }
     }
