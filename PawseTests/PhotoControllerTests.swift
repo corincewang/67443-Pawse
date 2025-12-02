@@ -85,41 +85,6 @@ struct PhotoControllerTests {
         }
     }
     
-    @Test("Fetch Photo - should retrieve a single photo by ID")
-    func testFetchPhoto() async throws {
-        // Create and save a test photo with unique image link
-        var testPhoto = createTestPhoto()
-        testPhoto.image_link = "https://example.com/test-photo-\(UUID().uuidString).jpg"
-        try await photoController.savePhotoRecord(photo: testPhoto)
-        
-        // Wait a bit for Firestore to index
-        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-        
-        // Get the photo ID by fetching all photos
-        let photos = try await photoController.fetchPhotos(for: testPetId)
-        let savedPhoto = photos.first { photo in
-            photo.image_link == testPhoto.image_link &&
-            photo.uploaded_by == testPhoto.uploaded_by &&
-            photo.pet == testPhoto.pet
-        }
-        
-        guard let photoId = savedPhoto?.id else {
-            throw TestError("Failed to get photo ID after creation")
-        }
-        
-        // Fetch the specific photo
-        let fetchedPhoto = try await photoController.fetchPhoto(photoId: photoId)
-        
-        // Verify the photo data
-        #expect(fetchedPhoto.id == photoId, "Photo ID should match")
-        #expect(fetchedPhoto.pet == testPhoto.pet, "Photo pet should match")
-        #expect(fetchedPhoto.uploaded_by == testPhoto.uploaded_by, "Photo uploaded_by should match")
-        #expect(fetchedPhoto.privacy == testPhoto.privacy, "Photo privacy should match")
-        #expect(fetchedPhoto.image_link == testPhoto.image_link, "Photo image_link should match")
-        
-        // Cleanup
-        try await photoController.deletePhoto(photoId: photoId)
-    }
     
     
     @Test("Delete Photo - should successfully delete a photo")

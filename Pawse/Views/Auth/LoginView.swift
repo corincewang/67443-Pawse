@@ -12,7 +12,6 @@ struct LoginView: View {
     @EnvironmentObject var userViewModel: UserViewModel
     @State private var email = ""
     @State private var password = ""
-    @State private var showingRegister = false
     @State private var navigateToSetup = false
     @State private var isEmailFieldFocused = false
     @AppStorage("lastLoggedInEmail") private var lastLoggedInEmail: String = ""
@@ -114,62 +113,46 @@ struct LoginView: View {
                         .padding()
                 }
                 
-                // Buttons
-                HStack(spacing: 15) {
-                    // Sign Up button
-                    Button(action: {
-                        showingRegister = true
-                    }) {
-                        Text("Sign Up")
+                // Log In button
+                Button(action: {
+                    Task {
+                        await userViewModel.login(email: email, password: password)
+                        if userViewModel.errorMessage == nil, let user = userViewModel.currentUser {
+                            // Save last logged in email
+                            lastLoggedInEmail = email
+                            
+                            // Check if user needs to complete profile setup
+                            if user.nick_name.isEmpty {
+                                navigateToSetup = true
+                            }
+                            // Otherwise RootView will automatically switch to AppView
+                        }
+                    }
+                }) {
+                    if userViewModel.isLoading {
+                        ProgressView()
+                            .tint(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
+                            .background(Color.pawseOrange)
+                            .cornerRadius(40)
+                    } else {
+                        Text("Log In")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundColor(.white)
-                            .frame(width: 180, height: 50)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 60)
                             .background(Color.pawseOrange)
                             .cornerRadius(40)
                     }
-                    
-                    // Log In button
-                    Button(action: {
-                        Task {
-                            await userViewModel.login(email: email, password: password)
-                            if userViewModel.errorMessage == nil, let user = userViewModel.currentUser {
-                                // Save last logged in email
-                                lastLoggedInEmail = email
-                                
-                                // Check if user needs to complete profile setup
-                                if user.nick_name.isEmpty {
-                                    navigateToSetup = true
-                                }
-                                // Otherwise RootView will automatically switch to AppView
-                            }
-                        }
-                    }) {
-                        if userViewModel.isLoading {
-                            ProgressView()
-                                .tint(.white)
-                                .frame(width: 180, height: 50)
-                                .background(Color.pawseOrange)
-                                .cornerRadius(40)
-                        } else {
-                            Text("Log In")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 180, height: 50)
-                                .background(Color.pawseOrange)
-                                .cornerRadius(40)
-                        }
-                    }
-                    .disabled(userViewModel.isLoading || email.isEmpty || password.isEmpty)
                 }
+                .disabled(userViewModel.isLoading || email.isEmpty || password.isEmpty)
+                .padding(.horizontal, 40)
                 .padding(.bottom, 40)
             }
         }
-        .navigationBarBackButtonHidden(false)
+        .navigationBarBackButtonHidden(true)
         .swipeBack(dismiss: dismiss)
-        .navigationDestination(isPresented: $showingRegister) {
-            RegisterView()
-                .environmentObject(userViewModel)
-        }
         .navigationDestination(isPresented: $navigateToSetup) {
             AccountSetupView()
                 .environmentObject(userViewModel)

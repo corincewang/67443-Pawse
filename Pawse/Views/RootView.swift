@@ -36,16 +36,9 @@ struct RootView: View {
                 AppView()
                     .environmentObject(userViewModel)
             } else {
-                NavigationStack {
-                    if hasLaunchedBefore {
-                        LoginView()
-                            .environmentObject(userViewModel)
-                            .navigationBarBackButtonHidden(true)
-                    } else {
-                        Landing1View()
-                            .environmentObject(userViewModel)
-                    }
-                }
+                // User is not logged in - show welcome screen
+                WelcomeView()
+                    .environmentObject(userViewModel)
             }
         }
         .onAppear {

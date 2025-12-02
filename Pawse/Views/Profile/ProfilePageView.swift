@@ -235,6 +235,7 @@ struct ProfilePageView: View {
                                     }
                                     // Refresh invitations after dismissing
                                     Task {
+                                        try? await Task.sleep(nanoseconds: 500_000_000)
                                         await guardianViewModel.fetchPendingInvitationsForCurrentUser()
                                     }
                                 }
@@ -349,9 +350,11 @@ struct ProfilePageView: View {
             }
         }
         .onChange(of: guardianViewModel.receivedInvitations.count) { _, newCount in
-            // Show overlay when new invitations arrive
+            // Show overlay when new invitations arrive, hide when empty
             if newCount > 0 {
                 showInvitationOverlay = true
+            } else {
+                showInvitationOverlay = false
             }
         }
     }
@@ -778,13 +781,16 @@ struct GuardianInvitationCard: View {
             // Refresh guardian pets to show the newly accepted pet
             await petViewModel.fetchGuardianPets()
             
+            // Immediately remove this invitation from the list
+            guardianViewModel.receivedInvitations.removeAll { $0.id == requestId }
+            
             // Show checkmark animation
             withAnimation {
                 showAcceptedAnimation = true
             }
             
-            // Wait a bit then dismiss
-            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+            // Wait 2 seconds then dismiss
+            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
             
             onDismiss()
         } else {
@@ -803,13 +809,16 @@ struct GuardianInvitationCard: View {
         await guardianViewModel.rejectGuardianRequest(requestId: requestId, petId: petId)
         
         if guardianViewModel.error == nil {
+            // Immediately remove this invitation from the list
+            guardianViewModel.receivedInvitations.removeAll { $0.id == requestId }
+            
             // Show decline message
             withAnimation {
                 showDeclinedMessage = true
             }
             
-            // Wait a bit then dismiss
-            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+            // Wait 2 seconds then dismiss
+            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
             
             onDismiss()
         } else {
