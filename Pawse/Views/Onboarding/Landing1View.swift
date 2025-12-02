@@ -42,15 +42,12 @@ struct Landing1View: View {
                 
                 Spacer()
                 
-                // Illustration placeholder
-                RoundedRectangle(cornerRadius: 30)
-                    .fill(Color.pawseGolden.opacity(0.3))
+                // Welcome background image
+                Image("welcomeBackground")
+                    .resizable()
+                    .scaledToFit()
                     .frame(width: 320, height: 320)
-                    .overlay(
-                        Image(systemName: "pawprint.fill")
-                            .font(.system(size: 80))
-                            .foregroundColor(.pawseOliveGreen.opacity(0.5))
-                    )
+                    .cornerRadius(30)
                 
                 Spacer()
                 

@@ -17,21 +17,8 @@ struct RootView: View {
     var body: some View {
         Group {
             if isCheckingAuth {
-                // Loading state
-                ZStack {
-                    Color.pawseBackground
-                        .ignoresSafeArea()
-                    
-                    VStack(spacing: 20) {
-                        Text("Pawse")
-                            .font(.custom("Caveat", size: 80))
-                            .fontWeight(.bold)
-                            .foregroundColor(.pawseOliveGreen)
-                        
-                        ProgressView()
-                            .tint(.pawseOrange)
-                    }
-                }
+                // Loading screen
+                LoadingView()
             } else if isAuthenticated {
                 AppView()
                     .environmentObject(userViewModel)
