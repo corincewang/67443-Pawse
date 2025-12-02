@@ -9,13 +9,24 @@ import SwiftUI
 import PhotosUI
 
 struct UploadPhotoView: View {
-    let petId: String
+    let petId: String?
+    let source: UploadSource
+    
     @Environment(\.dismiss) var dismiss
     @StateObject private var photoViewModel = PhotoViewModel()
     @StateObject private var contestViewModel = ContestViewModel()
+    @StateObject private var petViewModel = PetViewModel()
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImage: UIImage?
-    @State private var selectedPrivacy: PhotoPrivacy = .privatePhoto
+    @State private var selectedPrivacy: PhotoPrivacy
+    @State private var selectedPetId: String?
+    
+    enum UploadSource {
+        case profile
+        case contest
+        case community
+        case global
+    }
     
     enum PhotoPrivacy: String, CaseIterable {
         case publicPhoto = "public"
@@ -24,10 +35,27 @@ struct UploadPhotoView: View {
         
         var displayName: String {
             switch self {
-            case .publicPhoto: return "Public (Contest)"
+            case .publicPhoto: return "Global (Public)"
             case .friendsOnly: return "Friends Only"
             case .privatePhoto: return "Private"
             }
+        }
+    }
+    
+    init(petId: String? = nil, source: UploadSource = .profile) {
+        self.petId = petId
+        self.source = source
+        
+        // Set default privacy based on source
+        switch source {
+        case .contest:
+            _selectedPrivacy = State(initialValue: .publicPhoto)
+        case .global:
+            _selectedPrivacy = State(initialValue: .publicPhoto)
+        case .community:
+            _selectedPrivacy = State(initialValue: .friendsOnly)
+        case .profile:
+            _selectedPrivacy = State(initialValue: .privatePhoto)
         }
     }
     
@@ -56,6 +84,16 @@ struct UploadPhotoView: View {
         }
         .navigationBarBackButtonHidden(true)
         .swipeBack(dismiss: dismiss)
+        .task {
+            // Load pets if no petId was provided (contest/community uploads)
+            if petId == nil {
+                await petViewModel.fetchUserPets()
+                // Auto-select first pet if available
+                if let firstPet = petViewModel.allPets.first {
+                    selectedPetId = firstPet.id
+                }
+            }
+        }
     }
     
     private var mainContent: some View {
@@ -138,6 +176,25 @@ struct UploadPhotoView: View {
     
     private var privacySettingsView: some View {
         VStack(alignment: .leading, spacing: 15) {
+            // Pet selection (only shown for contest and community uploads)
+            if petId == nil {
+                Text("Select Pet")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.pawseBrown)
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(petViewModel.allPets) { pet in
+                            PetSelectionCard(pet: pet, isSelected: selectedPetId == pet.id) {
+                                selectedPetId = pet.id
+                            }
+                        }
+                    }
+                }
+                .frame(height: 100)
+                .padding(.bottom, 10)
+            }
+            
             Text("Privacy Settings")
                 .font(.system(size: 22, weight: .bold))
                 .foregroundColor(.pawseBrown)
@@ -145,27 +202,38 @@ struct UploadPhotoView: View {
             ForEach(PhotoPrivacy.allCases, id: \.self) { privacy in
                 privacyButton(for: privacy)
             }
+            
+            // Contest lock message
+            if source == .contest {
+                Text("All contest photos must be posted publicly.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.gray)
+                    .padding(.top, 5)
+            }
         }
         .padding(.horizontal, 30)
     }
     
     private func privacyButton(for privacy: PhotoPrivacy) -> some View {
         Button(action: {
-            selectedPrivacy = privacy
+            if source != .contest {
+                selectedPrivacy = privacy
+            }
         }) {
             HStack {
                 Image(systemName: selectedPrivacy == privacy ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(selectedPrivacy == privacy ? .pawseOrange : .gray)
                 
                 Text(privacy.displayName)
-                    .foregroundColor(.pawseBrown)
+                    .foregroundColor(source == .contest ? .gray : .pawseBrown)
                 
                 Spacer()
             }
             .padding()
-            .background(Color.white)
+            .background(source == .contest ? Color.white.opacity(0.5) : Color.white)
             .cornerRadius(10)
         }
+        .disabled(source == .contest)
     }
     
     private var uploadButton: some View {
@@ -197,11 +265,18 @@ struct UploadPhotoView: View {
     private func uploadAction() {
         guard let selectedImage = selectedImage else { return }
         
+        // Get the pet ID (either from init or from selection)
+        let uploadPetId = petId ?? selectedPetId
+        guard let uploadPetId = uploadPetId else {
+            photoViewModel.errorMessage = "Please select a pet"
+            return
+        }
+        
         Task {
             // Use AWSManager to process image for optimal upload
             if let imageData = AWSManager.shared.processImageForUpload(selectedImage) {
                 print("📸 Uploading photo with privacy: \(selectedPrivacy.rawValue)")
-                let photoId = await photoViewModel.uploadPhoto(petId: petId, privacy: selectedPrivacy.rawValue, imageData: imageData)
+                let photoId = await photoViewModel.uploadPhoto(petId: uploadPetId, privacy: selectedPrivacy.rawValue, imageData: imageData)
                 
                 // Only proceed if upload was successful
                 if photoViewModel.errorMessage == nil, let photoId = photoId {
@@ -265,8 +340,65 @@ struct UploadPhotoView: View {
     }
 }
 
+// MARK: - Pet Selection Card
+struct PetSelectionCard: View {
+    let pet: Pet
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? Color.pawseOrange : Color(hex: "F7D4BF"))
+                    .frame(width: 80, height: 80)
+                
+                if !pet.profile_photo.isEmpty {
+                    let imageURL = AWSManager.shared.getPhotoURL(from: pet.profile_photo)
+                    AsyncImage(url: imageURL) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 80, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        case .failure(_), .empty:
+                            Text(pet.name.prefix(1).uppercased())
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundColor(.white.opacity(0.5))
+                        @unknown default:
+                            Text(pet.name.prefix(1).uppercased())
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                    }
+                } else {
+                    Text(pet.name.prefix(1).uppercased())
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundColor(.white.opacity(0.5))
+                }
+                
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.pawseOrange, lineWidth: 3)
+                        .frame(width: 80, height: 80)
+                }
+            }
+            
+            Text(pet.name)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.pawseBrown)
+                .lineLimit(1)
+        }
+        .onTapGesture {
+            onTap()
+        }
+    }
+}
+
 #Preview {
     NavigationStack {
-        UploadPhotoView(petId: "test-pet-id")
+        UploadPhotoView(petId: "test-pet-id", source: .profile)
     }
 }
