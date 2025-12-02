@@ -235,18 +235,14 @@ struct ProfilePageView: View {
                                     }
                                     // Refresh invitations after dismissing
                                     Task {
+                                        try? await Task.sleep(nanoseconds: 500_000_000)
                                         await guardianViewModel.fetchPendingInvitationsForCurrentUser()
                                     }
                                 }
-                                // Refresh invitations after dismissing
-                                Task {
-                                    try? await Task.sleep(nanoseconds: 500_000_000)
-                                    await guardianViewModel.fetchPendingInvitationsForCurrentUser()
-                                }
-                            }
-                        )
-                        .environmentObject(guardianViewModel)
-                        Spacer()
+                            )
+                            .environmentObject(guardianViewModel)
+                            Spacer()
+                        }
                     }
                 }
 
