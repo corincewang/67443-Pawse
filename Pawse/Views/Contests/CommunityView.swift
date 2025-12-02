@@ -164,6 +164,7 @@ struct CommunityView: View {
                 print("🔄 Loading community data for the first time")
                 await contestViewModel.fetchActiveContests()
                 await feedViewModel.fetchFriendsFeed()
+                await feedViewModel.fetchGlobalFeed()
                 
                 // Get active contest ID for contest feed
                 if let activeContest = contestViewModel.activeContests.first, let contestId = activeContest.id {
@@ -352,13 +353,20 @@ struct GlobalTabView: View {
                     .padding(.top, 60)
                 } else {
                     ForEach(feedViewModel.globalFeed, id: \.photo_id) { item in
-                        FriendPhotoCard(feedItem: item, feedViewModel: feedViewModel)
+                        GlobalPhotoCard(feedItem: item, feedViewModel: feedViewModel)
                     }
                 }
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
             .padding(.bottom, 100)
+        }
+        .refreshable {
+            isRefreshing = true
+            print("🔄 Refreshing global feed...")
+            await feedViewModel.fetchGlobalFeed()
+            isRefreshing = false
+            print("✅ Global feed refreshed")
         }
     }
 }
@@ -703,7 +711,166 @@ struct ContestPhotoCard: View {
     }
 }
 
-// MARK: - Contest Photo Card
+// MARK: - Global Photo Card (supports both regular photos and contest photos)
+
+struct GlobalPhotoCard: View {
+    let feedItem: GlobalFeedItem
+    @ObservedObject var feedViewModel: FeedViewModel
+    @State private var imageData: Data?
+    @State private var isLiked: Bool
+    @State private var currentVotes: Int
+    
+    init(feedItem: GlobalFeedItem, feedViewModel: FeedViewModel) {
+        self.feedItem = feedItem
+        self.feedViewModel = feedViewModel
+        _isLiked = State(initialValue: feedItem.has_voted)
+        _currentVotes = State(initialValue: feedItem.votes)
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // User info header
+            NavigationLink {
+                OtherUserProfileView(userId: feedItem.owner_id)
+            } label: {
+                HStack(spacing: 12) {
+                    Circle()
+                        .fill(Color.pawseGolden)
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(.pawseOliveGreen)
+                        )
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(feedItem.pet_name)
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.pawseBrown)
+                        
+                        HStack(spacing: 4) {
+                            Text("@\(feedItem.owner_nickname)")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.gray)
+                            
+                            // Show contest tag if this is a contest photo
+                            if let contestTag = feedItem.contest_tag {
+                                Text("•")
+                                    .foregroundColor(.gray)
+                                
+                                Text("#\(contestTag)")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.pawseOrange)
+                            }
+                        }
+                    }
+                    
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+            
+            // Photo with like button overlay
+            GeometryReader { geometry in
+                let imageWidth = geometry.size.width * 0.95
+                let imageHeight = imageWidth  // Square 1:1 ratio
+                
+                ZStack {
+                    if let imageData = imageData, let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: imageWidth, height: imageHeight)
+                            .clipped()
+                            .cornerRadius(12)
+                    } else {
+                        Rectangle()
+                            .fill(Color.pawseGolden.opacity(0.3))
+                            .frame(width: imageWidth, height: imageHeight)
+                            .cornerRadius(12)
+                            .overlay(
+                                ProgressView()
+                            )
+                    }
+                    
+                    // Like button positioned absolutely
+                    HStack(spacing: 6) {
+                        Button(action: {
+                            // Optimistically update UI
+                            isLiked.toggle()
+                            currentVotes += isLiked ? 1 : -1
+                            
+                            Task {
+                                // Use appropriate vote method based on photo type
+                                if feedItem.is_contest_photo {
+                                    // For contest photos, need to fetch contest ID
+                                    // For now, create a temporary ContestFeedItem
+                                    let contestFeedItem = ContestFeedItem(
+                                        contest_photo_id: feedItem.photo_id,
+                                        pet_name: feedItem.pet_name,
+                                        owner_nickname: feedItem.owner_nickname,
+                                        owner_id: feedItem.owner_id,
+                                        image_link: feedItem.image_link,
+                                        votes: feedItem.votes,
+                                        submitted_at: feedItem.posted_at,
+                                        contest_tag: feedItem.contest_tag ?? "",
+                                        has_voted: !isLiked,
+                                        score: 0
+                                    )
+                                    // Get contest ID from the tag - we'll need to fetch it
+                                    // For simplicity, we can extract from the existing contest or fetch
+                                    let contestController = ContestController()
+                                    if let activeContest = try? await contestController.fetchCurrentContest(),
+                                       let contestId = activeContest.id {
+                                        await feedViewModel.toggleVoteOnContestPhoto(item: contestFeedItem, contestId: contestId)
+                                    }
+                                } else {
+                                    // For regular photos, create a FriendsFeedItem
+                                    let friendsFeedItem = FriendsFeedItem(
+                                        photo_id: feedItem.photo_id,
+                                        pet_name: feedItem.pet_name,
+                                        owner_nickname: feedItem.owner_nickname,
+                                        owner_id: feedItem.owner_id,
+                                        image_link: feedItem.image_link,
+                                        votes: feedItem.votes,
+                                        posted_at: feedItem.posted_at,
+                                        has_voted: !isLiked
+                                    )
+                                    await feedViewModel.toggleVoteOnFriendsPhoto(item: friendsFeedItem)
+                                }
+                            }
+                        }) {
+                            Image(systemName: isLiked ? "heart.fill" : "heart")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(isLiked ? .red : .white)
+                                .shadow(color: .black.opacity(0.3), radius: 2)
+                        }
+                        
+                        Text("\(currentVotes)")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.3), radius: 2)
+                    }
+                    .position(x: imageWidth - 30, y: imageHeight - 30)
+                }
+                .frame(width: geometry.size.width, height: imageHeight, alignment: .center)
+            }
+            .frame(height: UIScreen.main.bounds.width * 0.95)
+        }
+        .task {
+            if !feedItem.image_link.isEmpty {
+                do {
+                    let image = try await AWSManager.shared.downloadImage(from: feedItem.image_link)
+                    if let data = image?.jpegData(compressionQuality: 0.8) {
+                        imageData = data
+                    }
+                } catch {
+                    print("Failed to load image: \(error)")
+                }
+            }
+        }
+    }
+}
 
 // MARK: - Leaderboard View
 

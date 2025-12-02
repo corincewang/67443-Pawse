@@ -20,6 +20,7 @@ struct UploadPhotoView: View {
     @State private var selectedImage: UIImage?
     @State private var selectedPrivacy: PhotoPrivacy
     @State private var selectedPetId: String?
+    @State private var postToContest = false
     
     enum UploadSource {
         case profile
@@ -46,16 +47,20 @@ struct UploadPhotoView: View {
         self.petId = petId
         self.source = source
         
-        // Set default privacy based on source
+        // Set default privacy and contest checkbox based on source
         switch source {
         case .contest:
             _selectedPrivacy = State(initialValue: .publicPhoto)
+            _postToContest = State(initialValue: true)
         case .global:
             _selectedPrivacy = State(initialValue: .publicPhoto)
+            _postToContest = State(initialValue: false)
         case .community:
             _selectedPrivacy = State(initialValue: .friendsOnly)
+            _postToContest = State(initialValue: false)
         case .profile:
             _selectedPrivacy = State(initialValue: .privatePhoto)
+            _postToContest = State(initialValue: false)
         }
     }
     
@@ -203,12 +208,34 @@ struct UploadPhotoView: View {
                 privacyButton(for: privacy)
             }
             
+            // Contest checkbox
+            Button(action: {
+                postToContest.toggle()
+                if postToContest {
+                    // Auto-select public when contest is checked
+                    selectedPrivacy = .publicPhoto
+                }
+            }) {
+                HStack(spacing: 10) {
+                    Image(systemName: postToContest ? "checkmark.square.fill" : "square")
+                        .font(.system(size: 20))
+                        .foregroundColor(postToContest ? .pawseOrange : .gray)
+                    
+                    Text("Post to Current Contest?")
+                        .font(.system(size: 16))
+                        .foregroundColor(.pawseBrown)
+                    
+                    Spacer()
+                }
+                .padding(.top, 10)
+            }
+            
             // Contest lock message
-            if source == .contest {
-                Text("All contest photos must be posted publicly.")
+            if postToContest {
+                Text("Contest entries must be public")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.gray)
-                    .padding(.top, 5)
+                    .padding(.top, 2)
             }
         }
         .padding(.horizontal, 30)
@@ -216,7 +243,7 @@ struct UploadPhotoView: View {
     
     private func privacyButton(for privacy: PhotoPrivacy) -> some View {
         Button(action: {
-            if source != .contest {
+            if !postToContest {
                 selectedPrivacy = privacy
             }
         }) {
@@ -225,15 +252,15 @@ struct UploadPhotoView: View {
                     .foregroundColor(selectedPrivacy == privacy ? .pawseOrange : .gray)
                 
                 Text(privacy.displayName)
-                    .foregroundColor(source == .contest ? .gray : .pawseBrown)
+                    .foregroundColor(postToContest ? .gray : .pawseBrown)
                 
                 Spacer()
             }
             .padding()
-            .background(source == .contest ? Color.white.opacity(0.5) : Color.white)
+            .background(postToContest ? Color.white.opacity(0.5) : Color.white)
             .cornerRadius(10)
         }
-        .disabled(source == .contest)
+        .disabled(postToContest)
     }
     
     private var uploadButton: some View {
@@ -282,8 +309,8 @@ struct UploadPhotoView: View {
                 if photoViewModel.errorMessage == nil, let photoId = photoId {
                     print("✅ Photo uploaded successfully with ID: \(photoId)")
                     
-                    // If public (contest), join the active contest
-                    if selectedPrivacy == .publicPhoto {
+                    // Join contest if checkbox is checked
+                    if postToContest {
                         print("🏆 Attempting to join contest...")
                         // Get active contests
                         await contestViewModel.fetchActiveContests()

@@ -45,7 +45,7 @@ final class FeedController {
         )
     }
 
-    func fetchGlobalFeedItems(for userId: String, userVotedPhotoIds: Set<String>) async throws -> [FriendsFeedItem] {
+    func fetchGlobalFeedItems(for userId: String, userVotedPhotoIds: Set<String>) async throws -> [GlobalFeedItem] {
         return try await FeedService.shared.generateGlobalFeed(
             for: userId,
             userVotedPhotoIds: userVotedPhotoIds
