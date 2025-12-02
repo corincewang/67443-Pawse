@@ -231,6 +231,10 @@ struct PhotoGalleryView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToProfile)) { _ in
+            // Dismiss to go back to profile (useful for tutorial flow)
+            dismiss()
+        }
         .navigationDestination(item: $petForEdit) { pet in
             PetFormView(pet: pet)
         }

@@ -248,6 +248,11 @@ struct UploadPhotoView: View {
                         // Private photo - just dismiss
                         print("🔒 Private photo uploaded")
                         dismiss()
+                        
+                        // Post notification to navigate back to profile (for tutorial flow)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            NotificationCenter.default.post(name: .navigateToProfile, object: nil)
+                        }
                     }
                 } else {
                     print("❌ Photo upload failed: \(photoViewModel.errorMessage ?? "unknown error")")
