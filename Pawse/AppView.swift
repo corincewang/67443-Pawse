@@ -11,6 +11,8 @@ struct AppView: View {
     @State private var selectedTab: TabItem = .profile
     @State private var hideBottomBar: Bool = false
     @State private var hasInitializedContest = false
+    @State private var tutorialBottomHighlight: TabItem? = nil
+    @State private var isTutorialActive = false
     
     // Persistent ViewModels for Community tab
     @StateObject private var feedViewModel = FeedViewModel()
@@ -49,7 +51,7 @@ struct AppView: View {
             if !hideBottomBar {
                 VStack {
                     Spacer()
-                    BottomBarView(selectedTab: $selectedTab)
+                    BottomBarView(selectedTab: $selectedTab, highlightedTab: tutorialBottomHighlight, isTutorialActive: isTutorialActive)
                 }
                 .ignoresSafeArea(.all, edges: .bottom)
             }
@@ -79,6 +81,18 @@ struct AppView: View {
                 selectedTab = .profile
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .tutorialBottomHighlight)) { notification in
+            if let raw = notification.userInfo?["tab"] as? String, let tab = TabItem(rawValue: raw) {
+                tutorialBottomHighlight = tab
+            } else {
+                tutorialBottomHighlight = nil
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .tutorialActiveState)) { notification in
+            if let isActive = notification.userInfo?["isActive"] as? Bool {
+                isTutorialActive = isActive
+            }
+        }
         .task {
             // Initialize contest system once user is authenticated
             if !hasInitializedContest {
@@ -98,6 +112,9 @@ extension Notification.Name {
     static let navigateToProfile = Notification.Name("navigateToProfile")
     static let refreshPhotoGallery = Notification.Name("refreshPhotoGallery")
     static let switchToContestTab = Notification.Name("switchToContestTab")
+    static let showProfileTutorial = Notification.Name("showProfileTutorial")
+    static let tutorialBottomHighlight = Notification.Name("tutorialBottomHighlight")
+    static let tutorialActiveState = Notification.Name("tutorialActiveState")
 }
 
 

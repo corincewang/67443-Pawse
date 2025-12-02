@@ -33,7 +33,6 @@ struct RootView: View {
                     }
                 }
             } else if isAuthenticated {
-                // User is logged in - show main app
                 AppView()
                     .environmentObject(userViewModel)
             } else {

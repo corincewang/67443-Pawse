@@ -7,6 +7,48 @@
 
 import SwiftUI
 
+private enum TutorialStep: Int, CaseIterable {
+    case welcome
+    case addPet
+    case uploadPhoto
+    case camera
+    case contest
+    case community
+    case finished
+}
+
+private enum TutorialTarget: Hashable {
+    case addPetCard
+    case firstPetCard
+    case contestBanner
+    case headerSubtitle
+    case petCardsArea
+}
+
+private struct TutorialFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [TutorialTarget: CGRect] = [:]
+    static func reduce(value: inout [TutorialTarget: CGRect], nextValue: () -> [TutorialTarget: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+private struct TutorialFrameModifier: ViewModifier {
+    let target: TutorialTarget
+    func body(content: Content) -> some View {
+        content.background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: TutorialFramePreferenceKey.self, value: [target: proxy.frame(in: .global)])
+            }
+        )
+    }
+}
+
+private extension View {
+    func captureTutorialFrame(_ target: TutorialTarget) -> some View {
+        modifier(TutorialFrameModifier(target: target))
+    }
+}
+
 struct ProfilePageView: View {
     @StateObject private var petViewModel = PetViewModel()
     @EnvironmentObject var userViewModel: UserViewModel
@@ -14,12 +56,25 @@ struct ProfilePageView: View {
     @StateObject private var contestViewModel = ContestViewModel()
     @State private var showInvitationOverlay = true
     @State private var selectedPetName: String? = nil // Store selected pet name for the session
+    @State private var showTutorialHelp = false
+    @AppStorage("hasSeenProfileTutorial") private var hasSeenProfileTutorial = false
+    @AppStorage("profileTutorialUserId") private var profileTutorialUserId = ""
+    @AppStorage("profileTutorialStepRaw") private var tutorialStepRaw: Int = -1
+    @State private var tutorialStep: TutorialStep? = nil
+    @State private var hasUploadedPhotos = false
     
     private var displayName: String {
         if let user = userViewModel.currentUser, !user.nick_name.isEmpty {
             return user.nick_name
         }
         return "User"
+    }
+
+    private func isFirstPet(_ pet: Pet) -> Bool {
+        guard let first = petViewModel.allPets.first else { return false }
+        let firstID = first.id ?? first.name
+        let currentID = pet.id ?? pet.name
+        return firstID == currentID
     }
     
     var body: some View {
@@ -28,46 +83,65 @@ struct ProfilePageView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Top section with greeting and settings button
-                HStack(alignment: .top, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Hi, \(displayName)")
-                            .font(.system(size: 56 , weight: .bold))
-                            .foregroundColor(.pawseOliveGreen)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.5)
-                        
-                        // Conditional message based on whether user has pets
-                        if petViewModel.allPets.isEmpty {
-                            Text("Create Your First Pet Album!")
-                                .font(.system(size: 24, weight: .regular))
-                                .foregroundColor(.pawseBrown)
-                                .padding(.top, 4)
-                        } else if let petName = selectedPetName {
-                            Text("How is \(petName) doing?")
-                                .font(.system(size: 24, weight: .regular))
-                                .foregroundColor(.pawseBrown)
-                                .padding(.top, 4)
+                // Top section with tutorial trigger, greeting text, and settings button
+                ZStack(alignment: .topLeading) {
+                    HStack(alignment: .top, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Hi, \(displayName)")
+                                .font(.system(size: 56 , weight: .bold))
+                                .foregroundColor(.pawseOliveGreen)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                            if petViewModel.allPets.isEmpty {
+                                Text("Create Your First Pet Album!")
+                                    .font(.system(size: 24, weight: .regular))
+                                    .foregroundColor(.pawseBrown)
+                                    .padding(.top, 4)
+                                    .captureTutorialFrame(.headerSubtitle)
+                            } else if let petName = selectedPetName {
+                                Text("How is \(petName) doing?")
+                                    .font(.system(size: 24, weight: .regular))
+                                    .foregroundColor(.pawseBrown)
+                                    .padding(.top, 4)
+                                    .captureTutorialFrame(.headerSubtitle)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 30)
+                        
+                        NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
+                            Circle()
+                                .fill(Color.pawseWarmGrey)
+                                .frame(width: 52, height: 52)
+                                .overlay(
+                                    Image(systemName: "gearshape")
+                                        .font(.system(size: 24, weight: .medium))
+                                        .foregroundColor(.white)
+                                )
+                                .contentShape(Rectangle())
+                        }
+                        .offset(y: -UIScreen.main.bounds.height * 0.03)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    // Settings button - circular in top right
-                    NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                            showTutorialHelp = true
+                        }
+                    }) {
                         Circle()
                             .fill(Color.pawseWarmGrey)
-                            .frame(width: 52, height: 52) 
+                            .frame(width: 52, height: 52)
                             .overlay(
-                                Image(systemName: "gearshape")
-                                    .font(.system(size: 24, weight: .medium))
-                                    .foregroundColor(Color.white)
+                                Image(systemName: "questionmark")
+                                    .font(.system(size: 24, weight: .bold))
+                                    .foregroundColor(.white)
                             )
-                            .padding(.top, -40)
                             .contentShape(Rectangle())
                     }
+                    .offset(y: -UIScreen.main.bounds.height * 0.03)
                 }
                 .padding(.horizontal, 30)
-                .padding(.top, 60)
+                .padding(.top, 50)
                 .padding(.bottom, 40)
                 
                 // Pets Gallery Title
@@ -90,7 +164,9 @@ struct ProfilePageView: View {
                         NavigationLink(destination: PetFormView()) {
                             AddPetCardView()
                         }
+                        .captureTutorialFrame(.addPetCard)
                     }
+                    .captureTutorialFrame(.petCardsArea)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 30)
                     Spacer()
@@ -102,6 +178,18 @@ struct ProfilePageView: View {
                                 NavigationLink(destination: PhotoGalleryView(petId: pet.id ?? "", petName: pet.name)) {
                                     PetCardView(pet: pet)
                                 }
+                                .background(
+                                    Group {
+                                        if isFirstPet(pet) {
+                                            GeometryReader { proxy in
+                                                Color.clear.preference(
+                                                    key: TutorialFramePreferenceKey.self,
+                                                    value: [.firstPetCard: proxy.frame(in: .global)]
+                                                )
+                                            }
+                                        }
+                                    }
+                                )
                             }
                             
                             // Add pet button at the end
@@ -111,6 +199,7 @@ struct ProfilePageView: View {
                         }
                         .padding(.horizontal, 30)
                     }
+                    .captureTutorialFrame(.petCardsArea)
                     .padding(.bottom, 20)
                     
                     Spacer()
@@ -121,27 +210,33 @@ struct ProfilePageView: View {
             VStack {
                 Spacer()
                 ActiveContestBannerView(contestTitle: contestViewModel.currentContest?.prompt ?? "No Active Contest")
-                    .padding(.top, 310) // Position above bottom navigation
+                    .captureTutorialFrame(.contestBanner)
                     .padding(.bottom, 10) // Position above bottom navigation
             }
         }
         .overlay {
-            // Floating invitation card overlay
-            if showInvitationOverlay, let firstInvitation = guardianViewModel.receivedInvitations.first {
-                ZStack {
-                    // Semi-transparent background
-                    Color.black.opacity(0.3)
-                        .ignoresSafeArea()
-                    
-                    // Invitation card - centered and wider
-                    VStack {
-                        Spacer()
-                        GuardianInvitationCard(
-                            guardian: firstInvitation,
-                            petViewModel: petViewModel,
-                            onDismiss: {
-                                withAnimation {
-                                    showInvitationOverlay = false
+            ZStack {
+                // Floating invitation card overlay
+                if showInvitationOverlay, let firstInvitation = guardianViewModel.receivedInvitations.first {
+                    ZStack {
+                        // Semi-transparent background
+                        Color.black.opacity(0.3)
+                            .ignoresSafeArea()
+
+                        // Invitation card - centered and wider
+                        VStack {
+                            Spacer()
+                            GuardianInvitationCard(
+                                guardian: firstInvitation,
+                                petViewModel: petViewModel,
+                                onDismiss: {
+                                    withAnimation {
+                                        showInvitationOverlay = false
+                                    }
+                                    // Refresh invitations after dismissing
+                                    Task {
+                                        await guardianViewModel.fetchPendingInvitationsForCurrentUser()
+                                    }
                                 }
                                 // Refresh invitations after dismissing
                                 Task {
@@ -154,15 +249,52 @@ struct ProfilePageView: View {
                         Spacer()
                     }
                 }
+
+                if showTutorialHelp {
+                    TutorialHelpPopup(
+                        isPresented: $showTutorialHelp,
+                        restartAction: {
+                            hasSeenProfileTutorial = false
+                            profileTutorialUserId = ""
+                            NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
+                        }
+                    )
+                }
+            }
+        }
+        .overlayPreferenceValue(TutorialFramePreferenceKey.self) { preferences in
+            if let currentStep = tutorialStep {
+                let highlights = tutorialHighlights(for: currentStep, frames: preferences)
+                let messageAnchor = messageTopAnchorY(from: preferences)
+                let hintPosition = hintYPosition(for: currentStep, frames: preferences, highlights: highlights)
+                TutorialOverlayView(
+                    step: currentStep,
+                    highlights: highlights,
+                    message: tutorialMessage(for: currentStep),
+                    detail: tutorialDetail(for: currentStep),
+                    hintText: overlayHint(for: currentStep),
+                    allowsOverlayTap: overlayAllowsTap(for: currentStep),
+                    passthroughRects: tutorialPassthroughRects(for: currentStep, highlights: highlights),
+                    messageTopAnchor: messageAnchor,
+                    hintYPosition: hintPosition,
+                    onTap: handleTutorialTap,
+                    onExit: finishTutorial
+                )
             }
         }
         .navigationBarBackButtonHidden(true)
         .task {
+            // Only start tutorial if it's not already in progress or completed
+            let shouldStartTutorial = tutorialStep == nil
+            
             await userViewModel.fetchCurrentUser()
             await petViewModel.fetchUserPets()
             await petViewModel.fetchGuardianPets()
             await guardianViewModel.fetchPendingInvitationsForCurrentUser()
             await contestViewModel.fetchCurrentContest()
+            let pets = petViewModel.allPets
+            let photosExist = await determinePhotoPresence(for: pets)
+            hasUploadedPhotos = photosExist
             // Show overlay if there are invitations
             if !guardianViewModel.receivedInvitations.isEmpty {
                 showInvitationOverlay = true
@@ -171,6 +303,54 @@ struct ProfilePageView: View {
             // Set selected pet name only if not already set (to keep it consistent during the session)
             if selectedPetName == nil && !petViewModel.allPets.isEmpty {
                 selectedPetName = petViewModel.allPets.randomElement()?.name
+            }
+            
+            // Only start tutorial if it wasn't in progress when task started
+            guard shouldStartTutorial else { return }
+            
+            let userId = userViewModel.currentUser?.id ?? ""
+            
+            // Check if THIS specific user has completed the tutorial
+            // If profileTutorialUserId is empty or different from current user, they haven't seen it
+            let currentUserHasSeenTutorial = !userId.isEmpty && profileTutorialUserId == userId
+            
+            // Check if there's a tutorial in progress (user navigated away and came back)
+            if tutorialStepRaw >= 0, let savedStep = TutorialStep(rawValue: tutorialStepRaw) {
+                // Resume tutorial from saved step
+                tutorialStep = savedStep
+                NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
+            } else if !userId.isEmpty && !currentUserHasSeenTutorial {
+                // Start tutorial for new users or users who haven't seen it yet
+                startTutorialFlow(resetProgress: true)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showProfileTutorial)) { _ in
+            startTutorialFlow(resetProgress: true)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .refreshPhotoGallery)) { _ in
+            refreshPhotoStatusAsync()
+        }
+        .onChange(of: petViewModel.allPets) { _, pets in
+            if selectedPetName == nil && !pets.isEmpty {
+                selectedPetName = pets.randomElement()?.name
+            }
+            if tutorialStep == .addPet && !pets.isEmpty {
+                tutorialStep = nextStep(after: .addPet)
+            }
+            refreshPhotoStatusAsync()
+        }
+        .onChange(of: hasUploadedPhotos) { _, newValue in
+            if newValue && tutorialStep == .uploadPhoto {
+                tutorialStep = nextStep(after: .uploadPhoto)
+            }
+        }
+        .onChange(of: tutorialStep) { _, newValue in
+            notifyBottomBarHighlight(for: newValue)
+            // Persist tutorial step to survive navigation
+            if let step = newValue {
+                tutorialStepRaw = step.rawValue
+            } else {
+                tutorialStepRaw = -1
             }
         }
         .onChange(of: guardianViewModel.receivedInvitations.count) { _, newCount in
@@ -181,6 +361,282 @@ struct ProfilePageView: View {
                 showInvitationOverlay = false
             }
         }
+    }
+
+    private func startTutorialFlow(resetProgress: Bool) {
+        if resetProgress {
+            hasSeenProfileTutorial = false
+            profileTutorialUserId = ""
+        }
+        tutorialStep = nextStep(after: nil)
+        NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
+    }
+    
+    private func handleTutorialTap() {
+        guard let current = tutorialStep else { return }
+        if let next = nextStep(after: current) {
+            tutorialStep = next
+        } else {
+            finishTutorial()
+        }
+    }
+    
+    private func finishTutorial() {
+        hasSeenProfileTutorial = true
+        if let userId = userViewModel.currentUser?.id, !userId.isEmpty {
+            profileTutorialUserId = userId
+        }
+        tutorialStep = nil
+        tutorialStepRaw = -1 // Clear persisted tutorial step
+        notifyBottomBarHighlight(for: nil)
+        NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": false])
+    }
+    
+    private func nextStep(after step: TutorialStep?) -> TutorialStep? {
+        let ordered = TutorialStep.allCases
+        let startIndex: Int
+        if let step = step, let index = ordered.firstIndex(of: step) {
+            startIndex = index + 1
+        } else {
+            startIndex = 0
+        }
+        guard startIndex <= ordered.count else { return nil }
+        for idx in startIndex..<ordered.count {
+            let candidate = ordered[idx]
+            if shouldIncludeStep(candidate) {
+                return candidate
+            }
+        }
+        return nil
+    }
+    
+    private func shouldIncludeStep(_ step: TutorialStep) -> Bool {
+        switch step {
+        case .welcome:
+            return true
+        case .addPet:
+            return petViewModel.allPets.isEmpty
+        case .uploadPhoto:
+            return !petViewModel.allPets.isEmpty && !hasUploadedPhotos
+        case .camera:
+            return !petViewModel.allPets.isEmpty && hasUploadedPhotos
+        case .contest, .community, .finished:
+            return true
+        }
+    }
+    
+    private func tutorialMessage(for step: TutorialStep) -> String {
+        switch step {
+        case .welcome:
+            return "Welcome to your Profile—this is home for all of your pet galleries."
+        case .addPet:
+            return "Tap here to create a gallery for your pet."
+        case .uploadPhoto:
+            return "Great! Add \(tutorialPetDisplayName)’s first picture to build their story."
+        case .camera:
+            return "You can take photos on Pawse directly!"
+        case .contest:
+            return "Weekly contests run here—enter your best shot any time."
+        case .community:
+            return "Browse friends and the global feed from here to get inspired."
+        case .finished:
+            return "You're all set! Have fun sharing your pet's story!"
+        }
+    }
+    
+    private func tutorialDetail(for step: TutorialStep) -> String? {
+        switch step {
+        case .welcome:
+            return "Let's take a quick tour of the key areas."
+        case .addPet:
+            return "Tap the glowing card to open the pet form."
+        case .uploadPhoto:
+            return "Choose a favorite photo to kick things off."
+        case .camera:
+            return "Tap the camera icon to take a photo on the spot."
+        case .contest:
+            return "Use the banner or trophy tab to jump into current contests."
+        case .community:
+            return "Friends and global feeds live in the Community page."
+        case .finished:
+            return nil
+        }
+    }
+    
+    private func overlayHint(for step: TutorialStep) -> String {
+        switch step {
+        case .addPet:
+            return "Tap the highlighted card to add a pet"
+        case .uploadPhoto:
+            return "Open the highlighted gallery to add a photo"
+        case .finished:
+            return "Finish"
+        default:
+            return "tap to continue"
+        }
+    }
+    
+    private func overlayAllowsTap(for step: TutorialStep) -> Bool {
+        switch step {
+        case .addPet, .uploadPhoto:
+            return false
+        case .camera:
+            return true
+        default:
+            return true
+        }
+    }
+    
+    private func messageTopAnchorY(from frames: [TutorialTarget: CGRect]) -> CGFloat? {
+        frames[.headerSubtitle]?.minY
+    }
+    
+    private func hintYPosition(for step: TutorialStep, frames: [TutorialTarget: CGRect], highlights: [TutorialHighlight]) -> CGFloat? {
+        let cardsBottom: CGFloat?
+        switch step {
+        case .addPet, .uploadPhoto, .camera:
+            cardsBottom = highlights.first?.frame.maxY ?? frames[.petCardsArea]?.maxY
+        default:
+            cardsBottom = frames[.petCardsArea]?.maxY
+        }
+        guard let bottom = cardsBottom else { return nil }
+        guard let bannerTop = frames[.contestBanner]?.minY else {
+            return bottom + 40
+        }
+        let gap = bannerTop - bottom
+        if gap.isNaN {
+            return nil
+        }
+        let lowerBound = bottom + 30
+        let upperBound = bannerTop - 10
+        if gap <= 0 {
+            return lowerBound
+        }
+        // Position hint at true center between cards and banner
+        let hintPosition = bottom + (gap * 2.5)
+        if upperBound > lowerBound {
+            return min(max(hintPosition, lowerBound), upperBound)
+        }
+        return lowerBound
+    }
+    
+    private func tutorialPassthroughRects(for step: TutorialStep, highlights: [TutorialHighlight]) -> [CGRect] {
+        guard allowsHighlightInteraction(for: step) else { return [] }
+        return highlights.map { $0.expandedFrame }
+    }
+    
+    private func allowsHighlightInteraction(for step: TutorialStep) -> Bool {
+        switch step {
+        case .addPet, .uploadPhoto:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    private func tutorialHighlights(for step: TutorialStep, frames: [TutorialTarget: CGRect]) -> [TutorialHighlight] {
+        switch step {
+        case .welcome:
+            return []
+        case .addPet:
+            if let frame = frames[.addPetCard] {
+                return [TutorialHighlight(frame: frame, padding: 16, shape: .rounded(cornerRadius: 24))]
+            }
+        case .uploadPhoto:
+            if let frame = frames[.firstPetCard] {
+                return [TutorialHighlight(frame: frame, padding: 16, shape: .rounded(cornerRadius: 24))]
+            }
+        case .camera:
+            // Camera icon is shown with custom orange circle overlay in bottom bar
+            return []
+        case .contest:
+            // Only highlight the banner (trophy icon is shown with custom orange circle overlay)
+            if let bannerFrame = frames[.contestBanner] {
+                return [TutorialHighlight(frame: bannerFrame, padding: 0, shape: .rounded(cornerRadius: 18))]
+            }
+            return []
+        case .community:
+            return []
+        case .finished:
+            return []
+        }
+        return []
+    }
+    
+    private func bottomBarIconHighlight(for tab: TabItem) -> TutorialHighlight? {
+        guard TabItem.orderedTabs.contains(tab) else { return nil }
+        let frame = bottomBarIconFrame(for: tab)
+        return TutorialHighlight(frame: frame, padding: 6, shape: .circle)
+    }
+    
+    private func bottomBarIconFrame(for tab: TabItem) -> CGRect {
+        let screen = UIScreen.main.bounds
+        let barHeight: CGFloat = 110
+        let count = CGFloat(TabItem.orderedTabs.count)
+        let tabWidth = screen.width / count
+        guard let index = TabItem.orderedTabs.firstIndex(of: tab) else {
+            return CGRect(x: 0, y: screen.height - barHeight, width: tabWidth, height: barHeight)
+        }
+        let centerX = tabWidth * (CGFloat(index) + 0.5)
+        let iconSize: CGFloat = 64
+        let originY = screen.height - barHeight + (barHeight - iconSize) / 2
+        return CGRect(x: centerX - iconSize / 2, y: originY, width: iconSize, height: iconSize)
+    }
+    
+    private func refreshPhotoStatusAsync() {
+        Task {
+            let pets = await MainActor.run { petViewModel.allPets }
+            guard !pets.isEmpty else {
+                await MainActor.run { self.hasUploadedPhotos = false }
+                return
+            }
+            let hasPhotos = await determinePhotoPresence(for: pets)
+            await MainActor.run {
+                self.hasUploadedPhotos = hasPhotos
+            }
+        }
+    }
+    
+    private func determinePhotoPresence(for pets: [Pet]) async -> Bool {
+        guard !pets.isEmpty else { return false }
+        let controller = PhotoController()
+        for pet in pets {
+            guard let petId = pet.id, !petId.isEmpty else { continue }
+            do {
+                let photos = try await controller.fetchPhotos(for: petId)
+                if !photos.isEmpty {
+                    return true
+                }
+            } catch {
+                continue
+            }
+        }
+        return false
+    }
+    
+    private var tutorialPetDisplayName: String {
+        petViewModel.allPets.first?.name ?? selectedPetName ?? "your pet"
+    }
+    
+    private func notifyBottomBarHighlight(for step: TutorialStep?) {
+        let tab: TabItem?
+        switch step {
+        case .camera:
+            tab = .camera
+        case .contest:
+            tab = .contest
+        case .community:
+            tab = .community
+        case .finished:
+            tab = nil
+        default:
+            tab = nil
+        }
+        var userInfo: [String: String] = [:]
+        if let tab = tab {
+            userInfo["tab"] = tab.rawValue
+        }
+        NotificationCenter.default.post(name: .tutorialBottomHighlight, object: nil, userInfo: userInfo)
     }
 }
 
@@ -479,6 +935,289 @@ struct RoundedCorners: Shape {
             cornerRadii: CGSize(width: cornerRadius, height: cornerRadius)
         )
         return Path(path.cgPath)
+    }
+}
+
+struct TutorialHelpPopup: View {
+    @Binding var isPresented: Bool
+    let restartAction: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        isPresented = false
+                    }
+                }
+
+            VStack(spacing: 20) {
+                Text("Need Help?")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.pawseOliveGreen)
+
+                Text("Relaunch the guided tour to learn where everything lives on Pawse.")
+                    .font(.system(size: 18, weight: .medium))
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.pawseBrown)
+                    .padding(.horizontal, 24)
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isPresented = false
+                    }
+                    restartAction()
+                } label: {
+                    Text("Start Tutorial")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Color.pawseOrange)
+                        .cornerRadius(28)
+                }
+                .padding(.horizontal, 16)
+
+                Button {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        isPresented = false
+                    }
+                } label: {
+                    Text("Maybe Later")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.pawseBrown)
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: 320)
+            .background(Color.white)
+            .cornerRadius(24)
+            .shadow(color: .black.opacity(0.15), radius: 20)
+        }
+    }
+}
+
+private enum TutorialHighlightShape {
+    case rounded(cornerRadius: CGFloat)
+    case circle
+}
+
+private struct TutorialHighlight: Identifiable {
+    let id = UUID()
+    let frame: CGRect
+    let padding: CGFloat
+    let shape: TutorialHighlightShape
+    var expandedFrame: CGRect {
+        frame.insetBy(dx: -padding, dy: -padding)
+    }
+}
+
+private struct TutorialInteractionLayer: UIViewRepresentable {
+    let allowsOverlayTap: Bool
+    let passthroughRects: [CGRect]
+    let onTap: () -> Void
+    
+    func makeUIView(context: Context) -> TutorialInteractionUIView {
+        let view = TutorialInteractionUIView()
+        view.onTap = onTap
+        return view
+    }
+    
+    func updateUIView(_ uiView: TutorialInteractionUIView, context: Context) {
+        uiView.allowsOverlayTap = allowsOverlayTap
+        uiView.passThroughRects = passthroughRects
+        uiView.onTap = onTap
+    }
+}
+
+private final class TutorialInteractionUIView: UIView {
+    var allowsOverlayTap: Bool = false
+    var passThroughRects: [CGRect] = []
+    var onTap: (() -> Void)?
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isUserInteractionEnabled = true
+        
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+        addGestureRecognizer(tapGesture)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
+        if allowsOverlayTap {
+            onTap?()
+        }
+    }
+    
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        // If point is inside a passthrough rect, don't capture the touch
+        for rect in passThroughRects where rect.contains(point) {
+            return false
+        }
+        // Otherwise, this view captures the touch
+        return super.point(inside: point, with: event)
+    }
+    
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        // If point is inside a passthrough rect, let it pass through
+        for rect in passThroughRects where rect.contains(point) {
+            return nil
+        }
+        // Otherwise, return self to block the touch
+        return super.hitTest(point, with: event)
+    }
+}
+
+private struct TutorialOverlayView: View {
+    let step: TutorialStep
+    let highlights: [TutorialHighlight]
+    let message: String
+    let detail: String?
+    let hintText: String
+    let allowsOverlayTap: Bool
+    let passthroughRects: [CGRect]
+    let messageTopAnchor: CGFloat?
+    let hintYPosition: CGFloat?
+    let onTap: () -> Void
+    let onExit: () -> Void
+    
+    var body: some View {
+        GeometryReader { proxy in
+            let overlayFrame = proxy.frame(in: .global)
+            let messageTop = localPosition(
+                forGlobalY: messageTopAnchor,
+                within: overlayFrame,
+                fallback: proxy.size.height * 0.42,
+                maxHeight: max(proxy.size.height - 160, 0)
+            )
+            let hintY = localPosition(
+                forGlobalY: hintYPosition,
+                within: overlayFrame,
+                fallback: proxy.size.height * 0.65,
+                maxHeight: max(proxy.size.height - 60, 0)
+            )
+            let localPassthroughRects = passthroughRects.map { rect in
+                rect.offsetBy(dx: -overlayFrame.minX, dy: -overlayFrame.minY)
+            }
+            ZStack(alignment: .topTrailing) {
+                spotlightLayer
+                
+                // Blocking layer that allows passthrough in specific rects
+                GeometryReader { _ in
+                    TutorialInteractionLayer(
+                        allowsOverlayTap: allowsOverlayTap,
+                        passthroughRects: localPassthroughRects,
+                        onTap: onTap
+                    )
+                }
+                .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    Spacer()
+                        .frame(height: messageTop)
+                    messageCard
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal)
+                .allowsHitTesting(false)
+                hintLabel
+                    .position(x: proxy.size.width / 2, y: hintY)
+                    .allowsHitTesting(false)
+                
+                Button(action: onExit) {
+                    Circle()
+                        .fill(Color.pawseWarmGrey)
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            Image(systemName: "xmark")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(.white)
+                        )
+                }
+                .padding(.trailing, 28)
+                .padding(.top, 60)
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private var messageCard: some View {
+        VStack(spacing: 12) {
+            Text(message)
+                .font(.system(size: 22, weight: .bold))
+                .foregroundColor(.pawseBrown)
+                .multilineTextAlignment(.center)
+            if let detail = detail {
+                Text(detail)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.pawseOliveGreen)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(.vertical, 18)
+        .padding(.horizontal, 20)
+        .background(Color.white)
+        .cornerRadius(24)
+        .shadow(color: .black.opacity(0.25), radius: 20, x: 0, y: 12)
+        .padding(.horizontal, 24)
+    }
+    
+    private var hintLabel: some View {
+        Text(hintText)
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundColor(.white)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 16)
+            .background(Color.white.opacity(0.25))
+            .cornerRadius(16)
+    }
+    
+    private var spotlightLayer: some View {
+        Color.black.opacity(0.65)
+            .overlay(
+                ZStack {
+                    ForEach(highlights) { highlight in
+                        highlightShape(for: highlight)
+                            .blendMode(.destinationOut)
+                    }
+                }
+            )
+            .compositingGroup()
+            .allowsHitTesting(false)
+    }
+    
+    @ViewBuilder
+    private func highlightShape(for highlight: TutorialHighlight) -> some View {
+        let expanded = highlight.frame.insetBy(dx: -highlight.padding, dy: -highlight.padding)
+        switch highlight.shape {
+        case .rounded(let radius):
+            RoundedRectangle(cornerRadius: radius)
+                .frame(width: max(expanded.width, 0.1), height: max(expanded.height, 0.1))
+                .position(x: expanded.midX, y: expanded.midY)
+        case .circle:
+            let diameter = max(max(expanded.width, expanded.height), 0.1)
+            Circle()
+                .frame(width: diameter, height: diameter)
+                .position(x: expanded.midX, y: expanded.midY)
+        }
+    }
+
+    private func localPosition(forGlobalY globalY: CGFloat?, within overlayFrame: CGRect, fallback: CGFloat, maxHeight: CGFloat) -> CGFloat {
+        let localValue: CGFloat
+        if let globalY {
+            localValue = globalY - overlayFrame.minY
+        } else {
+            localValue = fallback
+        }
+        let upperBound = max(maxHeight, 0)
+        return min(max(localValue, 0), upperBound)
     }
 }
 

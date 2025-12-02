@@ -9,6 +9,8 @@ import SwiftUI
 
 struct BottomBarView: View {
     @Binding var selectedTab: TabItem
+        var highlightedTab: TabItem? = nil
+    var isTutorialActive: Bool = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -19,7 +21,7 @@ struct BottomBarView: View {
 
                 HStack(alignment: .center, spacing: 0) {
                     ForEach(TabItem.orderedTabs, id: \.self) { tab in
-                        TabButton(tab: tab, selectedTab: $selectedTab)
+                        TabButton(tab: tab, selectedTab: $selectedTab, isHighlighted: highlightedTab == tab, isDisabledHighlight: highlightedTab != nil && tab == .profile && (highlightedTab == .camera || highlightedTab == .contest || highlightedTab == .community), isTutorialActive: isTutorialActive, highlightedTab: highlightedTab)
                             .frame(maxWidth: .infinity)
                     }
                 }
@@ -111,24 +113,38 @@ struct WaveBottomBarShape: Shape {
 struct TabButton: View {
     let tab: TabItem
     @Binding var selectedTab: TabItem
+    var isHighlighted: Bool = false
+    var isDisabledHighlight: Bool = false
+    var isTutorialActive: Bool = false
+    var highlightedTab: TabItem? = nil
     
     var isSelected: Bool {
         selectedTab == tab
     }
     
+    var isDisabled: Bool {
+        // During tutorial, disable all tabs except the highlighted one and the current profile tab
+        if isTutorialActive {
+            return tab != .profile && tab != highlightedTab
+        }
+        return false
+    }
+    
     var body: some View {
         Button(action: {
+            guard !isDisabled else { return }
             selectedTab = tab
         }) {
             ZStack {
                 Circle()
-                    .fill(isSelected ? Color.pawseOrange : Color.bottomBarBackground)
+                    .fill((isSelected && !isDisabledHighlight) || isHighlighted ? Color.pawseOrange : Color.bottomBarBackground)
                     .frame(width: 48, height: 48)
                 Image(systemName: tab.iconName)
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(isSelected ? Color.white : Color.pawseBrown)
+                    .foregroundColor((isSelected && !isDisabledHighlight) || isHighlighted ? Color.white : Color.pawseBrown)
             }
-            .shadow(radius: isSelected ? 6 : 0)
+            .shadow(radius: isSelected && !isDisabledHighlight ? 6 : 0)
+            .opacity(isDisabled ? 0.4 : 1.0)
         }
     }
 }
