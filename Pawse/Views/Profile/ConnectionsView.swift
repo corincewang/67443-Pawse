@@ -118,10 +118,15 @@ struct FriendRow: View {
     
     var body: some View {
         HStack(spacing: 15) {
-            // Profile icon
-            Image(systemName: "person.circle.fill")
-                .font(.system(size: 50))
-                .foregroundColor(Color(hex: "D9CAB0"))
+            // Profile icon - white person icon on colored background
+            Circle()
+                .fill(Color(hex: "D9CAB0"))
+                .frame(width: 50, height: 50)
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.white)
+                )
             
             // User info
             VStack(alignment: .leading, spacing: 4) {

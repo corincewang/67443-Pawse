@@ -13,9 +13,6 @@ struct SettingsView: View {
     @State private var showSaveConfirmation = false
     @State private var showResetConfirmation = false
     @State private var resetMessage: String = ""
-    
-    // 12 tags total - scrollable vertically
-    private let allOptions = ["cat lover", "dog lover", "no-insects", "small-pets", "bird lover", "reptile lover", "aquatic pets", "farm animals", "exotic pets", "outdoor pets", "indoor pets", "multi-pet"]
 
     var body: some View {
         ZStack {
@@ -66,31 +63,12 @@ struct SettingsView: View {
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.pawseBrown)
 
-                    // Scrollable tags - all tags in a scrollable grid
-                    ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 12)], spacing: 12) {
-                            ForEach(allOptions, id: \.self) { option in
-                            Button(action: {
-                                if preferred.contains(option) {
-                                    preferred.remove(option)
-                                } else {
-                                    preferred.insert(option)
-                                }
-                            }) {
-                                Text(option)
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(preferred.contains(option) ? .white : .pawseBrown)
-                                    .padding(.vertical, 8)
-                                    .padding(.horizontal, 14)
-                                    .background(preferred.contains(option) ? Color.pawseOrange : Color(hex: "FAF7EB"))
-                                    .cornerRadius(20)
-                            }
-                        }
-                    }
-                        .padding(.top, 4)
-                        .padding(.bottom, 12)
-                    }
-                    .frame(maxHeight: 160) // Increased height for better visibility
+                    // Reusable tag selection component
+                    TagSelectionView(
+                        selectedTags: $preferred,
+                        isScrollable: true,
+                        maxHeight: 160
+                    )
                 }
                 .padding(20)
                 .background(Color(hex: "FAF7EB"))

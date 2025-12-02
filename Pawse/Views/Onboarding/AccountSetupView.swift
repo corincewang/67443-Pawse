@@ -62,27 +62,12 @@ struct AccountSetupView: View {
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.pawseBrown)
                     
-                    // Chips
-                    let options = ["cat lover", "dog lover", "no-insects", "small-pets"]
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 12)], spacing: 12) {
-                        ForEach(options, id: \.self) { option in
-                            Button(action: {
-                                if preferred.contains(option) {
-                                    preferred.remove(option)
-                                } else {
-                                    preferred.insert(option)
-                                }
-                            }) {
-                                Text(option)
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(preferred.contains(option) ? .white : .pawseBrown)
-                                    .padding(.vertical, 8)
-                                    .padding(.horizontal, 14)
-                                    .background(preferred.contains(option) ? Color.pawseOrange : Color(hex: "FAF7EB"))
-                                    .cornerRadius(20)
-                            }
-                        }
-                    }
+                    // Reusable tag selection component
+                    TagSelectionView(
+                        selectedTags: $preferred,
+                        isScrollable: true,
+                        maxHeight: 160
+                    )
                     
                     HStack {
                         Spacer()
@@ -133,7 +118,7 @@ struct AccountSetupView: View {
                 }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(.pawseOliveGreen)
+                        .foregroundColor(.white)
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -142,7 +127,7 @@ struct AccountSetupView: View {
                 }) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(.pawseOliveGreen)
+                        .foregroundColor(.white)
                 }
             }
         }
