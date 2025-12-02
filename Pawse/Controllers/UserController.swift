@@ -14,6 +14,11 @@ final class UserController {
             .updateData(["nick_name": nickName, "preferred_setting": preferred])
     }
     
+    func markTutorialCompleted(uid: String) async throws {
+        try await db.collection(Collection.users).document(uid)
+            .updateData(["has_seen_profile_tutorial": true])
+    }
+    
     func searchUserByEmail(email: String) async throws -> User? {
         let snap = try await db.collection(Collection.users)
             .whereField("email", isEqualTo: email)

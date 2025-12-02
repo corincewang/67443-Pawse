@@ -57,8 +57,6 @@ struct ProfilePageView: View {
     @State private var showInvitationOverlay = true
     @State private var selectedPetName: String? = nil // Store selected pet name for the session
     @State private var showTutorialHelp = false
-    @AppStorage("hasSeenProfileTutorial") private var hasSeenProfileTutorial = false
-    @AppStorage("profileTutorialUserId") private var profileTutorialUserId = ""
     @AppStorage("profileTutorialStepRaw") private var tutorialStepRaw: Int = -1
     @State private var tutorialStep: TutorialStep? = nil
     @State private var hasUploadedPhotos = false
@@ -250,8 +248,7 @@ struct ProfilePageView: View {
                     TutorialHelpPopup(
                         isPresented: $showTutorialHelp,
                         restartAction: {
-                            hasSeenProfileTutorial = false
-                            profileTutorialUserId = ""
+                            // Just restart the tutorial - completion status stays in Firestore
                             NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
                         }
                     )
@@ -307,8 +304,14 @@ struct ProfilePageView: View {
             let userId = userViewModel.currentUser?.id ?? ""
             
             // Check if THIS specific user has completed the tutorial
-            // If profileTutorialUserId is empty or different from current user, they haven't seen it
-            let currentUserHasSeenTutorial = !userId.isEmpty && profileTutorialUserId == userId
+            // User has seen tutorial if the field is true (nil or false means they haven't)
+            let currentUserHasSeenTutorial = userViewModel.currentUser?.has_seen_profile_tutorial ?? false
+            
+            // Debug: Log tutorial state
+            print("🔍 Tutorial Check - userId: \(userId)")
+            print("🔍 Tutorial Check - has_seen_profile_tutorial: \(userViewModel.currentUser?.has_seen_profile_tutorial?.description ?? "nil")")
+            print("🔍 Tutorial Check - currentUserHasSeenTutorial: \(currentUserHasSeenTutorial)")
+            print("🔍 Tutorial Check - tutorialStepRaw: \(tutorialStepRaw)")
             
             // Check if there's a tutorial in progress (user navigated away and came back)
             if tutorialStepRaw >= 0, let savedStep = TutorialStep(rawValue: tutorialStepRaw) {
@@ -317,7 +320,10 @@ struct ProfilePageView: View {
                 NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
             } else if !userId.isEmpty && !currentUserHasSeenTutorial {
                 // Start tutorial for new users or users who haven't seen it yet
+                print("🚀 Starting tutorial for user \(userId)")
                 startTutorialFlow(resetProgress: true)
+            } else {
+                print("✅ Skipping tutorial - user has already seen it")
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showProfileTutorial)) { _ in
@@ -360,10 +366,8 @@ struct ProfilePageView: View {
     }
 
     private func startTutorialFlow(resetProgress: Bool) {
-        if resetProgress {
-            hasSeenProfileTutorial = false
-            profileTutorialUserId = ""
-        }
+        // Note: We don't clear the Firestore flag when restarting via help button
+        // User can replay tutorial but it remains marked as completed
         tutorialStep = nextStep(after: nil)
         NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
     }
@@ -378,14 +382,20 @@ struct ProfilePageView: View {
     }
     
     private func finishTutorial() {
-        hasSeenProfileTutorial = true
-        if let userId = userViewModel.currentUser?.id, !userId.isEmpty {
-            profileTutorialUserId = userId
-        }
         tutorialStep = nil
         tutorialStepRaw = -1 // Clear persisted tutorial step
         notifyBottomBarHighlight(for: nil)
         NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": false])
+        
+        // Save tutorial completion to Firestore
+        Task {
+            await userViewModel.markTutorialCompleted()
+            if let userId = userViewModel.currentUser?.id {
+                print("✅ Tutorial completed and saved to Firestore for user: \(userId)")
+            } else {
+                print("⚠️ Warning: Could not save tutorial completion - user ID is nil")
+            }
+        }
     }
     
     private func nextStep(after step: TutorialStep?) -> TutorialStep? {
