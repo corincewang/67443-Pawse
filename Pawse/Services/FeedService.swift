@@ -115,20 +115,84 @@ class FeedService {
 
     // MARK: - Global Feed Generation
 
-    func generateGlobalFeed(for userId: String, userVotedPhotoIds: Set<String>) async throws -> [FriendsFeedItem] {
+    func generateGlobalFeed(for userId: String, userVotedPhotoIds: Set<String>) async throws -> [GlobalFeedItem] {
         let db = FirebaseManager.shared.db
 
+        var feedItems: [GlobalFeedItem] = []
+        
+        // 1. Get all contest photos first (these will be included with contest tags)
+        var contestPhotoIds = Set<String>()
+        
+        // 2. Get all contest photos from ALL contests
+        let contestPhotosSnap = try await db.collection(Collection.contestPhotos)
+            .order(by: "submitted_at", descending: true)
+            .limit(to: 100)
+            .getDocuments()
+        
+        for doc in contestPhotosSnap.documents {
+            guard let contestPhoto = try? doc.data(as: ContestPhoto.self),
+                  let contestPhotoId = contestPhoto.id else { continue }
+            
+            // Extract photo ID
+            let photoId = contestPhoto.photo.replacingOccurrences(of: "photos/", with: "")
+            
+            // Fetch photo
+            guard let photoSnap = try? await db.collection(Collection.photos).document(photoId).getDocument(),
+                  let photo = try? photoSnap.data(as: Photo.self) else { continue }
+            
+            // Extract pet ID
+            let petId = photo.pet.replacingOccurrences(of: "pets/", with: "")
+            
+            // Fetch pet
+            guard let petSnap = try? await db.collection(Collection.pets).document(petId).getDocument(),
+                  let pet = try? petSnap.data(as: Pet.self) else { continue }
+            
+            // Extract owner ID
+            let ownerId = pet.owner.replacingOccurrences(of: "users/", with: "")
+            
+            // Fetch owner
+            guard let ownerSnap = try? await db.collection(Collection.users).document(ownerId).getDocument(),
+                  let owner = try? ownerSnap.data(as: User.self) else { continue }
+            
+            // Extract contest ID and fetch contest for tag
+            let contestId = contestPhoto.contest.replacingOccurrences(of: "contests/", with: "")
+            guard let contestSnap = try? await db.collection(Collection.contests).document(contestId).getDocument(),
+                  let contest = try? contestSnap.data(as: Contest.self) else { continue }
+            
+            let feedItem = GlobalFeedItem(
+                photo_id: contestPhotoId, // Use contest_photo_id for contest photos
+                pet_name: pet.name,
+                owner_nickname: owner.nick_name,
+                owner_id: ownerId,
+                image_link: photo.image_link,
+                votes: contestPhoto.votes, // Use contest votes, not photo votes
+                posted_at: contestPhoto.submitted_at.ISO8601Format(),
+                has_voted: userVotedPhotoIds.contains(contestPhotoId),
+                contest_tag: contest.prompt,
+                is_contest_photo: true
+            )
+            
+            feedItems.append(feedItem)
+            
+            // Track this photo ID so we don't add it again as a regular photo
+            contestPhotoIds.insert(photoId)
+        }
+        
+        // 3. Get regular public photos (excluding contest photos)
         let photosSnap = try await db.collection(Collection.photos)
             .whereField("privacy", isEqualTo: "public")
             .order(by: "uploaded_at", descending: true)
             .limit(to: 100)
             .getDocuments()
 
-        var feedItems: [FriendsFeedItem] = []
-
         for photoDoc in photosSnap.documents {
             guard let photo = try? photoDoc.data(as: Photo.self),
                   let photoId = photo.id else { continue }
+
+            // Skip if this photo is already in a contest
+            if contestPhotoIds.contains(photoId) {
+                continue
+            }
 
             let petId = photo.pet.replacingOccurrences(of: "pets/", with: "")
 
@@ -139,7 +203,7 @@ class FeedService {
             guard let ownerSnap = try? await db.collection(Collection.users).document(ownerId).getDocument(),
                   let owner = try? ownerSnap.data(as: User.self) else { continue }
 
-            let feedItem = FriendsFeedItem(
+            let feedItem = GlobalFeedItem(
                 photo_id: photoId,
                 pet_name: pet.name,
                 owner_nickname: owner.nick_name,
@@ -147,11 +211,16 @@ class FeedService {
                 image_link: photo.image_link,
                 votes: photo.votes_from_friends,
                 posted_at: photo.uploaded_at.ISO8601Format(),
-                has_voted: userVotedPhotoIds.contains(photoId)
+                has_voted: userVotedPhotoIds.contains(photoId),
+                contest_tag: nil,
+                is_contest_photo: false
             )
 
             feedItems.append(feedItem)
         }
+        
+        // 4. Sort all items by posted_at (most recent first)
+        feedItems.sort { $0.posted_at > $1.posted_at }
 
         print("✅ Generated global feed: \(feedItems.count) items")
         return feedItems

@@ -8,7 +8,7 @@ class FeedViewModel: ObservableObject {
     @Published var friendsFeed: [FriendsFeedItem] = []
     @Published var contestFeed: [ContestFeedItem] = []
     @Published var leaderboard: LeaderboardResponse?
-    @Published var globalFeed: [FriendsFeedItem] = []
+    @Published var globalFeed: [GlobalFeedItem] = []
     
     @Published var isLoadingFriends = false
     @Published var isLoadingContest = false
