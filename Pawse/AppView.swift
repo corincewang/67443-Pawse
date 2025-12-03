@@ -67,17 +67,17 @@ struct AppView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToCommunity)) { _ in
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: 0.15)) {
                 selectedTab = .community
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToContest)) { _ in
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: 0.15)) {
                 selectedTab = .contest
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToProfile)) { _ in
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: 0.15)) {
                 selectedTab = .profile
             }
         }

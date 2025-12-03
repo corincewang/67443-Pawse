@@ -65,8 +65,6 @@ struct CameraView: View {
             NotificationCenter.default.post(name: .hideBottomBar, object: nil)
         }
         .onDisappear {
-            // Always show bottom bar when leaving camera view completely
-            NotificationCenter.default.post(name: .showBottomBar, object: nil)
             // Stop camera session when view disappears
             cameraManager.stopSession()
         }
@@ -87,7 +85,8 @@ struct CameraView: View {
                     let translationY = value.translation.height
                     
                     if startX < 50 && translationX > 50 && abs(translationY) < 100 {
-                        // Navigate to profile (bottom bar will show via onDisappear)
+                        // Show bottom bar and navigate to profile simultaneously
+                        NotificationCenter.default.post(name: .showBottomBar, object: nil)
                         NotificationCenter.default.post(name: .navigateToProfile, object: nil)
                     }
                 }
@@ -97,15 +96,15 @@ struct CameraView: View {
     private var cameraInterface: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Top 75%: Camera preview
-                cameraPreview
-                    .frame(width: geometry.size.width, height: geometry.size.height * 0.75)
-                
-                // Bottom 25%: Control buttons
-                HStack(spacing: 25) {
-                    // X button
+                // Top 80%: Camera preview with X button overlay
+                ZStack(alignment: .topLeading) {
+                    cameraPreview
+                        .frame(width: geometry.size.width, height: geometry.size.height * 0.80)
+                    
+                    // X button on top left
                     Button(action: {
-                        // Navigate to profile (bottom bar will show via onDisappear)
+                        // Show bottom bar and navigate to profile simultaneously
+                        NotificationCenter.default.post(name: .showBottomBar, object: nil)
                         NotificationCenter.default.post(name: .navigateToProfile, object: nil)
                     }) {
                         Image(systemName: "xmark")
@@ -115,6 +114,16 @@ struct CameraView: View {
                             .background(Color.black.opacity(0.4))
                             .clipShape(Circle())
                     }
+                    .padding(.top, 50)
+                    .padding(.leading, 20)
+                }
+                .frame(height: geometry.size.height * 0.80)
+                
+                // Bottom 20%: Control buttons
+                HStack(spacing: 25) {
+                    // Invisible spacer for layout balance
+                    Color.clear
+                        .frame(width: 50, height: 50)
                     
                     Spacer()
                     
@@ -163,7 +172,7 @@ struct CameraView: View {
                     }
                 }
                 .padding(.horizontal, 30)
-                .frame(width: geometry.size.width, height: geometry.size.height * 0.25)
+                .frame(width: geometry.size.width, height: geometry.size.height * 0.20)
                 .background(Color(hex: "F9F3D7"))
             }
         }
@@ -197,100 +206,75 @@ struct CameraView: View {
     private func photoPreviewView(image: UIImage) -> some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Top 75%: Photo preview - fills without space
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: geometry.size.width, height: geometry.size.height * 0.75)
-                    .clipped()
+                // Top 80%: Photo preview with X button overlay
+                ZStack(alignment: .topLeading) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height * 0.80)
+                        .clipped()
+                    
+                    // X button on top left of photo preview
+                    Button(action: {
+                        capturedImage = nil
+                        capturedDate = nil
+                        showPhotoPreview = false
+                        isCapturing = false
+                        showGallerySelection = false
+                        savedPetIds.removeAll()
+                        cameraManager.requestPermissionAndSetup()
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 50, height: 50)
+                            .background(Color.black.opacity(0.4))
+                            .clipShape(Circle())
+                    }
+                    .padding(.top, 50)
+                    .padding(.leading, 20)
+                }
+                .frame(height: geometry.size.height * 0.80)
                 
-                // Bottom 25%: Control buttons or Gallery selection
+                // Bottom 20%: Control buttons or Gallery selection
                 ZStack {
                     if !showGallerySelection {
-                        // Control buttons
-                        HStack(spacing: 25) {
-                            // X button
-                            Button(action: {
-                                capturedImage = nil
-                                capturedDate = nil
-                                showPhotoPreview = false
-                                isCapturing = false
-                                savedPetIds.removeAll()
-                                cameraManager.requestPermissionAndSetup()
-                            }) {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 20, weight: .semibold))
+                        // Download button centered
+                        Button(action: {
+                            withAnimation {
+                                showGallerySelection.toggle()
+                            }
+                            if showGallerySelection {
+                                Task {
+                                    await petViewModel.fetchUserPets()
+                                    await petViewModel.fetchGuardianPets()
+                                }
+                            }
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.pawseOrange)
+                                    .frame(width: 80, height: 80)
+                                    .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 4)
+                                
+                                Image(systemName: "arrow.down.to.line.compact")
+                                    .font(.system(size: 32, weight: .semibold))
                                     .foregroundColor(.white)
-                                    .frame(width: 50, height: 50)
-                                    .background(Color.black.opacity(0.4))
-                                    .clipShape(Circle())
                             }
-                            
-                            Spacer()
-                            
-                            // Download button
-                            Button(action: {
-                                withAnimation {
-                                    showGallerySelection.toggle()
-                                }
-                                if showGallerySelection {
-                                    Task {
-                                        await petViewModel.fetchUserPets()
-                                    }
-                                }
-                            }) {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.pawseOrange)
-                                        .frame(width: 80, height: 80)
-                                        .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 4)
-                                    
-                                    Image(systemName: "arrow.down.to.line.compact")
-                                        .font(.system(size: 32, weight: .semibold))
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            // Invisible button for layout balance
-                            Color.clear
-                                .frame(width: 50, height: 50)
                         }
-                        .padding(.horizontal, 30)
-                        .frame(width: geometry.size.width, height: geometry.size.height * 0.25)
+                        .frame(width: geometry.size.width, height: geometry.size.height * 0.20)
                         .background(Color(hex: "F9F3D7"))
                     } else {
                         // Gallery selection
                         VStack(spacing: 0) {
-                            // Title with close button
-                            HStack {
-                                Text("Choose Gallery:")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(.pawseBrown)
-                                
-                                Spacer()
-                                
-                                // Orange X button
-                                Button(action: {
-                                    capturedImage = nil
-                                    capturedDate = nil
-                                    showPhotoPreview = false
-                                    isCapturing = false
-                                    showGallerySelection = false
-                                    savedPetIds.removeAll()
-                                    cameraManager.requestPermissionAndSetup()
-                                }) {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(.white)
-                                        .frame(width: 32, height: 32)
-                                        .background(Color.pawseOrange)
-                                        .clipShape(Circle())
-                                }
-                            }
-                            .padding(.horizontal, 30)
-                            .padding(.bottom, 16)
+                            // Title left-aligned
+                            Text("Choose Gallery:")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.pawseBrown)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 30)
+                                .padding(.top, 10)
+                                .padding(.bottom, 8)
                             
                             // Gallery ScrollView
                             ScrollView(.horizontal, showsIndicators: false) {
@@ -308,7 +292,7 @@ struct CameraView: View {
                                 .padding(.horizontal, 30)
                             }
                         }
-                        .frame(width: geometry.size.width, height: geometry.size.height * 0.25)
+                        .frame(width: geometry.size.width, height: geometry.size.height * 0.20)
                         .background(Color(hex: "FAF7EB"))
                         .transition(.move(edge: .bottom))
                     }
@@ -723,13 +707,13 @@ struct GalleryPetCard: View {
     }
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             // Thumbnail
             ZStack {
                 // Background color
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 10)
                     .fill(cardColors.background)
-                    .frame(width: 90, height: 90)
+                    .frame(width: 75, height: 75)
                 
                 // Image or initial
                 Group {
@@ -740,39 +724,39 @@ struct GalleryPetCard: View {
                                 image
                                     .resizable()
                                     .scaledToFill()
-                                    .frame(width: 90, height: 90)
+                                    .frame(width: 75, height: 75)
                                     .clipped()
                             case .failure(_), .empty:
                                 Text(pet.name.prefix(1).uppercased())
-                                    .font(.system(size: 36, weight: .bold))
+                                    .font(.system(size: 30, weight: .bold))
                                     .foregroundColor(.white.opacity(0.5))
                             @unknown default:
                                 Text(pet.name.prefix(1).uppercased())
-                                    .font(.system(size: 36, weight: .bold))
+                                    .font(.system(size: 30, weight: .bold))
                                     .foregroundColor(.white.opacity(0.5))
                             }
                         }
                     } else {
                         Text(pet.name.prefix(1).uppercased())
-                            .font(.system(size: 36, weight: .bold))
+                            .font(.system(size: 30, weight: .bold))
                             .foregroundColor(.white.opacity(0.5))
                     }
                 }
-                .frame(width: 90, height: 90)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .frame(width: 75, height: 75)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
                 
                 // Dark overlay when saved
                 if isSaved {
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: 10)
                         .fill(Color.black.opacity(0.6))
-                        .frame(width: 90, height: 90)
+                        .frame(width: 75, height: 75)
                     
                     VStack(spacing: 3) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 24))
+                            .font(.system(size: 20))
                             .foregroundColor(.white)
                         Text("saved")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(.white)
                     }
                 }
@@ -780,11 +764,11 @@ struct GalleryPetCard: View {
             
             // Pet name
             Text(pet.name.lowercased())
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(.pawseBrown)
                 .lineLimit(1)
         }
-        .frame(width: 90)
+        .frame(width: 75)
         .contentShape(Rectangle())
         .onTapGesture {
             // Only allow tap if not saved

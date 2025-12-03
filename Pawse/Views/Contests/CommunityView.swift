@@ -70,7 +70,7 @@ struct CommunityView: View {
             }
             .padding(.trailing, 20)
         }
-        .padding(.top, 50)
+        .padding(.top, 20)
         .padding(.bottom, 16)
     }
 

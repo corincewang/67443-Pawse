@@ -19,44 +19,50 @@ struct LoginView: View {
     
     var body: some View {
         ZStack {
-            // Background
-            Color.pawseBackground
-                .ignoresSafeArea()
+            // Orange gradient background - full screen
+            LinearGradient(
+                colors: [
+                    Color.pawseOrange,
+                    Color(hex: "F8DEB8")
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Back button
+                // Back button aligned with title
                 HStack {
                     Button(action: {
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.pawseOliveGreen)
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.white)
                     }
-                    .padding(.leading, 20)
                     Spacer()
                 }
+                .padding(.leading, 30)
                 .padding(.top, 20)
                 
-                Spacer().frame(height: 40)
-                
-                // Title
+                // Title at top on gradient background
                 Text("Log In To Your Account")
-                    .font(.system(size: 48, weight: .bold))
-                    .foregroundColor(.pawseOliveGreen)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(nil)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 30)
+                    .font(.system(size: 42, weight: .bold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 30)
+                    .padding(.top, 40)
                 
-                Spacer().frame(height: 60)
+                Spacer()
+                    .frame(height: 40)
                 
-                // Input fields
-                VStack(alignment: .leading, spacing: 25) {
+                // White card containing form
+                VStack(alignment: .leading, spacing: 24) {
                     // Email
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Email")
-                            .font(.system(size: 22, weight: .bold))
+                            .font(.system(size: 18, weight: .bold))
                             .foregroundColor(.pawseBrown)
                         
                         ZStack(alignment: .leading) {
@@ -69,7 +75,8 @@ struct LoginView: View {
                             TextField("", text: $email, onEditingChanged: { focused in
                                 isEmailFieldFocused = focused
                             })
-                            .padding()
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
                             .background(Color.white)
                             .cornerRadius(8)
                             .overlay(
@@ -84,13 +91,14 @@ struct LoginView: View {
                     }
                     
                     // Password
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Password")
-                            .font(.system(size: 22, weight: .bold))
+                            .font(.system(size: 18, weight: .bold))
                             .foregroundColor(.pawseBrown)
                         
                         SecureField("password", text: $password)
-                            .padding()
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
                             .background(Color.white)
                             .cornerRadius(8)
                             .overlay(
@@ -100,55 +108,63 @@ struct LoginView: View {
                             .textContentType(.password)
                             .foregroundColor(.black)
                     }
+                    
+                    // Error message
+                    if let error = userViewModel.errorMessage {
+                        Text(error)
+                            .font(.system(size: 14))
+                            .foregroundColor(.red)
+                    }
+                    
+                    // Log In button - right aligned
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            // Haptic feedback
+                            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                            impactFeedback.impactOccurred()
+                            
+                            Task {
+                                await userViewModel.login(email: email, password: password)
+                                if userViewModel.errorMessage == nil, let user = userViewModel.currentUser {
+                                    // Save last logged in email
+                                    lastLoggedInEmail = email
+                                    
+                                    // Check if user needs to complete profile setup
+                                    if user.nick_name.isEmpty {
+                                        navigateToSetup = true
+                                    }
+                                    // Otherwise RootView will automatically switch to AppView
+                                }
+                            }
+                        }) {
+                            if userViewModel.isLoading {
+                                ProgressView()
+                                    .tint(.white)
+                                    .frame(width: 120, height: 44)
+                                    .background(Color.pawseOrange)
+                                    .cornerRadius(22)
+                            } else {
+                                Text("Log In")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 120, height: 44)
+                                    .background(isFormValid ? Color.pawseOrange : Color.gray)
+                                    .cornerRadius(22)
+                            }
+                        }
+                        .disabled(!isFormValid || userViewModel.isLoading)
+                    }
                 }
+                .padding(.horizontal, 30)
+                .padding(.top, 30)
+                .padding(.bottom, 30)
+                .background(Color.white.opacity(0.9))
+                .cornerRadius(25)
+                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
                 .padding(.horizontal, 30)
                 
                 Spacer()
-                
-                // Error message
-                if let error = userViewModel.errorMessage {
-                    Text(error)
-                        .font(.system(size: 14))
-                        .foregroundColor(.red)
-                        .padding()
-                }
-                
-                // Log In button
-                Button(action: {
-                    Task {
-                        await userViewModel.login(email: email, password: password)
-                        if userViewModel.errorMessage == nil, let user = userViewModel.currentUser {
-                            // Save last logged in email
-                            lastLoggedInEmail = email
-                            
-                            // Check if user needs to complete profile setup
-                            if user.nick_name.isEmpty {
-                                navigateToSetup = true
-                            }
-                            // Otherwise RootView will automatically switch to AppView
-                        }
-                    }
-                }) {
-                    if userViewModel.isLoading {
-                        ProgressView()
-                            .tint(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 60)
-                            .background(Color.pawseOrange)
-                            .cornerRadius(40)
-                    } else {
-                        Text("Log In")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 60)
-                            .background(Color.pawseOrange)
-                            .cornerRadius(40)
-                    }
-                }
-                .disabled(userViewModel.isLoading || email.isEmpty || password.isEmpty)
-                .padding(.horizontal, 40)
-                .padding(.bottom, 40)
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -163,6 +179,10 @@ struct LoginView: View {
                 email = lastLoggedInEmail
             }
         }
+    }
+    
+    private var isFormValid: Bool {
+        !email.isEmpty && !password.isEmpty
     }
 }
 
