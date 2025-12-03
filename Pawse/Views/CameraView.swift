@@ -257,7 +257,7 @@ struct CameraView: View {
                                     .frame(width: 80, height: 80)
                                     .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 4)
                                 
-                                Image(systemName: "arrow.down.to.line.compact")
+                                Image(systemName: "checkmark")
                                     .font(.system(size: 32, weight: .semibold))
                                     .foregroundColor(.white)
                             }
