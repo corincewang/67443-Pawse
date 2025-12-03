@@ -92,8 +92,11 @@ struct UploadPhotoView: View {
         .task {
             // Load pets if no petId was provided (contest/community uploads)
             if petId == nil {
+                // Fetch owned pets and guardian pets (same as ProfilePageView)
                 await petViewModel.fetchUserPets()
-                // Auto-select first pet if available
+                await petViewModel.fetchGuardianPets()
+                
+                // Auto-select first pet if available (allPets combines owned + guardian pets)
                 if let firstPet = petViewModel.allPets.first {
                     selectedPetId = firstPet.id
                 }

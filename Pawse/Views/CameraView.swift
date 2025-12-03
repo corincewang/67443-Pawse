@@ -236,6 +236,7 @@ struct CameraView: View {
                                 if showGallerySelection {
                                     Task {
                                         await petViewModel.fetchUserPets()
+                                        await petViewModel.fetchGuardianPets()
                                     }
                                 }
                             }) {
