@@ -118,7 +118,7 @@ struct ProfilePageView: View {
                                 )
                                 .contentShape(Rectangle())
                         }
-                        .offset(y: -UIScreen.main.bounds.height * 0.03)
+                        .offset(y: -UIScreen.main.bounds.height * 0.05)
                     }
                     
                     Button(action: {
@@ -136,7 +136,7 @@ struct ProfilePageView: View {
                             )
                             .contentShape(Rectangle())
                     }
-                    .offset(y: -UIScreen.main.bounds.height * 0.03)
+                    .offset(y: -UIScreen.main.bounds.height * 0.05)
                 }
                 .padding(.horizontal, 30)
                 .padding(.top, 50)
