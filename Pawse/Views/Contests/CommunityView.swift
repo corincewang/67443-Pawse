@@ -248,80 +248,42 @@ struct CommunityView: View {
 struct FriendsTabView: View {
     @ObservedObject var feedViewModel: FeedViewModel
     @Binding var scrollPosition: String?
-    @State private var shouldRestoreScroll = true
     @State private var isRefreshing = false
     let scrollToTopTrigger: Bool
     
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 20) {
-                    if feedViewModel.isLoadingFriends || isRefreshing {
-                        ProgressView()
-                            .padding(.top, 40)
-                    } else if feedViewModel.friendsFeed.isEmpty {
-                        VStack(spacing: 15) {
-                            Image(systemName: "photo.on.rectangle.angled")
-                                .font(.system(size: 60))
-                                .foregroundColor(.gray.opacity(0.5))
-                            
-                            Text("No photos from friends yet")
-                                .font(.system(size: 18))
-                                .foregroundColor(.gray)
-                        }
-                        .padding(.top, 60)
-                    } else {
-                        ForEach(feedViewModel.friendsFeed, id: \.photo_id) { item in
-                            FriendPhotoCard(feedItem: item, feedViewModel: feedViewModel)
-                                .id(item.photo_id)
-                                .onAppear {
-                                    if !shouldRestoreScroll {
-                                        scrollPosition = item.photo_id
-                                        print("📍 Tracking friends position: \(item.photo_id)")
-                                    }
-                                }
-                        }
+        ScrollView {
+            VStack(spacing: 20) {
+                if feedViewModel.isLoadingFriends || isRefreshing {
+                    ProgressView()
+                        .padding(.top, 40)
+                } else if feedViewModel.friendsFeed.isEmpty {
+                    VStack(spacing: 15) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray.opacity(0.5))
+                        
+                        Text("No photos from friends yet")
+                            .font(.system(size: 18))
+                            .foregroundColor(.gray)
                     }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-                .padding(.bottom, 100)
-            }
-            .refreshable {
-                isRefreshing = true
-                print("🔄 Refreshing friends feed...")
-                await feedViewModel.fetchFriendsFeed()
-                isRefreshing = false
-                print("✅ Friends feed refreshed")
-            }
-            .onAppear {
-                print("🔍 Friends onAppear - shouldRestore: \(shouldRestoreScroll), position: \(scrollPosition ?? "nil")")
-                if shouldRestoreScroll, let position = scrollPosition, !position.isEmpty {
-                    print("🔄 Attempting to restore friends scroll to: \(position)")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        proxy.scrollTo(position, anchor: .top)
-                        print("✅ Scroll command sent")
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            shouldRestoreScroll = false
-                            print("🏁 Friends restore complete")
-                        }
-                    }
+                    .padding(.top, 60)
                 } else {
-                    shouldRestoreScroll = false
-                }
-            }
-            .onDisappear {
-                shouldRestoreScroll = true
-                print("👋 Friends disappeared, saved position: \(scrollPosition ?? "nil")")
-            }
-            .onChange(of: scrollToTopTrigger) { _ in
-                print("🔝 Scrolling friends to top")
-                withAnimation {
-                    if let firstId = feedViewModel.friendsFeed.first?.photo_id {
-                        proxy.scrollTo(firstId, anchor: .top)
+                    ForEach(feedViewModel.friendsFeed, id: \.photo_id) { item in
+                        FriendPhotoCard(feedItem: item, feedViewModel: feedViewModel)
                     }
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .padding(.bottom, 100)
+        }
+        .refreshable {
+            isRefreshing = true
+            print("🔄 Refreshing friends feed...")
+            await feedViewModel.fetchFriendsFeed()
+            isRefreshing = false
+            print("✅ Friends feed refreshed")
         }
     }
 }
