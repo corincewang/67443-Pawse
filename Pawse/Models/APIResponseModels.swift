@@ -1,7 +1,7 @@
 import Foundation
 
 // MARK: - Friends Feed Item
-struct FriendsFeedItem: Codable, Identifiable {
+struct FriendsFeedItem: Codable, Identifiable, Equatable {
     let id: UUID = UUID()
     let photo_id: String
     let pet_name: String
@@ -11,14 +11,21 @@ struct FriendsFeedItem: Codable, Identifiable {
     let votes: Int
     let posted_at: String
     var has_voted: Bool
+    let contest_tag: String? // Optional: only present for contest photos
+    let is_contest_photo: Bool // Indicates if this is a contest photo
+    let contest_photo_id: String? // Optional: contest_photo_id if this is a contest photo
     
     enum CodingKeys: String, CodingKey {
-        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted
+        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted, contest_tag, is_contest_photo, contest_photo_id
+    }
+    
+    static func == (lhs: FriendsFeedItem, rhs: FriendsFeedItem) -> Bool {
+        lhs.photo_id == rhs.photo_id && lhs.votes == rhs.votes && lhs.has_voted == rhs.has_voted
     }
 }
 
 // MARK: - Contest Feed Item
-struct ContestFeedItem: Codable, Identifiable {
+struct ContestFeedItem: Codable, Identifiable, Equatable {
     let id: UUID = UUID()
     let contest_photo_id: String
     let pet_name: String
@@ -33,6 +40,10 @@ struct ContestFeedItem: Codable, Identifiable {
     
     enum CodingKeys: String, CodingKey {
         case contest_photo_id, pet_name, owner_nickname, owner_id, image_link, votes, submitted_at, contest_tag, has_voted, score
+    }
+    
+    static func == (lhs: ContestFeedItem, rhs: ContestFeedItem) -> Bool {
+        lhs.contest_photo_id == rhs.contest_photo_id && lhs.votes == rhs.votes && lhs.has_voted == rhs.has_voted
     }
 }
 
@@ -55,7 +66,7 @@ struct LeaderboardEntry: Codable, Identifiable {
 
 // MARK: - Global Feed Item
 // Unified model for global feed that can represent both regular public photos and contest photos
-struct GlobalFeedItem: Codable, Identifiable {
+struct GlobalFeedItem: Codable, Identifiable, Equatable {
     let id: UUID = UUID()
     let photo_id: String // For regular photos, this is photo_id; for contest photos, this is contest_photo_id
     let pet_name: String
@@ -70,6 +81,10 @@ struct GlobalFeedItem: Codable, Identifiable {
     
     enum CodingKeys: String, CodingKey {
         case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted, contest_tag, is_contest_photo
+    }
+    
+    static func == (lhs: GlobalFeedItem, rhs: GlobalFeedItem) -> Bool {
+        lhs.photo_id == rhs.photo_id && lhs.votes == rhs.votes && lhs.has_voted == rhs.has_voted
     }
 }
 
