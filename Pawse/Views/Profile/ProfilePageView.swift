@@ -346,6 +346,11 @@ struct ProfilePageView: View {
                 }
             }
             
+            // Aggressively prefetch gallery photos for instant navigation
+            Task(priority: .high) {
+                await prefetchGalleryPhotosForAllPets()
+            }
+            
             // Only resume tutorial if it was in progress when task started
             guard shouldStartTutorial else { return }
             
@@ -664,6 +669,30 @@ struct ProfilePageView: View {
     
     private var tutorialPetDisplayName: String {
         petViewModel.allPets.first?.name ?? selectedPetName ?? "your pet"
+    }
+    
+    private func prefetchGalleryPhotosForAllPets() async {
+        let allPets = petViewModel.allPets
+        guard !allPets.isEmpty else { return }
+        
+        print("🎯 ProfilePage: Prefetching gallery photos for \(allPets.count) pets...")
+        
+        let photoViewModel = PhotoViewModel()
+        
+        // Prefetch photos for all pets with high concurrency for instant results
+        await withTaskGroup(of: Void.self) { group in
+            for pet in allPets {
+                guard let petId = pet.id, !petId.isEmpty else { continue }
+                group.addTask {
+                    let photos = await photoViewModel.prefetchPhotos(for: petId)
+                    if !photos.isEmpty {
+                        print("✅ ProfilePage: Cached \(photos.count) photos for \(pet.name)")
+                    }
+                }
+            }
+        }
+        
+        print("✅ ProfilePage: All gallery photos cached and ready!")
     }
     
     private func notifyBottomBarHighlight(for step: TutorialStep?) {

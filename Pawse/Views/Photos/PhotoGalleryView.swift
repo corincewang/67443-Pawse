@@ -103,28 +103,28 @@ struct PhotoGalleryView: View {
                                 .font(.system(size: 36, weight: .bold))
                                 .foregroundColor(Color.pawseOrange)
                             
-                            if photoViewModel.isLoading || isLoadingContestPrompts {
-                                ProgressView("Loading photos...")
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .pawseOrange))
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                                    .padding()
-                            } else {
-                                let contestPhotos = photoViewModel.photos.filter { $0.privacy == "public" }
-                                
-                                if contestPhotos.isEmpty {
+                            let contestPhotos = photoViewModel.photos.filter { $0.privacy == "public" }
+                            
+                            if contestPhotos.isEmpty {
+                                if photoViewModel.isLoading {
+                                    ProgressView("Loading photos...")
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .pawseOrange))
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .padding()
+                                } else {
                                     Text("No contest photos yet")
                                         .foregroundColor(.gray)
-                                } else {
-                                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
-                                        ForEach(contestPhotos) { photo in
-                                            PhotoThumbnailView(
-                                                photo: photo,
-                                                showDelete: true,
-                                                contestPrompt: photoContestMap[photo.id ?? ""]
-                                            ) {
-                                                selectedPhotoForDelete = photo
-                                                showingDeleteConfirmation = true
-                                            }
+                                }
+                            } else {
+                                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
+                                    ForEach(contestPhotos) { photo in
+                                        PhotoThumbnailView(
+                                            photo: photo,
+                                            showDelete: true,
+                                            contestPrompt: photoContestMap[photo.id ?? ""]
+                                        ) {
+                                            selectedPhotoForDelete = photo
+                                            showingDeleteConfirmation = true
                                         }
                                     }
                                 }
@@ -139,28 +139,28 @@ struct PhotoGalleryView: View {
                                 .font(.system(size: 36, weight: .bold))
                                 .foregroundColor(Color.pawseOrange)
                             
-                            if photoViewModel.isLoading || isLoadingContestPrompts {
-                                ProgressView("Loading photos...")
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .pawseOrange))
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                                    .padding()
-                            } else {
-                                let memoryPhotos = photoViewModel.photos.filter { $0.privacy != "public" }
-                                
-                                if memoryPhotos.isEmpty {
+                            let memoryPhotos = photoViewModel.photos.filter { $0.privacy != "public" }
+                            
+                            if memoryPhotos.isEmpty {
+                                if photoViewModel.isLoading {
+                                    ProgressView("Loading photos...")
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .pawseOrange))
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .padding()
+                                } else {
                                     Text("No memories yet")
                                         .foregroundColor(.gray)
-                                } else {
-                                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
-                                        ForEach(memoryPhotos) { photo in
-                                            PhotoThumbnailView(
-                                                photo: photo,
-                                                showDelete: true,
-                                                contestPrompt: nil
-                                            ) {
-                                                selectedPhotoForDelete = photo
-                                                showingDeleteConfirmation = true
-                                            }
+                                }
+                            } else {
+                                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 15) {
+                                    ForEach(memoryPhotos) { photo in
+                                        PhotoThumbnailView(
+                                            photo: photo,
+                                            showDelete: true,
+                                            contestPrompt: nil
+                                        ) {
+                                            selectedPhotoForDelete = photo
+                                            showingDeleteConfirmation = true
                                         }
                                     }
                                 }
@@ -214,8 +214,8 @@ struct PhotoGalleryView: View {
             // Show bottom bar when this view appears
             NotificationCenter.default.post(name: .showBottomBar, object: nil)
             
-            // Refresh photos when view appears (in case photos were added from camera)
-            Task {
+            // Optimistically fetch photos immediately for instant display
+            Task(priority: .userInitiated) {
                 await photoViewModel.fetchPhotos(for: petId)
             }
         }
@@ -244,17 +244,14 @@ struct PhotoGalleryView: View {
             }
         }
         .task {
-            // Load contest prompts first so they're available when photos render
-            await loadContestPrompts()
-            
-            // Then load everything else in parallel
+            // Load everything in parallel without blocking UI
+            async let contestPromptsTask = loadContestPrompts()
             async let photosTask = photoViewModel.fetchPhotos(for: petId)
             async let petTask = loadCurrentPet()
             async let contestTask = contestViewModel.fetchCurrentContest()
             
-            await photosTask
-            await petTask
-            await contestTask
+            // Wait for all tasks to complete
+            _ = await (contestPromptsTask, photosTask, petTask, contestTask)
         }
         .alert("Delete Photo", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -337,7 +334,18 @@ struct PhotoGalleryView: View {
         let showDelete: Bool
         let contestPrompt: String?
         let onDelete: () -> Void
-        @StateObject private var imageLoader = ImageLoader()
+        @State private var displayedImage: UIImage?
+        @State private var isLoading = false
+        
+        init(photo: Photo, showDelete: Bool, contestPrompt: String?, onDelete: @escaping () -> Void) {
+            self.photo = photo
+            self.showDelete = showDelete
+            self.contestPrompt = contestPrompt
+            self.onDelete = onDelete
+            // Check cache synchronously to prevent flash
+            _displayedImage = State(initialValue: ImageCache.shared.image(forKey: photo.image_link))
+            _isLoading = State(initialValue: ImageCache.shared.image(forKey: photo.image_link) == nil)
+        }
         
         var body: some View {
             ZStack(alignment: .topTrailing) {
@@ -347,7 +355,7 @@ struct PhotoGalleryView: View {
                         .frame(width: 106, height: 136)
                         .overlay(
                             Group {
-                                if let image = imageLoader.image {
+                                if let image = displayedImage {
                                     NavigationLink(destination: PhotoDetailView(testPhoto: image, photo: photo)) {
                                         Image(uiImage: image)
                                             .resizable()
@@ -355,7 +363,7 @@ struct PhotoGalleryView: View {
                                             .frame(width: 106, height: 136)
                                             .clipped()
                                     }
-                                } else if imageLoader.isLoading {
+                                } else if isLoading {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                         .scaleEffect(1.2)
@@ -404,7 +412,15 @@ struct PhotoGalleryView: View {
                 }
             }
             .task {
-                imageLoader.load(s3Key: photo.image_link)
+                // Load image only if not already cached
+                if !photo.image_link.isEmpty && displayedImage == nil {
+                    if let image = await ImageCache.shared.loadImage(forKey: photo.image_link) {
+                        displayedImage = image
+                        isLoading = false
+                    } else {
+                        isLoading = false
+                    }
+                }
             }
         }
         
