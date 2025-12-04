@@ -41,36 +41,26 @@ final class ImageLoader: ObservableObject {
             return
         }
         
-        // Not in cache - download from S3
+        // Not in cache - use ImageCache's load method which handles deduplication
         isLoading = true
         error = nil
         
         currentTask = Task {
-            do {
-                let downloadedImage = try await AWSManager.shared.downloadImage(from: s3Key)
-                
+            // Use ImageCache's loadImage which handles in-flight deduplication
+            if let loadedImage = await cache.loadImage(forKey: s3Key) {
                 // Check if task was cancelled
                 guard !Task.isCancelled else { return }
                 
-                if let downloadedImage = downloadedImage {
-                    // Cache the image
-                    cache.setImage(downloadedImage, forKey: s3Key)
-                    
-                    // Update UI
-                    self.image = downloadedImage
-                    self.error = nil
-                } else {
-                    self.error = ImageLoaderError.invalidImageData
-                }
-                
+                // Update UI
+                self.image = loadedImage
+                self.error = nil
                 self.isLoading = false
-            } catch {
+            } else {
                 // Check if task was cancelled
                 guard !Task.isCancelled else { return }
                 
-                self.error = error
+                self.error = ImageLoaderError.invalidImageData
                 self.isLoading = false
-                print("❌ ImageLoader failed to load \(s3Key): \(error)")
             }
         }
     }

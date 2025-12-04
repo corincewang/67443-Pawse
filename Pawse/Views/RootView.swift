@@ -10,16 +10,17 @@ import FirebaseAuth
 
 struct RootView: View {
     @StateObject private var userViewModel = UserViewModel()
-    @State private var isAuthenticated = false
-    @State private var isCheckingAuth = true
+    @State private var isAuthenticated: Bool
     @AppStorage("hasLaunchedBefore") private var hasLaunchedBefore = false
+    
+    init() {
+        // Check Firebase auth synchronously - assume authenticated if user exists
+        _isAuthenticated = State(initialValue: Auth.auth().currentUser != nil)
+    }
     
     var body: some View {
         Group {
-            if isCheckingAuth {
-                // Loading screen
-                LoadingView()
-            } else if isAuthenticated {
+            if isAuthenticated {
                 AppView()
                     .environmentObject(userViewModel)
             } else {
@@ -49,11 +50,9 @@ struct RootView: View {
                 await userViewModel.fetchCurrentUser()
                 // Only authenticate if user has completed profile (has nickname)
                 isAuthenticated = userViewModel.currentUser != nil && !(userViewModel.currentUser?.nick_name.isEmpty ?? true)
-                isCheckingAuth = false
             }
         } else {
             isAuthenticated = false
-            isCheckingAuth = false
         }
     }
 }

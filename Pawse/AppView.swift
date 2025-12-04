@@ -28,6 +28,8 @@ struct AppView: View {
                 case .profile:
                     NavigationStack {
                         ProfilePageView()
+                            .environmentObject(contestViewModel)
+                            .environmentObject(petViewModel)
                     }
                 case .camera:
                     NavigationStack {
@@ -120,6 +122,16 @@ struct AppView: View {
         // Fetch pets first (quick and small data)
         await petViewModel.fetchUserPets()
         await petViewModel.fetchGuardianPets()
+        
+        // PRIORITY: Prefetch pet profile photos first (user sees profile page immediately)
+        let petProfilePhotos = (petViewModel.pets + petViewModel.guardianPets)
+            .map { $0.profile_photo }
+            .filter { !$0.isEmpty }
+        
+        if !petProfilePhotos.isEmpty {
+            print("📸 Prefetching \(petProfilePhotos.count) pet profile photos (high priority)...")
+            await ImageCache.shared.preloadImages(forKeys: petProfilePhotos, chunkSize: 12)
+        }
         
         // Get active contest ID
         let contestId = await contestViewModel.getActiveContestId()
