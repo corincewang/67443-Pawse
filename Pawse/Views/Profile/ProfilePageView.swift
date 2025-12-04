@@ -50,13 +50,17 @@ private extension View {
 }
 
 struct ProfilePageView: View {
-    @StateObject private var petViewModel = PetViewModel()
+    @EnvironmentObject var petViewModel: PetViewModel
     @EnvironmentObject var userViewModel: UserViewModel
     @StateObject private var guardianViewModel = GuardianViewModel()
-    @StateObject private var contestViewModel = ContestViewModel()
+    @EnvironmentObject var contestViewModel: ContestViewModel
     @State private var showInvitationOverlay = true
-    @State private var selectedPetName: String? = nil // Store selected pet name for the session
+    @AppStorage("selectedPetName") private var selectedPetNameStorage: String = "" // Persisted across sessions
     @State private var showTutorialHelp = false
+    
+    private var selectedPetName: String? {
+        selectedPetNameStorage.isEmpty ? nil : selectedPetNameStorage
+    }
     @AppStorage("profileTutorialStepRaw") private var tutorialStepRaw: Int = -1
     @State private var tutorialStep: TutorialStep? = nil
     @State private var hasUploadedPhotos = false
@@ -151,7 +155,7 @@ struct ProfilePageView: View {
                     .padding(.bottom, 20)
                 
                 // Pet cards section
-                if petViewModel.isLoading {
+                if petViewModel.allPets.isEmpty && petViewModel.isLoading {
                     Spacer()
                     ProgressView()
                         .padding()
@@ -335,7 +339,7 @@ struct ProfilePageView: View {
             
             // Set selected pet name only if not already set (to keep it consistent during the session)
             if selectedPetName == nil && !petViewModel.allPets.isEmpty {
-                selectedPetName = petViewModel.allPets.randomElement()?.name
+                selectedPetNameStorage = petViewModel.allPets.randomElement()?.name ?? ""
             }
             
             // Only start tutorial if it wasn't in progress when task started
@@ -374,7 +378,7 @@ struct ProfilePageView: View {
         }
         .onChange(of: petViewModel.allPets) { _, pets in
             if selectedPetName == nil && !pets.isEmpty {
-                selectedPetName = pets.randomElement()?.name
+                selectedPetNameStorage = pets.randomElement()?.name ?? ""
             }
             if tutorialStep == .addPet && !pets.isEmpty {
                 tutorialStep = nextStep(after: .addPet)
@@ -1282,6 +1286,8 @@ private struct PetCardImageView: View {
     NavigationStack {
         ProfilePageView()
             .environmentObject(UserViewModel())
+            .environmentObject(PetViewModel())
+            .environmentObject(ContestViewModel())
             .environmentObject(GuardianViewModel())
     }
 }

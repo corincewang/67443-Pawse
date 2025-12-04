@@ -28,6 +28,8 @@ struct AppView: View {
                 case .profile:
                     NavigationStack {
                         ProfilePageView()
+                            .environmentObject(contestViewModel)
+                            .environmentObject(petViewModel)
                     }
                 case .camera:
                     NavigationStack {

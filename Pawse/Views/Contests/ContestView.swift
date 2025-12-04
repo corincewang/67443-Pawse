@@ -10,7 +10,7 @@ import SwiftUI
 struct ContestView: View {
 
     @EnvironmentObject var feedViewModel: FeedViewModel
-    @StateObject private var contestViewModel = ContestViewModel()
+    @EnvironmentObject var contestViewModel: ContestViewModel
     @State private var scrollToTopTrigger: Bool = false
 
     var body: some View {
