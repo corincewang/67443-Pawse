@@ -257,7 +257,7 @@ struct CameraView: View {
                                     .frame(width: 80, height: 80)
                                     .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 4)
                                 
-                                Image(systemName: "arrow.down.to.line.compact")
+                                Image(systemName: "checkmark")
                                     .font(.system(size: 32, weight: .semibold))
                                     .foregroundColor(.white)
                             }
@@ -733,8 +733,8 @@ struct GalleryPetCard: View {
                 
                 // Image or initial
                 Group {
-                    if let imageURL = profilePhotoURL {
-                        AsyncImage(url: imageURL) { phase in
+                    if !pet.profile_photo.isEmpty {
+                        CachedAsyncImagePhase(s3Key: pet.profile_photo) { phase in
                             switch phase {
                             case .success(let image):
                                 image
@@ -743,10 +743,6 @@ struct GalleryPetCard: View {
                                     .frame(width: 75, height: 75)
                                     .clipped()
                             case .failure(_), .empty:
-                                Text(pet.name.prefix(1).uppercased())
-                                    .font(.system(size: 30, weight: .bold))
-                                    .foregroundColor(.white.opacity(0.5))
-                            @unknown default:
                                 Text(pet.name.prefix(1).uppercased())
                                     .font(.system(size: 30, weight: .bold))
                                     .foregroundColor(.white.opacity(0.5))

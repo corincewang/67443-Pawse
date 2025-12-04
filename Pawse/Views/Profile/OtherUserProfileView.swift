@@ -191,7 +191,15 @@ struct OtherUserProfileView: View {
                 showRemoveAlert = true
             }) {
                 HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
+                    ZStack {
+                        Circle()
+                            .fill(Color.pawseOliveGreen)
+                            .frame(width: 20, height: 20)
+                        
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.white)
+                    }
                     Text("Friends")
                 }
                 .font(.system(size: 16, weight: .semibold))

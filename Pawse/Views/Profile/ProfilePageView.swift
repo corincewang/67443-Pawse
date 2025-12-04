@@ -50,13 +50,17 @@ private extension View {
 }
 
 struct ProfilePageView: View {
-    @StateObject private var petViewModel = PetViewModel()
+    @EnvironmentObject var petViewModel: PetViewModel
     @EnvironmentObject var userViewModel: UserViewModel
     @StateObject private var guardianViewModel = GuardianViewModel()
-    @StateObject private var contestViewModel = ContestViewModel()
+    @EnvironmentObject var contestViewModel: ContestViewModel
     @State private var showInvitationOverlay = true
-    @State private var selectedPetName: String? = nil // Store selected pet name for the session
+    @AppStorage("selectedPetName") private var selectedPetNameStorage: String = "" // Persisted across sessions
     @State private var showTutorialHelp = false
+    
+    private var selectedPetName: String? {
+        selectedPetNameStorage.isEmpty ? nil : selectedPetNameStorage
+    }
     @AppStorage("profileTutorialStepRaw") private var tutorialStepRaw: Int = -1
     @State private var tutorialStep: TutorialStep? = nil
     @State private var hasUploadedPhotos = false
@@ -151,7 +155,7 @@ struct ProfilePageView: View {
                     .padding(.bottom, 20)
                 
                 // Pet cards section
-                if petViewModel.isLoading {
+                if petViewModel.allPets.isEmpty && petViewModel.isLoading {
                     Spacer()
                     ProgressView()
                         .padding()
@@ -309,10 +313,21 @@ struct ProfilePageView: View {
             // Only start tutorial if it's not already in progress or completed
             let shouldStartTutorial = tutorialStep == nil
             
-            await userViewModel.fetchCurrentUser()
-            await petViewModel.fetchUserPets()
-            await petViewModel.fetchGuardianPets()
+            // Fetch user data only if not already loaded
+            if userViewModel.currentUser == nil {
+                await userViewModel.fetchCurrentUser()
+            }
+            
+            // Fetch pet data only if not already loaded
+            if petViewModel.allPets.isEmpty {
+                await petViewModel.fetchUserPets()
+                await petViewModel.fetchGuardianPets()
+            }
+            
+            // Always check for new invitations (they can arrive anytime)
             await guardianViewModel.fetchPendingInvitationsForCurrentUser()
+            
+            // Fetch contest only if not already loaded (using ContestViewModel's smart caching)
             await contestViewModel.fetchCurrentContest()
             let pets = petViewModel.allPets
             let photosExist = await determinePhotoPresence(for: pets)
@@ -322,38 +337,29 @@ struct ProfilePageView: View {
                 showInvitationOverlay = true
             }
             
-            // Set selected pet name only if not already set (to keep it consistent during the session)
-            if selectedPetName == nil && !petViewModel.allPets.isEmpty {
-                selectedPetName = petViewModel.allPets.randomElement()?.name
+            // Always regenerate pet name for new user login (when pets change)
+            if !petViewModel.allPets.isEmpty {
+                // If no pet name is set, or if the current pet name doesn't match any of the user's pets
+                let currentPets = Set(petViewModel.allPets.map { $0.name })
+                if selectedPetName == nil || (selectedPetName != nil && !currentPets.contains(selectedPetNameStorage)) {
+                    selectedPetNameStorage = petViewModel.allPets.randomElement()?.name ?? ""
+                }
             }
             
-            // Only start tutorial if it wasn't in progress when task started
+            // Only resume tutorial if it was in progress when task started
             guard shouldStartTutorial else { return }
-            
-            let userId = userViewModel.currentUser?.id ?? ""
-            
-            // Check if THIS specific user has completed the tutorial
-            // User has seen tutorial if the field is true (nil or false means they haven't)
-            let currentUserHasSeenTutorial = userViewModel.currentUser?.has_seen_profile_tutorial ?? false
-            
-            // Debug: Log tutorial state
-            print("🔍 Tutorial Check - userId: \(userId)")
-            print("🔍 Tutorial Check - has_seen_profile_tutorial: \(userViewModel.currentUser?.has_seen_profile_tutorial?.description ?? "nil")")
-            print("🔍 Tutorial Check - currentUserHasSeenTutorial: \(currentUserHasSeenTutorial)")
-            print("🔍 Tutorial Check - tutorialStepRaw: \(tutorialStepRaw)")
             
             // Check if there's a tutorial in progress (user navigated away and came back)
             if tutorialStepRaw >= 0, let savedStep = TutorialStep(rawValue: tutorialStepRaw) {
                 // Resume tutorial from saved step
                 tutorialStep = savedStep
                 NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
-            } else if !userId.isEmpty && !currentUserHasSeenTutorial {
-                // Start tutorial for new users or users who haven't seen it yet
-                print("🚀 Starting tutorial for user \(userId)")
-                startTutorialFlow(resetProgress: true)
-            } else {
-                print("✅ Skipping tutorial - user has already seen it")
             }
+            // Note: Tutorial initiation for new users is now handled at login time via notification
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .userDidSignOut)) { _ in
+            // Clear pet name immediately when user logs out
+            selectedPetNameStorage = ""
         }
         .onReceive(NotificationCenter.default.publisher(for: .showProfileTutorial)) { _ in
             startTutorialFlow(resetProgress: true)
@@ -363,7 +369,7 @@ struct ProfilePageView: View {
         }
         .onChange(of: petViewModel.allPets) { _, pets in
             if selectedPetName == nil && !pets.isEmpty {
-                selectedPetName = pets.randomElement()?.name
+                selectedPetNameStorage = pets.randomElement()?.name ?? ""
             }
             if tutorialStep == .addPet && !pets.isEmpty {
                 tutorialStep = nextStep(after: .addPet)
@@ -390,6 +396,13 @@ struct ProfilePageView: View {
                 showInvitationOverlay = true
             } else {
                 showInvitationOverlay = false
+            }
+        }
+        .onChange(of: userViewModel.currentUser?.id) { oldUserId, newUserId in
+            // Clear pet name immediately when user changes (logout or login to different account)
+            // This prevents the flash of the previous user's pet name
+            if oldUserId != newUserId {
+                selectedPetNameStorage = ""
             }
         }
     }
@@ -891,34 +904,7 @@ struct PetCardView: View {
                     .frame(width: 200, height: 260)
                 
                 // Image or initial letter on top
-                Group {
-                    if let imageURL = profilePhotoURL {
-                        AsyncImage(url: imageURL) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 200, height: 260)
-                                    .clipped()
-                            case .failure(_), .empty:
-                                // Fallback to initial if image fails to load
-                                Text(pet.name.prefix(1).uppercased())
-                                    .font(.system(size: 80, weight: .bold))
-                                    .foregroundColor(.white.opacity(0.5))
-                            @unknown default:
-                                Text(pet.name.prefix(1).uppercased())
-                                    .font(.system(size: 80, weight: .bold))
-                                    .foregroundColor(.white.opacity(0.5))
-                            }
-                        }
-                    } else {
-                        // No profile photo - show initial
-                        Text(pet.name.prefix(1).uppercased())
-                            .font(.system(size: 80, weight: .bold))
-                            .foregroundColor(.white.opacity(0.5))
-                    }
-                }
+                PetCardImageView(pet: pet)
             }
             .frame(width: 200, height: 260)
             .clipShape(RoundedRectangle(cornerRadius: 20))
@@ -1256,10 +1242,50 @@ private struct TutorialOverlayView: View {
     }
 }
 
+// MARK: - Pet Card Image Component with Instant Cache Display
+
+private struct PetCardImageView: View {
+    let pet: Pet
+    @State private var displayedImage: UIImage?
+    
+    init(pet: Pet) {
+        self.pet = pet
+        // Check cache synchronously to prevent flash
+        _displayedImage = State(initialValue: ImageCache.shared.image(forKey: pet.profile_photo))
+    }
+    
+    var body: some View {
+        Group {
+            if let image = displayedImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 200, height: 260)
+                    .clipped()
+            } else {
+                // Fallback to initial if no image
+                Text(pet.name.prefix(1).uppercased())
+                    .font(.system(size: 80, weight: .bold))
+                    .foregroundColor(.white.opacity(0.5))
+            }
+        }
+        .task {
+            // Load image only if not already cached
+            if !pet.profile_photo.isEmpty && displayedImage == nil {
+                if let image = await ImageCache.shared.loadImage(forKey: pet.profile_photo) {
+                    displayedImage = image
+                }
+            }
+        }
+    }
+}
+
 #Preview {
     NavigationStack {
         ProfilePageView()
             .environmentObject(UserViewModel())
+            .environmentObject(PetViewModel())
+            .environmentObject(ContestViewModel())
             .environmentObject(GuardianViewModel())
     }
 }

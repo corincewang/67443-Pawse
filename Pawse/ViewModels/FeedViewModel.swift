@@ -70,6 +70,7 @@ class FeedViewModel: ObservableObject {
                 for: userId,
                 userVotedPhotoIds: userVotedPhotoIds
             )
+            prefetchImageLinks(friendsFeed.map { $0.image_link })
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -78,9 +79,14 @@ class FeedViewModel: ObservableObject {
         isLoadingFriends = false
     }
     
-    func fetchContestFeed(contestId: String) async {
+    func fetchContestFeed(contestId: String, force: Bool = false) async {
         guard let userId = FirebaseManager.shared.auth.currentUser?.uid else {
             error = "No user logged in"
+            return
+        }
+        
+        // Skip if we already have data for this contest and not forcing refresh
+        if !force && !contestFeed.isEmpty {
             return
         }
         
@@ -92,6 +98,7 @@ class FeedViewModel: ObservableObject {
                 contestId: contestId,
                 userVotedPhotoIds: userVotedPhotoIds
             )
+            prefetchImageLinks(contestFeed.map { $0.image_link })
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -113,6 +120,7 @@ class FeedViewModel: ObservableObject {
                 for: userId,
                 userVotedPhotoIds: userVotedPhotoIds
             )
+            prefetchImageLinks(globalFeed.map { $0.image_link })
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -121,11 +129,17 @@ class FeedViewModel: ObservableObject {
         isLoadingGlobal = false
     }
 
-    func fetchLeaderboard() async {
+    func fetchLeaderboard(force: Bool = false) async {
+        // Skip if we already have data and not forcing refresh
+        if !force && leaderboard != nil {
+            return
+        }
+        
         isLoadingLeaderboard = true
         error = nil
         do {
             leaderboard = try await feedController.fetchLeaderboardResponse()
+            prefetchImageLinks(leaderboard?.leaderboard.map { $0.image_link } ?? [])
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -139,10 +153,10 @@ class FeedViewModel: ObservableObject {
     func refreshAllFeeds(contestId: String?) async {
         async let friendsTask: Void = fetchFriendsFeed()
         async let globalTask: Void = fetchGlobalFeed()
-        async let leaderboardTask: Void = fetchLeaderboard()
+        async let leaderboardTask: Void = fetchLeaderboard(force: true)
         
         if let contestId = contestId {
-            async let contestTask: Void = fetchContestFeed(contestId: contestId)
+            async let contestTask: Void = fetchContestFeed(contestId: contestId, force: true)
             _ = await (friendsTask, globalTask, contestTask, leaderboardTask)
         } else {
             _ = await (friendsTask, globalTask, leaderboardTask)
@@ -153,6 +167,9 @@ class FeedViewModel: ObservableObject {
     
     func toggleVoteOnFriendsPhoto(item: FriendsFeedItem) async {
         do {
+            // Check if this photo is also in a contest FIRST (before updating Firestore)
+            let contestPhotoId = try? await photoController.findContestPhotoId(for: item.photo_id)
+            
             // Update Firestore
             try await photoController.toggleVote(
                 photoId: item.photo_id,
@@ -160,17 +177,60 @@ class FeedViewModel: ObservableObject {
                 hasVoted: item.has_voted
             )
             
-            // Update local state
+            // Calculate new vote count
+            let newVotes = item.has_voted ? item.votes - 1 : item.votes + 1
+            
+            // Update local state - track both photo_id and contest_photo_id if it exists
             if item.has_voted {
                 userVotedPhotoIds.remove(item.photo_id)
+                if let contestPhotoId = contestPhotoId {
+                    userVotedPhotoIds.remove(contestPhotoId)
+                }
             } else {
                 userVotedPhotoIds.insert(item.photo_id)
+                if let contestPhotoId = contestPhotoId {
+                    userVotedPhotoIds.insert(contestPhotoId)
+                }
             }
             
-            // Persist the updated votes
-            persistVotes()
+            // Update vote counts in all feeds
+            if let index = friendsFeed.firstIndex(where: { $0.photo_id == item.photo_id }) {
+                friendsFeed[index] = FriendsFeedItem(
+                    photo_id: friendsFeed[index].photo_id,
+                    pet_name: friendsFeed[index].pet_name,
+                    owner_nickname: friendsFeed[index].owner_nickname,
+                    owner_id: friendsFeed[index].owner_id,
+                    image_link: friendsFeed[index].image_link,
+                    votes: newVotes,
+                    posted_at: friendsFeed[index].posted_at,
+                    has_voted: !item.has_voted,
+                    contest_tag: friendsFeed[index].contest_tag,
+                    is_contest_photo: friendsFeed[index].is_contest_photo,
+                    contest_photo_id: friendsFeed[index].contest_photo_id,
+                    pet_profile_photo: friendsFeed[index].pet_profile_photo
+                )
+            }
             
-            // No need to refresh - optimistic UI update in card handles display
+            // Update in global feed (could be by photo_id or contest_photo_id)
+            if let index = globalFeed.firstIndex(where: { $0.photo_id == item.photo_id || (contestPhotoId != nil && $0.photo_id == contestPhotoId) }) {
+                globalFeed[index] = GlobalFeedItem(
+                    photo_id: globalFeed[index].photo_id,
+                    pet_name: globalFeed[index].pet_name,
+                    owner_nickname: globalFeed[index].owner_nickname,
+                    owner_id: globalFeed[index].owner_id,
+                    image_link: globalFeed[index].image_link,
+                    votes: newVotes,
+                    posted_at: globalFeed[index].posted_at,
+                    has_voted: !item.has_voted,
+                    contest_tag: globalFeed[index].contest_tag,
+                    is_contest_photo: globalFeed[index].is_contest_photo,
+                    is_from_friend: globalFeed[index].is_from_friend,
+                    pet_profile_photo: globalFeed[index].pet_profile_photo
+                )
+            }
+            
+            // Persist the updated votes (now includes both IDs)
+            persistVotes()
         } catch {
             self.error = "Failed to vote: \(error.localizedDescription)"
         }
@@ -178,24 +238,81 @@ class FeedViewModel: ObservableObject {
     
     func toggleVoteOnContestPhoto(item: ContestFeedItem, contestId: String) async {
         do {
-            // Update Firestore
-            try await photoController.toggleContestVote(
+            // Update Firestore and get the underlying photo_id
+            let underlyingPhotoId = try await photoController.toggleContestVote(
                 contestPhotoId: item.contest_photo_id,
                 currentVotes: item.votes,
                 hasVoted: item.has_voted
             )
             
-            // Update local state
+            // Calculate new vote count
+            let newVotes = item.has_voted ? item.votes - 1 : item.votes + 1
+            
+            // Update local state - track BOTH contest_photo_id and underlying photo_id
             if item.has_voted {
                 userVotedPhotoIds.remove(item.contest_photo_id)
+                userVotedPhotoIds.remove(underlyingPhotoId)
             } else {
                 userVotedPhotoIds.insert(item.contest_photo_id)
+                userVotedPhotoIds.insert(underlyingPhotoId)
+            }
+            
+            // Update vote counts in all feeds
+            if let index = contestFeed.firstIndex(where: { $0.contest_photo_id == item.contest_photo_id }) {
+                contestFeed[index] = ContestFeedItem(
+                    contest_photo_id: contestFeed[index].contest_photo_id,
+                    pet_name: contestFeed[index].pet_name,
+                    owner_nickname: contestFeed[index].owner_nickname,
+                    owner_id: contestFeed[index].owner_id,
+                    image_link: contestFeed[index].image_link,
+                    votes: newVotes,
+                    submitted_at: contestFeed[index].submitted_at,
+                    contest_tag: contestFeed[index].contest_tag,
+                    has_voted: !item.has_voted,
+                    score: contestFeed[index].score,
+                    pet_profile_photo: contestFeed[index].pet_profile_photo
+                )
+            }
+            
+            // Update in global feed (by contest_photo_id)
+            if let index = globalFeed.firstIndex(where: { $0.photo_id == item.contest_photo_id }) {
+                globalFeed[index] = GlobalFeedItem(
+                    photo_id: globalFeed[index].photo_id,
+                    pet_name: globalFeed[index].pet_name,
+                    owner_nickname: globalFeed[index].owner_nickname,
+                    owner_id: globalFeed[index].owner_id,
+                    image_link: globalFeed[index].image_link,
+                    votes: newVotes,
+                    posted_at: globalFeed[index].posted_at,
+                    has_voted: !item.has_voted,
+                    contest_tag: globalFeed[index].contest_tag,
+                    is_contest_photo: globalFeed[index].is_contest_photo,
+                    is_from_friend: globalFeed[index].is_from_friend,
+                    pet_profile_photo: globalFeed[index].pet_profile_photo
+                )
+            }
+            
+            // Update in friends feed (by underlying photo_id)
+            if let index = friendsFeed.firstIndex(where: { $0.photo_id == underlyingPhotoId }) {
+                friendsFeed[index] = FriendsFeedItem(
+                    photo_id: friendsFeed[index].photo_id,
+                    pet_name: friendsFeed[index].pet_name,
+                    owner_nickname: friendsFeed[index].owner_nickname,
+                    owner_id: friendsFeed[index].owner_id,
+                    image_link: friendsFeed[index].image_link,
+                    votes: newVotes,
+                    posted_at: friendsFeed[index].posted_at,
+                    has_voted: !item.has_voted,
+                    contest_tag: friendsFeed[index].contest_tag,
+                    is_contest_photo: friendsFeed[index].is_contest_photo,
+                    contest_photo_id: friendsFeed[index].contest_photo_id,
+                    pet_profile_photo: friendsFeed[index].pet_profile_photo
+                )
             }
             
             // Persist the updated votes
             persistVotes()
             
-            // No need to refresh feeds - optimistic UI update in card handles display
             // Leaderboard will update on next manual refresh or auto-refresh cycle
         } catch {
             self.error = "Failed to vote: \(error.localizedDescription)"
@@ -237,6 +354,17 @@ class FeedViewModel: ObservableObject {
     
     func getLeaderboardEntries(limit: Int = 3) -> [LeaderboardEntry] {
         Array(leaderboard?.leaderboard.prefix(limit) ?? [])
+    }
+
+    private func prefetchImageLinks(_ links: [String]) {
+        let sanitized = links
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !sanitized.isEmpty else { return }
+
+        Task {
+            await ImageCache.shared.preloadImages(forKeys: sanitized)
+        }
     }
     
     deinit {

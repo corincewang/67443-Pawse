@@ -29,7 +29,12 @@ class ContestViewModel: ObservableObject {
     
     // MARK: - Fetch Operations
     
-    func fetchCurrentContest() async {
+    func fetchCurrentContest(force: Bool = false) async {
+        // Skip if we already have data and not forcing refresh
+        if !force && currentContest != nil {
+            return
+        }
+        
         error = nil
         do {
             currentContest = try await contestController.fetchCurrentContest()
@@ -47,7 +52,12 @@ class ContestViewModel: ObservableObject {
         }
     }
     
-    func fetchActiveContests() async {
+    func fetchActiveContests(force: Bool = false) async {
+        // Skip if we already have data and not forcing refresh
+        if !force && !activeContests.isEmpty {
+            return
+        }
+        
         isLoading = true
         error = nil
         do {
@@ -97,6 +107,14 @@ class ContestViewModel: ObservableObject {
             leaderboard = nil
         }
         isLoading = false
+    }
+    
+    func getActiveContestId() async -> String? {
+        if let currentId = currentContest?.id {
+            return currentId
+        }
+        await fetchCurrentContest()
+        return currentContest?.id
     }
     
     func fetchContestFeed() async {

@@ -136,8 +136,8 @@ struct ViewPetDetailView: View {
                 ZStack {
                     // Pet photo/gradient background - fills the entire top section
                     Group {
-                        if let imageURL = profilePhotoURL {
-                            AsyncImage(url: imageURL) { phase in
+                        if !pet.profile_photo.isEmpty {
+                            CachedAsyncImagePhase(s3Key: pet.profile_photo) { phase in
                                 switch phase {
                                 case .success(let image):
                                     image
@@ -146,21 +146,6 @@ struct ViewPetDetailView: View {
                                         .frame(width: geometry.size.width, height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top )
                                         .clipped()
                                 case .failure(_), .empty:
-                                    // Fallback to gradient background
-                                    LinearGradient(
-                                        colors: [
-                                            Color.pawseOrange,
-                                            Color(hex: "F8DEB8")
-                                        ],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                    .overlay(
-                                        Text(pet.name.prefix(1).uppercased())
-                                            .font(.system(size: 120, weight: .bold))
-                                            .foregroundColor(.white.opacity(0.3))
-                                    )
-                                @unknown default:
                                     // Fallback to gradient background
                                     LinearGradient(
                                         colors: [
