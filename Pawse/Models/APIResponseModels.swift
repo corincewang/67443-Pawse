@@ -78,9 +78,10 @@ struct GlobalFeedItem: Codable, Identifiable, Equatable {
     var has_voted: Bool
     let contest_tag: String? // Optional: only present for contest photos
     let is_contest_photo: Bool // Indicates if this is a contest photo
+    let is_from_friend: Bool // Indicates if this photo is from a friend
     
     enum CodingKeys: String, CodingKey {
-        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted, contest_tag, is_contest_photo
+        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted, contest_tag, is_contest_photo, is_from_friend
     }
     
     static func == (lhs: GlobalFeedItem, rhs: GlobalFeedItem) -> Bool {
