@@ -367,6 +367,21 @@ class FeedViewModel: ObservableObject {
         }
     }
     
+    // Clear all data (called on logout)
+    func clearAllData() {
+        friendsFeed = []
+        contestFeed = []
+        leaderboard = nil
+        globalFeed = []
+        userVotedPhotoIds = []
+        error = nil
+        isLoadingFriends = false
+        isLoadingContest = false
+        isLoadingLeaderboard = false
+        isLoadingGlobal = false
+        // Don't clear persisted votes - they're user-specific and keyed by userId
+    }
+    
     deinit {
         refreshTimer?.invalidate()
         refreshTimer = nil

@@ -98,8 +98,10 @@ struct AppView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .userDidSignOut)) { _ in
-            // Clear all pet data immediately on logout
+            // Clear all data immediately on logout
             petViewModel.clearAllData()
+            feedViewModel.clearAllData()
+            contestViewModel.clearAllData()
         }
         .task {
             // Initialize contest system once user is authenticated
