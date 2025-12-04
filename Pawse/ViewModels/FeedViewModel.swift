@@ -212,7 +212,8 @@ class FeedViewModel: ObservableObject {
                     posted_at: globalFeed[index].posted_at,
                     has_voted: !item.has_voted,
                     contest_tag: globalFeed[index].contest_tag,
-                    is_contest_photo: globalFeed[index].is_contest_photo
+                    is_contest_photo: globalFeed[index].is_contest_photo,
+                    is_from_friend: globalFeed[index].is_from_friend
                 )
             }
             
@@ -272,7 +273,8 @@ class FeedViewModel: ObservableObject {
                     posted_at: globalFeed[index].posted_at,
                     has_voted: !item.has_voted,
                     contest_tag: globalFeed[index].contest_tag,
-                    is_contest_photo: globalFeed[index].is_contest_photo
+                    is_contest_photo: globalFeed[index].is_contest_photo,
+                    is_from_friend: globalFeed[index].is_from_friend
                 )
             }
             

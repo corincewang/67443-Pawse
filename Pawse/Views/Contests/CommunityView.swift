@@ -772,6 +772,19 @@ struct GlobalPhotoCard: View {
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.gray)
                             
+                            // Show friend badge if this is from a friend
+                            if feedItem.is_from_friend {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.pawseOliveGreen)
+                                        .frame(width: 16, height: 16)
+                                    
+                                    Image(systemName: "star.fill")
+                                        .font(.system(size: 8))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            
                             // Show contest tag if this is a contest photo
                             if let contestTag = feedItem.contest_tag {
                                 Text("•")
