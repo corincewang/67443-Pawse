@@ -126,7 +126,8 @@ class FeedService {
                         has_voted: userVotedPhotoIds.contains(photoId),
                         contest_tag: contestTag,
                         is_contest_photo: isContestPhoto,
-                        contest_photo_id: contestPhotoId
+                        contest_photo_id: contestPhotoId,
+                        pet_profile_photo: pet.profile_photo
                     )
                     
                     feedItems.append(feedItem)
@@ -218,7 +219,8 @@ class FeedService {
                 has_voted: userVotedPhotoIds.contains(contestPhotoId),
                 contest_tag: contest.prompt,
                 is_contest_photo: true,
-                is_from_friend: friendUserIds.contains(ownerId) || ownerId == userId
+                is_from_friend: friendUserIds.contains(ownerId) || ownerId == userId,
+                pet_profile_photo: pet.profile_photo
             )
             
             feedItems.append(feedItem)
@@ -263,7 +265,8 @@ class FeedService {
                 has_voted: userVotedPhotoIds.contains(photoId),
                 contest_tag: nil,
                 is_contest_photo: false,
-                is_from_friend: friendUserIds.contains(ownerId) || ownerId == userId
+                is_from_friend: friendUserIds.contains(ownerId) || ownerId == userId,
+                pet_profile_photo: pet.profile_photo
             )
 
             feedItems.append(feedItem)
@@ -387,7 +390,8 @@ class FeedService {
                     submitted_at: contestPhoto.submitted_at.ISO8601Format(),
                     contest_tag: contest.prompt,
                     has_voted: userVotedPhotoIds.contains(contestPhotoId),
-                    score: 0 // Will be calculated below
+                    score: 0, // Will be calculated below
+                    pet_profile_photo: pet.profile_photo
                 )
                 
                 print("✅ Created ContestFeedItem for pet: \(pet.name)")

@@ -206,7 +206,8 @@ class FeedViewModel: ObservableObject {
                     has_voted: !item.has_voted,
                     contest_tag: friendsFeed[index].contest_tag,
                     is_contest_photo: friendsFeed[index].is_contest_photo,
-                    contest_photo_id: friendsFeed[index].contest_photo_id
+                    contest_photo_id: friendsFeed[index].contest_photo_id,
+                    pet_profile_photo: friendsFeed[index].pet_profile_photo
                 )
             }
             
@@ -223,7 +224,8 @@ class FeedViewModel: ObservableObject {
                     has_voted: !item.has_voted,
                     contest_tag: globalFeed[index].contest_tag,
                     is_contest_photo: globalFeed[index].is_contest_photo,
-                    is_from_friend: globalFeed[index].is_from_friend
+                    is_from_friend: globalFeed[index].is_from_friend,
+                    pet_profile_photo: globalFeed[index].pet_profile_photo
                 )
             }
             
@@ -267,7 +269,8 @@ class FeedViewModel: ObservableObject {
                     submitted_at: contestFeed[index].submitted_at,
                     contest_tag: contestFeed[index].contest_tag,
                     has_voted: !item.has_voted,
-                    score: contestFeed[index].score
+                    score: contestFeed[index].score,
+                    pet_profile_photo: contestFeed[index].pet_profile_photo
                 )
             }
             
@@ -284,7 +287,8 @@ class FeedViewModel: ObservableObject {
                     has_voted: !item.has_voted,
                     contest_tag: globalFeed[index].contest_tag,
                     is_contest_photo: globalFeed[index].is_contest_photo,
-                    is_from_friend: globalFeed[index].is_from_friend
+                    is_from_friend: globalFeed[index].is_from_friend,
+                    pet_profile_photo: globalFeed[index].pet_profile_photo
                 )
             }
             
@@ -301,7 +305,8 @@ class FeedViewModel: ObservableObject {
                     has_voted: !item.has_voted,
                     contest_tag: friendsFeed[index].contest_tag,
                     is_contest_photo: friendsFeed[index].is_contest_photo,
-                    contest_photo_id: friendsFeed[index].contest_photo_id
+                    contest_photo_id: friendsFeed[index].contest_photo_id,
+                    pet_profile_photo: friendsFeed[index].pet_profile_photo
                 )
             }
             

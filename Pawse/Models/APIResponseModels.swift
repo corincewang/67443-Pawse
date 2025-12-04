@@ -14,9 +14,10 @@ struct FriendsFeedItem: Codable, Identifiable, Equatable {
     let contest_tag: String? // Optional: only present for contest photos
     let is_contest_photo: Bool // Indicates if this is a contest photo
     let contest_photo_id: String? // Optional: contest_photo_id if this is a contest photo
+    let pet_profile_photo: String
     
     enum CodingKeys: String, CodingKey {
-        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted, contest_tag, is_contest_photo, contest_photo_id
+        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted, pet_profile_photo, contest_tag, is_contest_photo, contest_photo_id
     }
     
     static func == (lhs: FriendsFeedItem, rhs: FriendsFeedItem) -> Bool {
@@ -37,9 +38,10 @@ struct ContestFeedItem: Codable, Identifiable, Equatable {
     let contest_tag: String
     var has_voted: Bool
     var score: Double
+    let pet_profile_photo: String
     
     enum CodingKeys: String, CodingKey {
-        case contest_photo_id, pet_name, owner_nickname, owner_id, image_link, votes, submitted_at, contest_tag, has_voted, score
+        case contest_photo_id, pet_name, owner_nickname, owner_id, image_link, votes, submitted_at, contest_tag, has_voted, score, pet_profile_photo
     }
     
     static func == (lhs: ContestFeedItem, rhs: ContestFeedItem) -> Bool {
@@ -79,13 +81,10 @@ struct GlobalFeedItem: Codable, Identifiable, Equatable {
     let contest_tag: String? // Optional: only present for contest photos
     let is_contest_photo: Bool // Indicates if this is a contest photo
     let is_from_friend: Bool // Indicates if this photo is from a friend
+    let pet_profile_photo: String
     
     enum CodingKeys: String, CodingKey {
-        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted, contest_tag, is_contest_photo, is_from_friend
-    }
-    
-    static func == (lhs: GlobalFeedItem, rhs: GlobalFeedItem) -> Bool {
-        lhs.photo_id == rhs.photo_id && lhs.votes == rhs.votes && lhs.has_voted == rhs.has_voted
+        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted, contest_tag, is_contest_photo, is_from_friend, pet_profile_photo
     }
 }
 

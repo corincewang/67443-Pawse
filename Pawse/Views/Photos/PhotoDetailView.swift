@@ -14,6 +14,7 @@ struct PhotoDetailView: View {
     @Environment(\.dismiss) var dismiss
     let testPhoto: UIImage? // Add parameter for test photo
     let photo: Photo? // Add parameter for photo data
+    @State private var contestPrompt: String? = nil
     
     // Initialize with optional test photo and photo data
     init(testPhoto: UIImage? = nil, photo: Photo? = nil) {
@@ -115,7 +116,7 @@ struct PhotoDetailView: View {
                     
                     HStack {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("sleepest pet")
+                            Text(contestPrompt ?? "Contest")
                                 .font(.system(size: 28, weight: .bold))
                                 .foregroundColor(.white)
                         }
@@ -206,10 +207,46 @@ struct PhotoDetailView: View {
         .onAppear {
             // Fast bottom bar hiding
             NotificationCenter.default.post(name: .hideBottomBar, object: nil)
+            
+            // Load contest prompt if this is a public (contest) photo
+            if let photo = photo, photo.privacy == "public", let photoId = photo.id {
+                Task {
+                    await loadContestPrompt(for: photoId)
+                }
+            }
         }
         .onDisappear {
             // Fast bottom bar showing
             NotificationCenter.default.post(name: .showBottomBar, object: nil)
+        }
+    }
+    
+    private func loadContestPrompt(for photoId: String) async {
+        let db = FirebaseManager.shared.db
+        
+        do {
+            // Find contest photo entry for this photo
+            let contestPhotosSnap = try await db.collection(Collection.contestPhotos)
+                .whereField("photo", isEqualTo: "photos/\(photoId)")
+                .getDocuments()
+            
+            guard let contestPhotoDoc = contestPhotosSnap.documents.first,
+                  let contestPhoto = try? contestPhotoDoc.data(as: ContestPhoto.self) else {
+                return
+            }
+            
+            // Extract contest ID from reference
+            let contestId = contestPhoto.contest.replacingOccurrences(of: "contests/", with: "")
+            
+            // Fetch contest to get prompt
+            if let contestSnap = try? await db.collection(Collection.contests).document(contestId).getDocument(),
+               let contest = try? contestSnap.data(as: Contest.self) {
+                await MainActor.run {
+                    contestPrompt = contest.prompt
+                }
+            }
+        } catch {
+            print("❌ Failed to load contest prompt for photo \(photoId): \(error)")
         }
     }
 }

@@ -267,14 +267,31 @@ struct CameraView: View {
                     } else {
                         // Gallery selection
                         VStack(spacing: 0) {
-                            // Title left-aligned
-                            Text("Choose Gallery:")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundColor(.pawseBrown)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 30)
-                                .padding(.top, 10)
-                                .padding(.bottom, 8)
+                            // Title and Done button
+                            HStack {
+                                Text("Choose Gallery:")
+                                    .font(.system(size: 24, weight: .bold))
+                                    .foregroundColor(.pawseBrown)
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    // Show bottom bar and navigate to profile
+                                    NotificationCenter.default.post(name: .showBottomBar, object: nil)
+                                    NotificationCenter.default.post(name: .navigateToProfile, object: nil)
+                                }) {
+                                    Text("Done")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 20)
+                                        .padding(.vertical, 8)
+                                        .background(Color.pawseOrange)
+                                        .cornerRadius(20)
+                                }
+                            }
+                            .padding(.horizontal, 30)
+                            .padding(.top, 2)
+                            .padding(.bottom, 10)
                             
                             // Gallery ScrollView
                             ScrollView(.horizontal, showsIndicators: false) {
@@ -610,7 +627,6 @@ class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
     }
     
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
-        print("📷 photoOutput didFinishProcessingPhoto called")
         if let error = error {
             print("❌ Error capturing photo: \(error.localizedDescription)")
             DispatchQueue.main.async {
