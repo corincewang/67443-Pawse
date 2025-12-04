@@ -260,4 +260,17 @@ class ContestViewModel: ObservableObject {
         
         return (active, upcoming, ended)
     }
+    
+    // Clear all data (called on logout)
+    func clearAllData() {
+        activeContests = []
+        selectedContest = nil
+        currentContest = nil
+        leaderboard = nil
+        contestFeed = []
+        userContestPhotos = []
+        error = nil
+        successMessage = nil
+        isLoading = false
+    }
 }

@@ -63,12 +63,6 @@ class UserViewModel: ObservableObject {
         do {
             try await authController.login(email: email, password: password)
             await fetchCurrentUser()
-            
-            // Check if user needs to see the profile tutorial (only once at login)
-            if let user = currentUser, !(user.has_seen_profile_tutorial ?? false) {
-                // Post notification to trigger tutorial when they navigate to profile
-                NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
-            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -80,6 +74,10 @@ class UserViewModel: ObservableObject {
             currentUser = nil
             // Clear persisted pet name so new user gets fresh pet name
             UserDefaults.standard.removeObject(forKey: "selectedPetName")
+            // Clear tutorial step so new user gets fresh tutorial
+            UserDefaults.standard.removeObject(forKey: "profileTutorialStepRaw")
+            // Clear image cache so new user doesn't see old user's images
+            ImageCache.shared.clearCache()
             // Notify to clear pet name immediately in ProfilePageView
             NotificationCenter.default.post(name: .userDidSignOut, object: nil)
         } catch {

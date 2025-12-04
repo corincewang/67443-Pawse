@@ -318,6 +318,12 @@ struct ProfilePageView: View {
                 await userViewModel.fetchCurrentUser()
             }
             
+            // Check if user needs tutorial (handles case when user is already loaded during registration)
+            if shouldStartTutorial, let user = userViewModel.currentUser, !(user.has_seen_profile_tutorial ?? false) {
+                // Post notification to trigger tutorial
+                NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
+            }
+            
             // Fetch pet data only if not already loaded
             if petViewModel.allPets.isEmpty {
                 await petViewModel.fetchUserPets()
@@ -408,6 +414,22 @@ struct ProfilePageView: View {
             // This prevents the flash of the previous user's pet name
             if oldUserId != newUserId {
                 selectedPetNameStorage = ""
+                
+                // Check if new user needs tutorial
+                if let newUser = userViewModel.currentUser, newUserId != nil {
+                    // Check if user needs to see the profile tutorial
+                    if !(newUser.has_seen_profile_tutorial ?? false) {
+                        // Clear any existing tutorial state and start fresh
+                        tutorialStep = nil
+                        tutorialStepRaw = -1
+                        // Post notification to trigger tutorial
+                        NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
+                    }
+                } else if newUserId == nil {
+                    // User signed out - clear tutorial state
+                    tutorialStep = nil
+                    tutorialStepRaw = -1
+                }
             }
         }
     }
