@@ -337,9 +337,13 @@ struct ProfilePageView: View {
                 showInvitationOverlay = true
             }
             
-            // Set selected pet name only if not already set (to keep it consistent during the session)
-            if selectedPetName == nil && !petViewModel.allPets.isEmpty {
-                selectedPetNameStorage = petViewModel.allPets.randomElement()?.name ?? ""
+            // Always regenerate pet name for new user login (when pets change)
+            if !petViewModel.allPets.isEmpty {
+                // If no pet name is set, or if the current pet name doesn't match any of the user's pets
+                let currentPets = Set(petViewModel.allPets.map { $0.name })
+                if selectedPetName == nil || (selectedPetName != nil && !currentPets.contains(selectedPetNameStorage)) {
+                    selectedPetNameStorage = petViewModel.allPets.randomElement()?.name ?? ""
+                }
             }
             
             // Only resume tutorial if it was in progress when task started
@@ -352,6 +356,10 @@ struct ProfilePageView: View {
                 NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
             }
             // Note: Tutorial initiation for new users is now handled at login time via notification
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .userDidSignOut)) { _ in
+            // Clear pet name immediately when user logs out
+            selectedPetNameStorage = ""
         }
         .onReceive(NotificationCenter.default.publisher(for: .showProfileTutorial)) { _ in
             startTutorialFlow(resetProgress: true)
@@ -388,6 +396,13 @@ struct ProfilePageView: View {
                 showInvitationOverlay = true
             } else {
                 showInvitationOverlay = false
+            }
+        }
+        .onChange(of: userViewModel.currentUser?.id) { oldUserId, newUserId in
+            // Clear pet name immediately when user changes (logout or login to different account)
+            // This prevents the flash of the previous user's pet name
+            if oldUserId != newUserId {
+                selectedPetNameStorage = ""
             }
         }
     }

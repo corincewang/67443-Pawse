@@ -97,6 +97,10 @@ struct AppView: View {
                 isTutorialActive = isActive
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .userDidSignOut)) { _ in
+            // Clear all pet data immediately on logout
+            petViewModel.clearAllData()
+        }
         .task {
             // Initialize contest system once user is authenticated
             if !hasInitializedContest {
@@ -162,6 +166,7 @@ extension Notification.Name {
     static let showProfileTutorial = Notification.Name("showProfileTutorial")
     static let tutorialBottomHighlight = Notification.Name("tutorialBottomHighlight")
     static let tutorialActiveState = Notification.Name("tutorialActiveState")
+    static let userDidSignOut = Notification.Name("userDidSignOut")
 }
 
 
