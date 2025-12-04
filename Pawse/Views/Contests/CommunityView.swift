@@ -278,6 +278,16 @@ struct FriendsTabView: View {
                     }
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .padding(.bottom, 100)
+        }
+        .refreshable {
+            isRefreshing = true
+            print("🔄 Refreshing friends feed...")
+            await feedViewModel.fetchFriendsFeed()
+            isRefreshing = false
+            print("✅ Friends feed refreshed")
         }
     }
 }
@@ -400,11 +410,11 @@ struct FriendPhotoCard: View {
     @State private var displayedImage: UIImage?
     @State private var isLiked: Bool
     @State private var currentVotes: Int
+    @State private var isLiked: Bool
     
     init(feedItem: FriendsFeedItem, feedViewModel: FeedViewModel) {
         self.feedItem = feedItem
         self.feedViewModel = feedViewModel
-        _isLiked = State(initialValue: feedItem.has_voted)
         _currentVotes = State(initialValue: feedItem.votes)
         // Check cache synchronously to prevent flash
         _displayedImage = State(initialValue: ImageCache.shared.image(forKey: feedItem.image_link))
@@ -431,9 +441,21 @@ struct FriendPhotoCard: View {
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(.pawseBrown)
                         
-                        Text("@\(feedItem.owner_nickname)")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.gray)
+                        HStack(spacing: 4) {
+                            Text("@\(feedItem.owner_nickname)")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.gray)
+                            
+                            // Show contest tag if this is a contest photo
+                            if let contestTag = feedItem.contest_tag {
+                                Text("•")
+                                    .foregroundColor(.gray)
+                                
+                                Text("#\(contestTag)")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.pawseOrange)
+                            }
+                        }
                     }
                     
                     Spacer()
@@ -467,12 +489,38 @@ struct FriendPhotoCard: View {
                     // Like button positioned absolutely
                     HStack(spacing: 6) {
                         Button(action: {
+                            // Store original state before optimistic update
+                            let wasLiked = isLiked
+                            
                             // Optimistically update UI
                             isLiked.toggle()
                             currentVotes += isLiked ? 1 : -1
                             
                             Task {
-                                await feedViewModel.toggleVoteOnFriendsPhoto(item: feedItem)
+                                if feedItem.is_contest_photo, let contestPhotoId = feedItem.contest_photo_id {
+                                    // For contest photos, need to get contest ID and call contest vote method
+                                    let contestController = ContestController()
+                                    if let activeContest = try? await contestController.fetchCurrentContest(),
+                                       let contestId = activeContest.id {
+                                        // Create a ContestFeedItem to pass to the toggle method
+                                        let contestFeedItem = ContestFeedItem(
+                                            contest_photo_id: contestPhotoId, // Use the actual contest_photo_id
+                                            pet_name: feedItem.pet_name,
+                                            owner_nickname: feedItem.owner_nickname,
+                                            owner_id: feedItem.owner_id,
+                                            image_link: feedItem.image_link,
+                                            votes: feedItem.votes,
+                                            submitted_at: feedItem.posted_at,
+                                            contest_tag: feedItem.contest_tag ?? "",
+                                            has_voted: wasLiked, // Use the state BEFORE toggle
+                                            score: 0
+                                        )
+                                        await feedViewModel.toggleVoteOnContestPhoto(item: contestFeedItem, contestId: contestId)
+                                    }
+                                } else {
+                                    // For regular photos, use the friends photo toggle
+                                    await feedViewModel.toggleVoteOnFriendsPhoto(item: feedItem)
+                                }
                             }
                         }) {
                             Image(systemName: isLiked ? "heart.fill" : "heart")
@@ -500,6 +548,21 @@ struct FriendPhotoCard: View {
                 }
             }
         }
+        .onChange(of: feedViewModel.userVotedPhotoIds) { newVotedIds in
+            // Sync isLiked with feedViewModel when votes change from other feeds
+            let shouldBeLiked = newVotedIds.contains(feedItem.photo_id)
+            if isLiked != shouldBeLiked {
+                isLiked = shouldBeLiked
+            }
+        }
+        .onChange(of: feedViewModel.friendsFeed) { updatedFeed in
+            // Sync currentVotes when the feed array is updated from other feeds
+            if let updatedItem = updatedFeed.first(where: { $0.photo_id == feedItem.photo_id }) {
+                if currentVotes != updatedItem.votes {
+                    currentVotes = updatedItem.votes
+                }
+            }
+        }
     }
 }
 
@@ -511,14 +574,13 @@ struct ContestPhotoCard: View {
     @ObservedObject var contestViewModel: ContestViewModel
     @State private var displayedImage: UIImage?
     @State private var showShare = false
-    @State private var isLiked: Bool
     @State private var currentVotes: Int
+    @State private var isLiked: Bool
     
     init(feedItem: ContestFeedItem, feedViewModel: FeedViewModel, contestViewModel: ContestViewModel) {
         self.feedItem = feedItem
         self.feedViewModel = feedViewModel
         self.contestViewModel = contestViewModel
-        _isLiked = State(initialValue: feedItem.has_voted)
         _currentVotes = State(initialValue: feedItem.votes)
         // Check cache synchronously to prevent flash
         _displayedImage = State(initialValue: ImageCache.shared.image(forKey: feedItem.image_link))
@@ -625,6 +687,21 @@ struct ContestPhotoCard: View {
                 }
             }
         }
+        .onChange(of: feedViewModel.userVotedPhotoIds) { newVotedIds in
+            // Sync isLiked with feedViewModel when votes change from other feeds
+            let shouldBeLiked = newVotedIds.contains(feedItem.contest_photo_id)
+            if isLiked != shouldBeLiked {
+                isLiked = shouldBeLiked
+            }
+        }
+        .onChange(of: feedViewModel.contestFeed) { updatedFeed in
+            // Sync currentVotes when the feed array is updated from other feeds
+            if let updatedItem = updatedFeed.first(where: { $0.contest_photo_id == feedItem.contest_photo_id }) {
+                if currentVotes != updatedItem.votes {
+                    currentVotes = updatedItem.votes
+                }
+            }
+        }
     }
 }
 
@@ -636,11 +713,11 @@ struct GlobalPhotoCard: View {
     @State private var displayedImage: UIImage?
     @State private var isLiked: Bool
     @State private var currentVotes: Int
+    @State private var isLiked: Bool
     
     init(feedItem: GlobalFeedItem, feedViewModel: FeedViewModel) {
         self.feedItem = feedItem
         self.feedViewModel = feedViewModel
-        _isLiked = State(initialValue: feedItem.has_voted)
         _currentVotes = State(initialValue: feedItem.votes)
         // Check cache synchronously to prevent flash
         _displayedImage = State(initialValue: ImageCache.shared.image(forKey: feedItem.image_link))
@@ -671,6 +748,19 @@ struct GlobalPhotoCard: View {
                             Text("@\(feedItem.owner_nickname)")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.gray)
+                            
+                            // Show friend badge if this is from a friend
+                            if feedItem.is_from_friend {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.pawseOliveGreen)
+                                        .frame(width: 16, height: 16)
+                                    
+                                    Image(systemName: "star.fill")
+                                        .font(.system(size: 8))
+                                        .foregroundColor(.white)
+                                }
+                            }
                             
                             // Show contest tag if this is a contest photo
                             if let contestTag = feedItem.contest_tag {
@@ -715,6 +805,9 @@ struct GlobalPhotoCard: View {
                     // Like button positioned absolutely
                     HStack(spacing: 6) {
                         Button(action: {
+                            // Store original state before optimistic update
+                            let wasLiked = isLiked
+                            
                             // Optimistically update UI
                             isLiked.toggle()
                             currentVotes += isLiked ? 1 : -1
@@ -733,7 +826,7 @@ struct GlobalPhotoCard: View {
                                         votes: feedItem.votes,
                                         submitted_at: feedItem.posted_at,
                                         contest_tag: feedItem.contest_tag ?? "",
-                                        has_voted: !isLiked,
+                                        has_voted: wasLiked, // Use the state BEFORE toggle
                                         score: 0
                                     )
                                     // Get contest ID from the tag - we'll need to fetch it
@@ -753,7 +846,10 @@ struct GlobalPhotoCard: View {
                                         image_link: feedItem.image_link,
                                         votes: feedItem.votes,
                                         posted_at: feedItem.posted_at,
-                                        has_voted: !isLiked
+                                        has_voted: wasLiked, // Use the state BEFORE toggle
+                                        contest_tag: feedItem.contest_tag,
+                                        is_contest_photo: feedItem.is_contest_photo,
+                                        contest_photo_id: feedItem.is_contest_photo ? feedItem.photo_id : nil
                                     )
                                     await feedViewModel.toggleVoteOnFriendsPhoto(item: friendsFeedItem)
                                 }
@@ -781,6 +877,21 @@ struct GlobalPhotoCard: View {
                 // Only load if not already cached
                 if let image = await ImageCache.shared.loadImage(forKey: feedItem.image_link) {
                     displayedImage = image
+                }
+            }
+        }
+        .onChange(of: feedViewModel.userVotedPhotoIds) { newVotedIds in
+            // Sync isLiked with feedViewModel when votes change from other feeds
+            let shouldBeLiked = newVotedIds.contains(feedItem.photo_id)
+            if isLiked != shouldBeLiked {
+                isLiked = shouldBeLiked
+            }
+        }
+        .onChange(of: feedViewModel.globalFeed) { updatedFeed in
+            // Sync currentVotes when the feed array is updated from other feeds
+            if let updatedItem = updatedFeed.first(where: { $0.photo_id == feedItem.photo_id }) {
+                if currentVotes != updatedItem.votes {
+                    currentVotes = updatedItem.votes
                 }
             }
         }

@@ -71,11 +71,33 @@ final class PhotoController {
     }
     
     /// Toggle vote on a contest photo entry
-    func toggleContestVote(contestPhotoId: String, currentVotes: Int, hasVoted: Bool) async throws {
+    /// Returns the underlying photo_id for cross-feed vote synchronization
+    func toggleContestVote(contestPhotoId: String, currentVotes: Int, hasVoted: Bool) async throws -> String {
         let newVotes = hasVoted ? currentVotes - 1 : currentVotes + 1
+        
+        // First, fetch the contest photo to get the underlying photo reference
+        let contestPhotoSnap = try await db.collection(Collection.contestPhotos).document(contestPhotoId).getDocument()
+        let contestPhoto = try contestPhotoSnap.data(as: ContestPhoto.self)
+        let underlyingPhotoId = contestPhoto.photo.replacingOccurrences(of: "photos/", with: "")
+        
+        // Update the contest photo votes
         try await db.collection(Collection.contestPhotos).document(contestPhotoId).updateData([
             "votes": newVotes
         ])
         print("✅ Updated contest photo \(contestPhotoId) votes to \(newVotes)")
+        
+        return underlyingPhotoId
+    }
+    
+    /// Find the contest_photo_id for a given photo_id (if the photo is in a contest)
+    /// Returns nil if the photo is not in any contest
+    func findContestPhotoId(for photoId: String) async throws -> String? {
+        let photoRef = "photos/\(photoId)"
+        let snap = try await db.collection(Collection.contestPhotos)
+            .whereField("photo", isEqualTo: photoRef)
+            .limit(to: 1)
+            .getDocuments()
+        
+        return snap.documents.first?.documentID
     }
 }

@@ -90,15 +90,43 @@ class FeedService {
                     guard let ownerSnap = try? await db.collection(Collection.users).document(friendId).getDocument(),
                           let owner = try? ownerSnap.data(as: User.self) else { continue }
                     
+                    // Check if this photo is in a contest
+                    var contestTag: String? = nil
+                    var isContestPhoto = false
+                    var votesCount = photo.votes_from_friends // Default to regular photo votes
+                    var contestPhotoId: String? = nil
+                    
+                    let photoRef = "photos/\(photoId)"
+                    let contestPhotoSnap = try? await db.collection(Collection.contestPhotos)
+                        .whereField("photo", isEqualTo: photoRef)
+                        .limit(to: 1)
+                        .getDocuments()
+                    
+                    if let contestPhotoDoc = contestPhotoSnap?.documents.first,
+                       let contestPhoto = try? contestPhotoDoc.data(as: ContestPhoto.self) {
+                        // This photo is in a contest - fetch the contest for the tag
+                        let contestId = contestPhoto.contest.replacingOccurrences(of: "contests/", with: "")
+                        if let contestSnap = try? await db.collection(Collection.contests).document(contestId).getDocument(),
+                           let contest = try? contestSnap.data(as: Contest.self) {
+                            contestTag = contest.prompt
+                            isContestPhoto = true
+                            votesCount = contestPhoto.votes // Use contest votes instead of photo votes
+                            contestPhotoId = contestPhoto.id // Store the contest_photo_id
+                        }
+                    }
+                    
                     let feedItem = FriendsFeedItem(
                         photo_id: photoId,
                         pet_name: pet.name,
                         owner_nickname: owner.nick_name,
                         owner_id: friendId,
                         image_link: photo.image_link,
-                        votes: photo.votes_from_friends,
+                        votes: votesCount, // Use contest votes for contest photos
                         posted_at: photo.uploaded_at.ISO8601Format(),
-                        has_voted: userVotedPhotoIds.contains(photoId)
+                        has_voted: userVotedPhotoIds.contains(photoId),
+                        contest_tag: contestTag,
+                        is_contest_photo: isContestPhoto,
+                        contest_photo_id: contestPhotoId
                     )
                     
                     feedItems.append(feedItem)
@@ -120,7 +148,27 @@ class FeedService {
 
         var feedItems: [GlobalFeedItem] = []
         
-        // 1. Get all contest photos first (these will be included with contest tags)
+        // 1. Get friend list first
+        let allConnectionsSnap = try await db.collection(Collection.connections)
+            .whereField("status", isEqualTo: "approved")
+            .getDocuments()
+        
+        var friendUserIds = Set<String>()
+        
+        for doc in allConnectionsSnap.documents {
+            if let connection = try? doc.data(as: Connection.self) {
+                let uid2Match = connection.uid2 == userId
+                let uid1Match = connection.uid1 == userId
+                
+                if uid1Match {
+                    friendUserIds.insert(connection.uid2)
+                } else if uid2Match, let uid1 = connection.uid1 {
+                    friendUserIds.insert(uid1)
+                }
+            }
+        }
+        
+        // 2. Get all contest photos first (these will be included with contest tags)
         var contestPhotoIds = Set<String>()
         
         // 2. Get all contest photos from ALL contests
@@ -169,7 +217,8 @@ class FeedService {
                 posted_at: contestPhoto.submitted_at.ISO8601Format(),
                 has_voted: userVotedPhotoIds.contains(contestPhotoId),
                 contest_tag: contest.prompt,
-                is_contest_photo: true
+                is_contest_photo: true,
+                is_from_friend: friendUserIds.contains(ownerId) || ownerId == userId
             )
             
             feedItems.append(feedItem)
@@ -213,7 +262,8 @@ class FeedService {
                 posted_at: photo.uploaded_at.ISO8601Format(),
                 has_voted: userVotedPhotoIds.contains(photoId),
                 contest_tag: nil,
-                is_contest_photo: false
+                is_contest_photo: false,
+                is_from_friend: friendUserIds.contains(ownerId) || ownerId == userId
             )
 
             feedItems.append(feedItem)
