@@ -90,15 +90,43 @@ class FeedService {
                     guard let ownerSnap = try? await db.collection(Collection.users).document(friendId).getDocument(),
                           let owner = try? ownerSnap.data(as: User.self) else { continue }
                     
+                    // Check if this photo is in a contest
+                    var contestTag: String? = nil
+                    var isContestPhoto = false
+                    var votesCount = photo.votes_from_friends // Default to regular photo votes
+                    var contestPhotoId: String? = nil
+                    
+                    let photoRef = "photos/\(photoId)"
+                    let contestPhotoSnap = try? await db.collection(Collection.contestPhotos)
+                        .whereField("photo", isEqualTo: photoRef)
+                        .limit(to: 1)
+                        .getDocuments()
+                    
+                    if let contestPhotoDoc = contestPhotoSnap?.documents.first,
+                       let contestPhoto = try? contestPhotoDoc.data(as: ContestPhoto.self) {
+                        // This photo is in a contest - fetch the contest for the tag
+                        let contestId = contestPhoto.contest.replacingOccurrences(of: "contests/", with: "")
+                        if let contestSnap = try? await db.collection(Collection.contests).document(contestId).getDocument(),
+                           let contest = try? contestSnap.data(as: Contest.self) {
+                            contestTag = contest.prompt
+                            isContestPhoto = true
+                            votesCount = contestPhoto.votes // Use contest votes instead of photo votes
+                            contestPhotoId = contestPhoto.id // Store the contest_photo_id
+                        }
+                    }
+                    
                     let feedItem = FriendsFeedItem(
                         photo_id: photoId,
                         pet_name: pet.name,
                         owner_nickname: owner.nick_name,
                         owner_id: friendId,
                         image_link: photo.image_link,
-                        votes: photo.votes_from_friends,
+                        votes: votesCount, // Use contest votes for contest photos
                         posted_at: photo.uploaded_at.ISO8601Format(),
-                        has_voted: userVotedPhotoIds.contains(photoId)
+                        has_voted: userVotedPhotoIds.contains(photoId),
+                        contest_tag: contestTag,
+                        is_contest_photo: isContestPhoto,
+                        contest_photo_id: contestPhotoId
                     )
                     
                     feedItems.append(feedItem)
