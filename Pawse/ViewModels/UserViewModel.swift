@@ -78,6 +78,10 @@ class UserViewModel: ObservableObject {
         do {
             try authController.signOut()
             currentUser = nil
+            // Clear persisted pet name so new user gets fresh pet name
+            UserDefaults.standard.removeObject(forKey: "selectedPetName")
+            // Notify to clear pet name immediately in ProfilePageView
+            NotificationCenter.default.post(name: .userDidSignOut, object: nil)
         } catch {
             errorMessage = error.localizedDescription
         }

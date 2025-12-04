@@ -148,5 +148,13 @@ class PetViewModel: ObservableObject {
         }
         return combinedPets
     }
+    
+    // Clear all pet data (called on logout)
+    func clearAllData() {
+        pets = []
+        guardianPets = []
+        errorMessage = nil
+        hasLoadedUserPets = false
+    }
 }
 
