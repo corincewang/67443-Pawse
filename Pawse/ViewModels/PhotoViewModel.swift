@@ -23,7 +23,11 @@ class PhotoViewModel: ObservableObject {
     private let authController = AuthController()
     
     func fetchPhotos(for petId: String) async {
-        isLoading = true
+        // Don't show loading state if we're just refreshing
+        let isInitialLoad = photos.isEmpty
+        if isInitialLoad {
+            isLoading = true
+        }
         errorMessage = nil
         do {
             photos = try await photoController.fetchPhotos(for: petId)
@@ -32,7 +36,9 @@ class PhotoViewModel: ObservableObject {
             errorMessage = error.localizedDescription
             print("❌ Failed to fetch photos for pet \(petId): \(error)")
         }
-        isLoading = false
+        if isInitialLoad {
+            isLoading = false
+        }
     }
     
     func uploadPhoto(petId: String, privacy: String, imageData: Data) async -> String? {
@@ -95,6 +101,22 @@ class PhotoViewModel: ObservableObject {
         
         isUploading = false
         return nil
+    }
+    
+    // Prefetch photos for a specific pet without setting them as active photos
+    func prefetchPhotos(for petId: String) async -> [Photo] {
+        do {
+            let photos = try await photoController.fetchPhotos(for: petId)
+            // Prefetch images in chunks for optimal performance
+            let imageLinks = photos.map { $0.image_link }.filter { !$0.isEmpty }
+            if !imageLinks.isEmpty {
+                await ImageCache.shared.preloadImages(forKeys: imageLinks, chunkSize: 8)
+            }
+            return photos
+        } catch {
+            print("⚠️ Failed to prefetch photos for pet \(petId): \(error)")
+            return []
+        }
     }
     
     func deletePhoto(photoId: String, petId: String) async {

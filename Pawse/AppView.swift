@@ -140,17 +140,53 @@ struct AppView: View {
         // Get active contest ID
         let contestId = await contestViewModel.getActiveContestId()
         
-        // Fetch all feeds in parallel
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.feedViewModel.fetchFriendsFeed() }
-            group.addTask { await self.feedViewModel.fetchGlobalFeed() }
-            if let contestId = contestId {
-                group.addTask { await self.feedViewModel.fetchContestFeed(contestId: contestId) }
+        // Parallel task 1: Fetch all feeds
+        let feedTask = Task {
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { await self.feedViewModel.fetchFriendsFeed() }
+                group.addTask { await self.feedViewModel.fetchGlobalFeed() }
+                if let contestId = contestId {
+                    group.addTask { await self.feedViewModel.fetchContestFeed(contestId: contestId) }
+                }
+                group.addTask { await self.feedViewModel.fetchLeaderboard() }
             }
-            group.addTask { await self.feedViewModel.fetchLeaderboard() }
         }
         
+        // Parallel task 2: Prefetch all pet gallery photos
+        let petGalleryTask = Task {
+            await prefetchPetGalleryPhotos()
+        }
+        
+        // Wait for both tasks to complete
+        await feedTask.value
+        await petGalleryTask.value
+        
         print("✅ Background prefetch complete - all images cached")
+    }
+    
+    private func prefetchPetGalleryPhotos() async {
+        let allPets = petViewModel.pets + petViewModel.guardianPets
+        guard !allPets.isEmpty else { return }
+        
+        print("🖼️ Prefetching gallery photos for \(allPets.count) pets...")
+        
+        // Create a shared PhotoViewModel instance for prefetching
+        let photoViewModel = PhotoViewModel()
+        
+        // Prefetch photos for all pets in parallel (limit concurrency to avoid overwhelming)
+        await withTaskGroup(of: Void.self) { group in
+            for pet in allPets {
+                guard let petId = pet.id, !petId.isEmpty else { continue }
+                group.addTask {
+                    let photos = await photoViewModel.prefetchPhotos(for: petId)
+                    if !photos.isEmpty {
+                        print("✅ Prefetched \(photos.count) photos for \(pet.name)")
+                    }
+                }
+            }
+        }
+        
+        print("✅ Pet gallery photos prefetch complete")
     }
 }
 
