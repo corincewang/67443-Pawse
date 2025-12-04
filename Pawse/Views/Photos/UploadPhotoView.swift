@@ -384,8 +384,7 @@ struct PetSelectionCard: View {
                     .frame(width: 80, height: 80)
                 
                 if !pet.profile_photo.isEmpty {
-                    let imageURL = AWSManager.shared.getPhotoURL(from: pet.profile_photo)
-                    AsyncImage(url: imageURL) { phase in
+                    CachedAsyncImagePhase(s3Key: pet.profile_photo) { phase in
                         switch phase {
                         case .success(let image):
                             image
@@ -394,10 +393,6 @@ struct PetSelectionCard: View {
                                 .frame(width: 80, height: 80)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         case .failure(_), .empty:
-                            Text(pet.name.prefix(1).uppercased())
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundColor(.white.opacity(0.5))
-                        @unknown default:
                             Text(pet.name.prefix(1).uppercased())
                                 .font(.system(size: 32, weight: .bold))
                                 .foregroundColor(.white.opacity(0.5))

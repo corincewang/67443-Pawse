@@ -30,6 +30,7 @@ class PetViewModel: ObservableObject {
         do {
             pets = try await petController.fetchPets(for: uid)
             hasLoadedUserPets = true
+            prefetchPetProfilePhotos(pets)
         } catch {
             errorMessage = error.localizedDescription
             hasLoadedUserPets = false
@@ -41,6 +42,7 @@ class PetViewModel: ObservableObject {
         isLoading = true
         do {
             pets = try await petController.fetchPets(for: userId)
+            prefetchPetProfilePhotos(pets)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -116,11 +118,23 @@ class PetViewModel: ObservableObject {
         do {
             // Use PetController method that follows: user -> guardian -> pet flow
             guardianPets = try await petController.fetchPetsForGuardian(userId: uid)
+            prefetchPetProfilePhotos(guardianPets)
         } catch {
             errorMessage = error.localizedDescription
             guardianPets = []
         }
         isLoading = false
+    }
+
+    private func prefetchPetProfilePhotos(_ pets: [Pet]) {
+        let links = pets
+            .map { $0.profile_photo.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !links.isEmpty else { return }
+
+        Task {
+            await ImageCache.shared.preloadImages(forKeys: links, chunkSize: 3)
+        }
     }
     
     // Get all pets: owned + guardian pets

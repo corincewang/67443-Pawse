@@ -70,6 +70,7 @@ class FeedViewModel: ObservableObject {
                 for: userId,
                 userVotedPhotoIds: userVotedPhotoIds
             )
+            prefetchImageLinks(friendsFeed.map { $0.image_link })
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -92,6 +93,7 @@ class FeedViewModel: ObservableObject {
                 contestId: contestId,
                 userVotedPhotoIds: userVotedPhotoIds
             )
+            prefetchImageLinks(contestFeed.map { $0.image_link })
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -113,6 +115,7 @@ class FeedViewModel: ObservableObject {
                 for: userId,
                 userVotedPhotoIds: userVotedPhotoIds
             )
+            prefetchImageLinks(globalFeed.map { $0.image_link })
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -126,6 +129,7 @@ class FeedViewModel: ObservableObject {
         error = nil
         do {
             leaderboard = try await feedController.fetchLeaderboardResponse()
+            prefetchImageLinks(leaderboard?.leaderboard.map { $0.image_link } ?? [])
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -237,6 +241,17 @@ class FeedViewModel: ObservableObject {
     
     func getLeaderboardEntries(limit: Int = 3) -> [LeaderboardEntry] {
         Array(leaderboard?.leaderboard.prefix(limit) ?? [])
+    }
+
+    private func prefetchImageLinks(_ links: [String]) {
+        let sanitized = links
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !sanitized.isEmpty else { return }
+
+        Task {
+            await ImageCache.shared.preloadImages(forKeys: sanitized)
+        }
     }
     
     deinit {
