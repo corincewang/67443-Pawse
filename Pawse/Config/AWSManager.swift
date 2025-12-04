@@ -31,8 +31,14 @@ final class AWSManager {
         return cleanS3Key
     }
     
-    // MARK: - Download Image
+    // MARK: - Download Image (with caching)
     func downloadImage(from s3Key: String) async throws -> UIImage? {
+        // Check cache first
+        if let cachedImage = ImageCache.shared.image(forKey: s3Key) {
+            return cachedImage
+        }
+        
+        // Download from S3
         let url = buildS3URL(for: s3Key)
         let (data, response) = try await URLSession.shared.data(from: url)
         
@@ -41,7 +47,14 @@ final class AWSManager {
             throw AWSError.downloadFailed(statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0)
         }
         
-        return UIImage(data: data)
+        guard let image = UIImage(data: data) else {
+            return nil
+        }
+        
+        // Cache the downloaded image
+        ImageCache.shared.setImage(image, forKey: s3Key)
+        
+        return image
     }
     
     // MARK: - Delete Image
@@ -61,6 +74,8 @@ final class AWSManager {
         switch httpResponse.statusCode {
         case 200...299:
             print("✅ Delete successful - Key: \(s3Key)")
+            // Remove from cache when successfully deleted
+            ImageCache.shared.removeImage(forKey: s3Key)
             return
         case 403:
             print("❌ Delete failed - Permission denied (403). S3 bucket may not allow DELETE operations.")
@@ -68,6 +83,8 @@ final class AWSManager {
             throw AWSError.permissionDenied
         case 404:
             print("⚠️ Delete skipped - Object not found (404). Key: \(s3Key)")
+            // Remove from cache even if not found on S3
+            ImageCache.shared.removeImage(forKey: s3Key)
             // Don't throw error for 404, as the object is already gone
             return
         default:

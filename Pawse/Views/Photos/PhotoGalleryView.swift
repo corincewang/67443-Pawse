@@ -337,8 +337,7 @@ struct PhotoGalleryView: View {
         let showDelete: Bool
         let contestPrompt: String?
         let onDelete: () -> Void
-        @State private var thumbnailImage: UIImage?
-        @State private var isLoading = true
+        @StateObject private var imageLoader = ImageLoader()
         
         var body: some View {
             ZStack(alignment: .topTrailing) {
@@ -348,15 +347,15 @@ struct PhotoGalleryView: View {
                         .frame(width: 106, height: 136)
                         .overlay(
                             Group {
-                                if let thumbnailImage = thumbnailImage {
-                                    NavigationLink(destination: PhotoDetailView(testPhoto: thumbnailImage, photo: photo)) {
-                                        Image(uiImage: thumbnailImage)
+                                if let image = imageLoader.image {
+                                    NavigationLink(destination: PhotoDetailView(testPhoto: image, photo: photo)) {
+                                        Image(uiImage: image)
                                             .resizable()
                                             .aspectRatio(contentMode: .fill)
                                             .frame(width: 106, height: 136)
                                             .clipped()
                                     }
-                                } else if isLoading {
+                                } else if imageLoader.isLoading {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                         .scaleEffect(1.2)
@@ -405,18 +404,8 @@ struct PhotoGalleryView: View {
                 }
             }
             .task {
-                await loadThumbnail()
+                imageLoader.load(s3Key: photo.image_link)
             }
-        }
-        
-        private func loadThumbnail() async {
-            isLoading = true
-            do {
-                thumbnailImage = try await AWSManager.shared.downloadImage(from: photo.image_link)
-            } catch {
-                print("Failed to load thumbnail for \(photo.image_link): \(error)")
-            }
-            isLoading = false
         }
         
         private func formatDate(_ date: Date) -> String {

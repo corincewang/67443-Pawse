@@ -11,12 +11,14 @@ struct AppView: View {
     @State private var selectedTab: TabItem = .profile
     @State private var hideBottomBar: Bool = false
     @State private var hasInitializedContest = false
+    @State private var hasPrefetchedImages = false
     @State private var tutorialBottomHighlight: TabItem? = nil
     @State private var isTutorialActive = false
     
     // Persistent ViewModels for Community tab
     @StateObject private var feedViewModel = FeedViewModel()
     @StateObject private var contestViewModel = ContestViewModel()
+    @StateObject private var petViewModel = PetViewModel()
     
     var body: some View {
         ZStack {
@@ -99,7 +101,40 @@ struct AppView: View {
                 await ContestRotationService.shared.initializeSystem()
                 hasInitializedContest = true
             }
+            
+            // Prefetch all feed images in background for instant navigation
+            if !hasPrefetchedImages {
+                hasPrefetchedImages = true
+                Task(priority: .utility) {
+                    await prefetchAllImages()
+                }
+            }
         }
+    }
+    
+    // MARK: - Background Prefetch
+    
+    private func prefetchAllImages() async {
+        print("🚀 Starting background image prefetch...")
+        
+        // Fetch pets first (quick and small data)
+        await petViewModel.fetchUserPets()
+        await petViewModel.fetchGuardianPets()
+        
+        // Get active contest ID
+        let contestId = await contestViewModel.getActiveContestId()
+        
+        // Fetch all feeds in parallel
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.feedViewModel.fetchFriendsFeed() }
+            group.addTask { await self.feedViewModel.fetchGlobalFeed() }
+            if let contestId = contestId {
+                group.addTask { await self.feedViewModel.fetchContestFeed(contestId: contestId) }
+            }
+            group.addTask { await self.feedViewModel.fetchLeaderboard() }
+        }
+        
+        print("✅ Background prefetch complete - all images cached")
     }
 }
 

@@ -892,8 +892,8 @@ struct PetCardView: View {
                 
                 // Image or initial letter on top
                 Group {
-                    if let imageURL = profilePhotoURL {
-                        AsyncImage(url: imageURL) { phase in
+                    if !pet.profile_photo.isEmpty {
+                        CachedAsyncImagePhase(s3Key: pet.profile_photo) { phase in
                             switch phase {
                             case .success(let image):
                                 image
@@ -903,10 +903,6 @@ struct PetCardView: View {
                                     .clipped()
                             case .failure(_), .empty:
                                 // Fallback to initial if image fails to load
-                                Text(pet.name.prefix(1).uppercased())
-                                    .font(.system(size: 80, weight: .bold))
-                                    .foregroundColor(.white.opacity(0.5))
-                            @unknown default:
                                 Text(pet.name.prefix(1).uppercased())
                                     .font(.system(size: 80, weight: .bold))
                                     .foregroundColor(.white.opacity(0.5))

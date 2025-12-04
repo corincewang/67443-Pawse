@@ -476,7 +476,7 @@ struct ContestTabView: View {
 struct FriendPhotoCard: View {
     let feedItem: FriendsFeedItem
     @ObservedObject var feedViewModel: FeedViewModel
-    @State private var imageData: Data?
+    @StateObject private var imageLoader = ImageLoader()
     @State private var isLiked: Bool
     @State private var currentVotes: Int
     
@@ -524,8 +524,8 @@ struct FriendPhotoCard: View {
                 let imageHeight = imageWidth  // Square 1:1 ratio
                 
                 ZStack {
-                    if let imageData = imageData, let uiImage = UIImage(data: imageData) {
-                        Image(uiImage: uiImage)
+                    if let image = imageLoader.image {
+                        Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(width: imageWidth, height: imageHeight)
@@ -571,14 +571,7 @@ struct FriendPhotoCard: View {
         }
         .task {
             if !feedItem.image_link.isEmpty {
-                do {
-                    let image = try await AWSManager.shared.downloadImage(from: feedItem.image_link)
-                    if let data = image?.jpegData(compressionQuality: 0.8) {
-                        imageData = data
-                    }
-                } catch {
-                    print("Failed to load image: \(error)")
-                }
+                imageLoader.load(s3Key: feedItem.image_link)
             }
         }
     }
@@ -590,7 +583,7 @@ struct ContestPhotoCard: View {
     let feedItem: ContestFeedItem
     @ObservedObject var feedViewModel: FeedViewModel
     @ObservedObject var contestViewModel: ContestViewModel
-    @State private var imageData: Data?
+    @StateObject private var imageLoader = ImageLoader()
     @State private var showShare = false
     @State private var isLiked: Bool
     @State private var currentVotes: Int
@@ -649,8 +642,8 @@ struct ContestPhotoCard: View {
                 let imageHeight = imageWidth  // Square 1:1 ratio
                 
                 ZStack {
-                    if let imageData = imageData, let uiImage = UIImage(data: imageData) {
-                        Image(uiImage: uiImage)
+                    if let image = imageLoader.image {
+                        Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(width: imageWidth, height: imageHeight)
@@ -698,14 +691,7 @@ struct ContestPhotoCard: View {
         }
         .task {
             if !feedItem.image_link.isEmpty {
-                do {
-                    let image = try await AWSManager.shared.downloadImage(from: feedItem.image_link)
-                    if let data = image?.jpegData(compressionQuality: 0.8) {
-                        imageData = data
-                    }
-                } catch {
-                    print("Failed to load image: \(error)")
-                }
+                imageLoader.load(s3Key: feedItem.image_link)
             }
         }
     }
@@ -716,7 +702,7 @@ struct ContestPhotoCard: View {
 struct GlobalPhotoCard: View {
     let feedItem: GlobalFeedItem
     @ObservedObject var feedViewModel: FeedViewModel
-    @State private var imageData: Data?
+    @StateObject private var imageLoader = ImageLoader()
     @State private var isLiked: Bool
     @State private var currentVotes: Int
     
@@ -776,8 +762,8 @@ struct GlobalPhotoCard: View {
                 let imageHeight = imageWidth  // Square 1:1 ratio
                 
                 ZStack {
-                    if let imageData = imageData, let uiImage = UIImage(data: imageData) {
-                        Image(uiImage: uiImage)
+                    if let image = imageLoader.image {
+                        Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(width: imageWidth, height: imageHeight)
@@ -859,14 +845,7 @@ struct GlobalPhotoCard: View {
         }
         .task {
             if !feedItem.image_link.isEmpty {
-                do {
-                    let image = try await AWSManager.shared.downloadImage(from: feedItem.image_link)
-                    if let data = image?.jpegData(compressionQuality: 0.8) {
-                        imageData = data
-                    }
-                } catch {
-                    print("Failed to load image: \(error)")
-                }
+                imageLoader.load(s3Key: feedItem.image_link)
             }
         }
     }
@@ -936,7 +915,7 @@ struct LeaderboardView: View {
 struct LeaderboardPodiumItem: View {
     let entry: LeaderboardEntry
     let rank: Int
-    @State private var imageData: Data?
+    @StateObject private var imageLoader = ImageLoader()
     
     var rankColor: Color {
         switch rank {
@@ -968,8 +947,8 @@ struct LeaderboardPodiumItem: View {
                         .fill(Color.pawseGolden)
                         .frame(width: rank == 1 ? 50 : 44, height: rank == 1 ? 50 : 44)
                     
-                    if let imageData = imageData, let uiImage = UIImage(data: imageData) {
-                        Image(uiImage: uiImage)
+                    if let image = imageLoader.image {
+                        Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(width: rank == 1 ? 50 : 44, height: rank == 1 ? 50 : 44)
@@ -1011,14 +990,7 @@ struct LeaderboardPodiumItem: View {
         .task {
             // Load pet profile image
             if !entry.image_link.isEmpty {
-                do {
-                    let image = try await AWSManager.shared.downloadImage(from: entry.image_link)
-                    if let data = image?.jpegData(compressionQuality: 0.8) {
-                        imageData = data
-                    }
-                } catch {
-                    print("Failed to load leaderboard image: \(error)")
-                }
+                imageLoader.load(s3Key: entry.image_link)
             }
         }
     }

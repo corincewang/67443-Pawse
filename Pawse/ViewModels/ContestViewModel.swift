@@ -99,6 +99,14 @@ class ContestViewModel: ObservableObject {
         isLoading = false
     }
     
+    func getActiveContestId() async -> String? {
+        if let currentId = currentContest?.id {
+            return currentId
+        }
+        await fetchCurrentContest()
+        return currentContest?.id
+    }
+    
     func fetchContestFeed() async {
         guard let userId = FirebaseManager.shared.auth.currentUser?.uid else {
             error = "No user logged in"
