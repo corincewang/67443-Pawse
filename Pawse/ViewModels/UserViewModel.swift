@@ -63,6 +63,12 @@ class UserViewModel: ObservableObject {
         do {
             try await authController.login(email: email, password: password)
             await fetchCurrentUser()
+            
+            // Check if user needs to see the profile tutorial (only once at login)
+            if let user = currentUser, !(user.has_seen_profile_tutorial ?? false) {
+                // Post notification to trigger tutorial when they navigate to profile
+                NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

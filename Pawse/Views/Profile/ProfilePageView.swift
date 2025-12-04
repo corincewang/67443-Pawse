@@ -342,33 +342,16 @@ struct ProfilePageView: View {
                 selectedPetNameStorage = petViewModel.allPets.randomElement()?.name ?? ""
             }
             
-            // Only start tutorial if it wasn't in progress when task started
+            // Only resume tutorial if it was in progress when task started
             guard shouldStartTutorial else { return }
-            
-            let userId = userViewModel.currentUser?.id ?? ""
-            
-            // Check if THIS specific user has completed the tutorial
-            // User has seen tutorial if the field is true (nil or false means they haven't)
-            let currentUserHasSeenTutorial = userViewModel.currentUser?.has_seen_profile_tutorial ?? false
-            
-            // Debug: Log tutorial state
-            print("🔍 Tutorial Check - userId: \(userId)")
-            print("🔍 Tutorial Check - has_seen_profile_tutorial: \(userViewModel.currentUser?.has_seen_profile_tutorial?.description ?? "nil")")
-            print("🔍 Tutorial Check - currentUserHasSeenTutorial: \(currentUserHasSeenTutorial)")
-            print("🔍 Tutorial Check - tutorialStepRaw: \(tutorialStepRaw)")
             
             // Check if there's a tutorial in progress (user navigated away and came back)
             if tutorialStepRaw >= 0, let savedStep = TutorialStep(rawValue: tutorialStepRaw) {
                 // Resume tutorial from saved step
                 tutorialStep = savedStep
                 NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
-            } else if !userId.isEmpty && !currentUserHasSeenTutorial {
-                // Start tutorial for new users or users who haven't seen it yet
-                print("🚀 Starting tutorial for user \(userId)")
-                startTutorialFlow(resetProgress: true)
-            } else {
-                print("✅ Skipping tutorial - user has already seen it")
             }
+            // Note: Tutorial initiation for new users is now handled at login time via notification
         }
         .onReceive(NotificationCenter.default.publisher(for: .showProfileTutorial)) { _ in
             startTutorialFlow(resetProgress: true)

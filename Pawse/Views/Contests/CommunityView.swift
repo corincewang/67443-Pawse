@@ -278,16 +278,6 @@ struct FriendsTabView: View {
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
-            .padding(.bottom, 100)
-        }
-        .refreshable {
-            isRefreshing = true
-            print("🔄 Refreshing friends feed...")
-            await feedViewModel.fetchFriendsFeed()
-            isRefreshing = false
-            print("✅ Friends feed refreshed")
         }
     }
 }
@@ -410,11 +400,11 @@ struct FriendPhotoCard: View {
     @State private var displayedImage: UIImage?
     @State private var isLiked: Bool
     @State private var currentVotes: Int
-    @State private var isLiked: Bool
     
     init(feedItem: FriendsFeedItem, feedViewModel: FeedViewModel) {
         self.feedItem = feedItem
         self.feedViewModel = feedViewModel
+        _isLiked = State(initialValue: feedItem.has_voted)
         _currentVotes = State(initialValue: feedItem.votes)
         // Check cache synchronously to prevent flash
         _displayedImage = State(initialValue: ImageCache.shared.image(forKey: feedItem.image_link))
@@ -581,6 +571,7 @@ struct ContestPhotoCard: View {
         self.feedItem = feedItem
         self.feedViewModel = feedViewModel
         self.contestViewModel = contestViewModel
+        _isLiked = State(initialValue: feedItem.has_voted)
         _currentVotes = State(initialValue: feedItem.votes)
         // Check cache synchronously to prevent flash
         _displayedImage = State(initialValue: ImageCache.shared.image(forKey: feedItem.image_link))
@@ -713,11 +704,11 @@ struct GlobalPhotoCard: View {
     @State private var displayedImage: UIImage?
     @State private var isLiked: Bool
     @State private var currentVotes: Int
-    @State private var isLiked: Bool
     
     init(feedItem: GlobalFeedItem, feedViewModel: FeedViewModel) {
         self.feedItem = feedItem
         self.feedViewModel = feedViewModel
+        _isLiked = State(initialValue: feedItem.has_voted)
         _currentVotes = State(initialValue: feedItem.votes)
         // Check cache synchronously to prevent flash
         _displayedImage = State(initialValue: ImageCache.shared.image(forKey: feedItem.image_link))
