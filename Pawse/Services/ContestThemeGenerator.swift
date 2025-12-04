@@ -6,7 +6,7 @@ class ContestThemeGenerator {
     /// Pre-generated contest themes
     static let themes: [String] = [
         // Cute themes
-        "Most Adorable Sleeping Position",
+        "Cutest Sleeping Position",
         "Cutest Puppy Dog Eyes",
         "Most Photogenic Pet",
         "Sweetest Snuggle Moment",
@@ -30,8 +30,8 @@ class ContestThemeGenerator {
         // Expressive themes
         "Most Expressive Face",
         "Happiest Pet",
-        "Grumpiest Looking Pet",
-        "Most Surprised Expression",
+        "Grumpiest Pet",
+        "Most Surprised Face",
         
         // Seasonal themes
         "Best Winter Outfit",
@@ -68,7 +68,7 @@ class ContestThemeGenerator {
         
         // Adventure themes
         "Best Outdoor Adventure",
-        "Most Adventurous Explorer",
+        "Most Adventurous Pet",
         "Best Nature Photo",
         
         // Relaxation themes

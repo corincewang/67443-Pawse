@@ -334,18 +334,12 @@ struct ContestTabView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 50) {
-                    // Active contest banner
-                    if let firstContest = contestViewModel.activeContests.first {
-                        ActiveContestBanner(contest: firstContest)
-                            .id("contest_banner")
-                    }
-                    
+                LazyVStack(spacing: 20) {
                     // Leaderboard
                     if let leaderboard = feedViewModel.leaderboard {
                         LeaderboardView(leaderboard: leaderboard)
                             .id("leaderboard")
-                            .padding(.top, 10)
+                            .padding(.top, 5)
                     }
                     
                     // Contest feed
@@ -1014,8 +1008,8 @@ struct LeaderboardView: View {
     
     var body: some View {
         VStack(spacing: 8) {
-            // Contest title - smaller and more compact
-            Text(leaderboard.contest_prompt)
+            // Leaderboard title - smaller and more compact
+            Text("Leaderboard")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.pawseOrange)
                 .padding(.bottom, 20)
