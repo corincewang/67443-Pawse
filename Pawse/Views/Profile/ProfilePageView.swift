@@ -11,6 +11,7 @@ private enum TutorialStep: Int, CaseIterable {
     case welcome
     case addPet
     case uploadPhoto
+    case addPhoto
     case camera
     case contest
     case community
@@ -23,6 +24,7 @@ private enum TutorialTarget: Hashable {
     case contestBanner
     case headerSubtitle
     case petCardsArea
+    case addPhotoButton
 }
 
 private struct TutorialFramePreferenceKey: PreferenceKey {
@@ -239,6 +241,7 @@ struct ProfilePageView: View {
                                     )
                             }
                         }
+                        .captureTutorialFrame(.addPhotoButton)
                     }
                     .padding(.trailing, 30)
                     .padding(.bottom, 120)
@@ -493,9 +496,9 @@ struct ProfilePageView: View {
             return petViewModel.allPets.isEmpty
         case .uploadPhoto:
             return !petViewModel.allPets.isEmpty && !hasUploadedPhotos
-        case .camera:
-            return !petViewModel.allPets.isEmpty && hasUploadedPhotos
-        case .contest, .community, .finished:
+        case .addPhoto:
+            return true
+        case .camera, .contest, .community, .finished:
             return true
         }
     }
@@ -508,8 +511,10 @@ struct ProfilePageView: View {
             return "Tap here to create a gallery for your pet."
         case .uploadPhoto:
             return "Great! Add \(tutorialPetDisplayName)’s first picture to build their story."
+        case .addPhoto:
+            return "You can directly upload photos to galleries or community feeds from here."
         case .camera:
-            return "You can take photos on Pawse directly!"
+            return "You can also take photos on Pawse directly!"
         case .contest:
             return "Weekly contests run here—enter your best shot any time."
         case .community:
@@ -527,6 +532,8 @@ struct ProfilePageView: View {
             return "Tap the glowing card to open the pet form."
         case .uploadPhoto:
             return "Choose a favorite photo to kick things off."
+        case .addPhoto:
+            return "Tap the + button to upload photos."
         case .camera:
             return "Tap the camera icon to take a photo on the spot."
         case .contest:
@@ -555,7 +562,7 @@ struct ProfilePageView: View {
         switch step {
         case .addPet, .uploadPhoto:
             return false
-        case .camera:
+        case .addPhoto, .camera:
             return true
         default:
             return true
@@ -567,14 +574,20 @@ struct ProfilePageView: View {
     }
     
     private func hintYPosition(for step: TutorialStep, frames: [TutorialTarget: CGRect], highlights: [TutorialHighlight]) -> CGFloat? {
-        let cardsBottom: CGFloat?
-        switch step {
-        case .addPet, .uploadPhoto, .camera:
-            cardsBottom = highlights.first?.frame.maxY ?? frames[.petCardsArea]?.maxY
-        default:
-            cardsBottom = frames[.petCardsArea]?.maxY
+        // Determine bottom reference based on step - use + button position as baseline for consistency
+        let bottom: CGFloat?
+        if let addPhotoButtonBottom = frames[.addPhotoButton]?.maxY {
+            // Always use + button as the reference point for consistent positioning
+            bottom = addPhotoButtonBottom
+        } else if let highlightBottom = highlights.first?.frame.maxY {
+            // Fall back to highlight if + button not available
+            bottom = highlightBottom
+        } else {
+            // Last resort: use pet cards area
+            bottom = frames[.petCardsArea]?.maxY
         }
-        guard let bottom = cardsBottom else { return nil }
+        
+        guard let bottom = bottom else { return nil }
         guard let bannerTop = frames[.contestBanner]?.minY else {
             return bottom + 40
         }
@@ -602,7 +615,7 @@ struct ProfilePageView: View {
     
     private func allowsHighlightInteraction(for step: TutorialStep) -> Bool {
         switch step {
-        case .addPet, .uploadPhoto:
+        case .addPet, .uploadPhoto, .addPhoto, .contest:
             return true
         default:
             return false
@@ -620,6 +633,10 @@ struct ProfilePageView: View {
         case .uploadPhoto:
             if let frame = frames[.firstPetCard] {
                 return [TutorialHighlight(frame: frame, padding: 16, shape: .rounded(cornerRadius: 24))]
+            }
+        case .addPhoto:
+            if let frame = frames[.addPhotoButton] {
+                return [TutorialHighlight(frame: frame, padding: 8, shape: .circle)]
             }
         case .camera:
             // Camera icon is shown with custom orange circle overlay in bottom bar
@@ -1093,20 +1110,30 @@ private struct TutorialInteractionLayer: UIViewRepresentable {
     func makeUIView(context: Context) -> TutorialInteractionUIView {
         let view = TutorialInteractionUIView()
         view.onTap = onTap
+        view.globalPassThroughRects = passthroughRects
         return view
     }
     
     func updateUIView(_ uiView: TutorialInteractionUIView, context: Context) {
         uiView.allowsOverlayTap = allowsOverlayTap
-        uiView.passThroughRects = passthroughRects
+        uiView.globalPassThroughRects = passthroughRects
         uiView.onTap = onTap
     }
 }
 
 private final class TutorialInteractionUIView: UIView {
     var allowsOverlayTap: Bool = false
-    var passThroughRects: [CGRect] = []
+    var globalPassThroughRects: [CGRect] = []
     var onTap: (() -> Void)?
+    
+    private var localPassThroughRects: [CGRect] {
+        // Convert global rects to local coordinate space
+        guard let window = window else { return [] }
+        return globalPassThroughRects.map { globalRect in
+            let localRect = convert(globalRect, from: window)
+            return localRect
+        }
+    }
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -1122,12 +1149,19 @@ private final class TutorialInteractionUIView: UIView {
     }
     
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
+        let location = gesture.location(in: self)
+        let passThroughRects = localPassThroughRects
+        // Don't advance tutorial if tap is on a passthrough rect (highlighted element)
+        for rect in passThroughRects where rect.contains(location) {
+            return
+        }
         if allowsOverlayTap {
             onTap?()
         }
     }
     
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        let passThroughRects = localPassThroughRects
         // If point is inside a passthrough rect, don't capture the touch
         for rect in passThroughRects where rect.contains(point) {
             return false
@@ -1137,6 +1171,7 @@ private final class TutorialInteractionUIView: UIView {
     }
     
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let passThroughRects = localPassThroughRects
         // If point is inside a passthrough rect, let it pass through
         for rect in passThroughRects where rect.contains(point) {
             return nil
@@ -1174,9 +1209,6 @@ private struct TutorialOverlayView: View {
                 fallback: proxy.size.height * 0.65,
                 maxHeight: max(proxy.size.height - 60, 0)
             )
-            let localPassthroughRects = passthroughRects.map { rect in
-                rect.offsetBy(dx: -overlayFrame.minX, dy: -overlayFrame.minY)
-            }
             ZStack(alignment: .topTrailing) {
                 spotlightLayer
                 
@@ -1184,7 +1216,7 @@ private struct TutorialOverlayView: View {
                 GeometryReader { _ in
                     TutorialInteractionLayer(
                         allowsOverlayTap: allowsOverlayTap,
-                        passthroughRects: localPassthroughRects,
+                        passthroughRects: passthroughRects,
                         onTap: onTap
                     )
                 }
