@@ -13,19 +13,12 @@ struct ContestView: View {
     @StateObject private var contestViewModel = ContestViewModel()
     @State private var scrollToTopTrigger: Bool = false
 
-    // Use @AppStorage to persist contest tab scroll position
-    @AppStorage("contestScrollPosition") private var contestScrollPosition: String = ""
-
     var body: some View {
         ZStack {
             Color.pawseBackground.ignoresSafeArea()
             ContestTabView(
                 contestViewModel: contestViewModel,
                 feedViewModel: feedViewModel,
-                scrollPosition: Binding(
-                    get: { contestScrollPosition.isEmpty ? nil : contestScrollPosition },
-                    set: { contestScrollPosition = $0 ?? "" }
-                ),
                 scrollToTopTrigger: scrollToTopTrigger
             )
             

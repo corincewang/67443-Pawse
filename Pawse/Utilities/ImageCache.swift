@@ -19,11 +19,12 @@ final class ImageCache {
         cache = NSCache<NSString, UIImage>()
         
         // Configure cache limits
-        // Cost is in bytes - 300MB limit to handle multiple high-res images
-        cache.totalCostLimit = 300 * 1024 * 1024
+        // Cost is in bytes - 500MB limit for optimal performance on modern devices
+        // Modern iOS devices have 3-6GB RAM, 500MB is reasonable for image cache
+        cache.totalCostLimit = 500 * 1024 * 1024
         
-        // Maximum number of objects - prevents too many small images
-        cache.countLimit = 200
+        // Maximum number of objects - increased for better hit rate
+        cache.countLimit = 300
         
         // Automatically remove objects when memory warning occurs
         cache.evictsObjectsWithDiscardedContent = true
@@ -36,7 +37,7 @@ final class ImageCache {
             object: nil
         )
         
-        print("📦 ImageCache initialized with 300MB limit, 200 object limit")
+        print("📦 ImageCache initialized with 500MB limit, 300 object limit")
     }
     
     deinit {
@@ -60,6 +61,48 @@ final class ImageCache {
         }
         
         return image
+    }
+    
+    /// Load image from cache or download if not cached (with deduplication)
+    /// - Parameter key: S3 key or URL string
+    /// - Returns: UIImage if successfully loaded
+    func loadImage(forKey key: String) async -> UIImage? {
+        // Check cache first
+        if let cachedImage = image(forKey: key) {
+            return cachedImage
+        }
+        
+        // Check if already downloading
+        lock.lock()
+        if let existingTask = inFlightTasks[key] {
+            lock.unlock()
+            return await existingTask.value
+        }
+        
+        // Start new download task
+        let task = Task<UIImage?, Never> {
+            do {
+                guard let image = try await AWSManager.shared.downloadImage(from: key) else {
+                    return nil
+                }
+                setImage(image, forKey: key)
+                return image
+            } catch {
+                print("❌ Failed to load \(key): \(error.localizedDescription)")
+                return nil
+            }
+        }
+        
+        inFlightTasks[key] = task
+        lock.unlock()
+        
+        let result = await task.value
+        
+        lock.lock()
+        inFlightTasks.removeValue(forKey: key)
+        lock.unlock()
+        
+        return result
     }
     
     /// Store image in cache (resized to reasonable dimensions)
@@ -107,7 +150,7 @@ final class ImageCache {
     func getCacheStats() -> (count: Int, estimatedSize: String) {
         // Note: NSCache doesn't expose count or size directly
         // This is a simplified representation
-        return (count: cache.countLimit, estimatedSize: "300MB max")
+        return (count: cache.countLimit, estimatedSize: "500MB max")
     }
     
     // MARK: - Private Helpers
@@ -133,7 +176,7 @@ final class ImageCache {
     }
     
     private func resizeForCache(_ image: UIImage) -> UIImage {
-        let maxPixelDimension: CGFloat = 800 // Target pixel size for cached images
+        let maxPixelDimension: CGFloat = 1200 // Optimized for modern high-res displays (iPhone 15 Pro, etc.)
         
         guard let cgImage = image.cgImage else { return image }
         
@@ -172,8 +215,8 @@ extension ImageCache {
     /// Preload images for a list of S3 keys (for prefetching)
     /// - Parameters:
     ///   - keys: Array of S3 keys to preload
-    ///   - chunkSize: Number of concurrent downloads per batch (default 4)
-    func preloadImages(forKeys keys: [String], chunkSize: Int = 4) async {
+    ///   - chunkSize: Number of concurrent downloads per batch (default 12 for optimal throughput)
+    func preloadImages(forKeys keys: [String], chunkSize: Int = 12) async {
         let cleanedKeys = keys
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }

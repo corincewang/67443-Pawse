@@ -79,9 +79,14 @@ class FeedViewModel: ObservableObject {
         isLoadingFriends = false
     }
     
-    func fetchContestFeed(contestId: String) async {
+    func fetchContestFeed(contestId: String, force: Bool = false) async {
         guard let userId = FirebaseManager.shared.auth.currentUser?.uid else {
             error = "No user logged in"
+            return
+        }
+        
+        // Skip if we already have data for this contest and not forcing refresh
+        if !force && !contestFeed.isEmpty {
             return
         }
         
@@ -124,7 +129,12 @@ class FeedViewModel: ObservableObject {
         isLoadingGlobal = false
     }
 
-    func fetchLeaderboard() async {
+    func fetchLeaderboard(force: Bool = false) async {
+        // Skip if we already have data and not forcing refresh
+        if !force && leaderboard != nil {
+            return
+        }
+        
         isLoadingLeaderboard = true
         error = nil
         do {
@@ -143,10 +153,10 @@ class FeedViewModel: ObservableObject {
     func refreshAllFeeds(contestId: String?) async {
         async let friendsTask: Void = fetchFriendsFeed()
         async let globalTask: Void = fetchGlobalFeed()
-        async let leaderboardTask: Void = fetchLeaderboard()
+        async let leaderboardTask: Void = fetchLeaderboard(force: true)
         
         if let contestId = contestId {
-            async let contestTask: Void = fetchContestFeed(contestId: contestId)
+            async let contestTask: Void = fetchContestFeed(contestId: contestId, force: true)
             _ = await (friendsTask, globalTask, contestTask, leaderboardTask)
         } else {
             _ = await (friendsTask, globalTask, leaderboardTask)

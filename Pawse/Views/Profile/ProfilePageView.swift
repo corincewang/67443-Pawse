@@ -309,10 +309,21 @@ struct ProfilePageView: View {
             // Only start tutorial if it's not already in progress or completed
             let shouldStartTutorial = tutorialStep == nil
             
-            await userViewModel.fetchCurrentUser()
-            await petViewModel.fetchUserPets()
-            await petViewModel.fetchGuardianPets()
+            // Fetch user data only if not already loaded
+            if userViewModel.currentUser == nil {
+                await userViewModel.fetchCurrentUser()
+            }
+            
+            // Fetch pet data only if not already loaded
+            if petViewModel.allPets.isEmpty {
+                await petViewModel.fetchUserPets()
+                await petViewModel.fetchGuardianPets()
+            }
+            
+            // Always check for new invitations (they can arrive anytime)
             await guardianViewModel.fetchPendingInvitationsForCurrentUser()
+            
+            // Fetch contest only if not already loaded (using ContestViewModel's smart caching)
             await contestViewModel.fetchCurrentContest()
             let pets = petViewModel.allPets
             let photosExist = await determinePhotoPresence(for: pets)
@@ -891,30 +902,7 @@ struct PetCardView: View {
                     .frame(width: 200, height: 260)
                 
                 // Image or initial letter on top
-                Group {
-                    if !pet.profile_photo.isEmpty {
-                        CachedAsyncImagePhase(s3Key: pet.profile_photo) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 200, height: 260)
-                                    .clipped()
-                            case .failure(_), .empty:
-                                // Fallback to initial if image fails to load
-                                Text(pet.name.prefix(1).uppercased())
-                                    .font(.system(size: 80, weight: .bold))
-                                    .foregroundColor(.white.opacity(0.5))
-                            }
-                        }
-                    } else {
-                        // No profile photo - show initial
-                        Text(pet.name.prefix(1).uppercased())
-                            .font(.system(size: 80, weight: .bold))
-                            .foregroundColor(.white.opacity(0.5))
-                    }
-                }
+                PetCardImageView(pet: pet)
             }
             .frame(width: 200, height: 260)
             .clipShape(RoundedRectangle(cornerRadius: 20))
@@ -1249,6 +1237,44 @@ private struct TutorialOverlayView: View {
         }
         let upperBound = max(maxHeight, 0)
         return min(max(localValue, 0), upperBound)
+    }
+}
+
+// MARK: - Pet Card Image Component with Instant Cache Display
+
+private struct PetCardImageView: View {
+    let pet: Pet
+    @State private var displayedImage: UIImage?
+    
+    init(pet: Pet) {
+        self.pet = pet
+        // Check cache synchronously to prevent flash
+        _displayedImage = State(initialValue: ImageCache.shared.image(forKey: pet.profile_photo))
+    }
+    
+    var body: some View {
+        Group {
+            if let image = displayedImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 200, height: 260)
+                    .clipped()
+            } else {
+                // Fallback to initial if no image
+                Text(pet.name.prefix(1).uppercased())
+                    .font(.system(size: 80, weight: .bold))
+                    .foregroundColor(.white.opacity(0.5))
+            }
+        }
+        .task {
+            // Load image only if not already cached
+            if !pet.profile_photo.isEmpty && displayedImage == nil {
+                if let image = await ImageCache.shared.loadImage(forKey: pet.profile_photo) {
+                    displayedImage = image
+                }
+            }
+        }
     }
 }
 

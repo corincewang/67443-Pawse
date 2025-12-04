@@ -79,21 +79,12 @@ struct CommunityView: View {
         TabView(selection: $selectedTab) {
             FriendsTabView(
                 feedViewModel: feedViewModel,
-                scrollPosition: Binding(
-                    get: { friendsScrollPosition.isEmpty ? nil : friendsScrollPosition },
-                    set: { friendsScrollPosition = $0 ?? "" }
-                ),
                 scrollToTopTrigger: scrollToTopTrigger
             )
             .tag(CommunityFeedTab.friends)
 
             GlobalTabView(
-                //contestViewModel: contestViewModel,
                 feedViewModel: feedViewModel,
-                scrollPosition: Binding(
-                    get: { globalScrollPosition.isEmpty ? nil : globalScrollPosition },
-                    set: { globalScrollPosition = $0 ?? "" }
-                ),
                 scrollToTopTrigger: scrollToTopTrigger
             )
             .tag(CommunityFeedTab.contest)
@@ -112,10 +103,6 @@ struct CommunityView: View {
     @State private var searchEmail = ""
     @State private var hasLoadedInitialData = false
     @State private var scrollToTopTrigger = false
-    
-    // Use @AppStorage to persist scroll positions across navigation
-    @AppStorage("friendsScrollPosition") private var friendsScrollPosition: String = ""
-    @AppStorage("globalScrollPosition") private var globalScrollPosition: String = ""
     
     var body: some View {
         ZStack {
@@ -247,8 +234,6 @@ struct CommunityView: View {
 
 struct FriendsTabView: View {
     @ObservedObject var feedViewModel: FeedViewModel
-    @Binding var scrollPosition: String?
-    @State private var shouldRestoreScroll = true
     @State private var isRefreshing = false
     let scrollToTopTrigger: Bool
     
@@ -274,12 +259,6 @@ struct FriendsTabView: View {
                         ForEach(feedViewModel.friendsFeed, id: \.photo_id) { item in
                             FriendPhotoCard(feedItem: item, feedViewModel: feedViewModel)
                                 .id(item.photo_id)
-                                .onAppear {
-                                    if !shouldRestoreScroll {
-                                        scrollPosition = item.photo_id
-                                        print("📍 Tracking friends position: \(item.photo_id)")
-                                    }
-                                }
                         }
                     }
                 }
@@ -289,33 +268,10 @@ struct FriendsTabView: View {
             }
             .refreshable {
                 isRefreshing = true
-                print("🔄 Refreshing friends feed...")
                 await feedViewModel.fetchFriendsFeed()
                 isRefreshing = false
-                print("✅ Friends feed refreshed")
-            }
-            .onAppear {
-                print("🔍 Friends onAppear - shouldRestore: \(shouldRestoreScroll), position: \(scrollPosition ?? "nil")")
-                if shouldRestoreScroll, let position = scrollPosition, !position.isEmpty {
-                    print("🔄 Attempting to restore friends scroll to: \(position)")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        proxy.scrollTo(position, anchor: .top)
-                        print("✅ Scroll command sent")
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            shouldRestoreScroll = false
-                            print("🏁 Friends restore complete")
-                        }
-                    }
-                } else {
-                    shouldRestoreScroll = false
-                }
-            }
-            .onDisappear {
-                shouldRestoreScroll = true
-                print("👋 Friends disappeared, saved position: \(scrollPosition ?? "nil")")
             }
             .onChange(of: scrollToTopTrigger) { _ in
-                print("🔝 Scrolling friends to top")
                 withAnimation {
                     if let firstId = feedViewModel.friendsFeed.first?.photo_id {
                         proxy.scrollTo(firstId, anchor: .top)
@@ -329,8 +285,6 @@ struct FriendsTabView: View {
 
 struct GlobalTabView: View {
     @ObservedObject var feedViewModel: FeedViewModel
-    @Binding var scrollPosition: String?
-    @State private var shouldRestoreScroll = true
     @State private var isRefreshing = false
     let scrollToTopTrigger: Bool
 
@@ -363,10 +317,8 @@ struct GlobalTabView: View {
         }
         .refreshable {
             isRefreshing = true
-            print("🔄 Refreshing global feed...")
             await feedViewModel.fetchGlobalFeed()
             isRefreshing = false
-            print("✅ Global feed refreshed")
         }
     }
 }
@@ -376,8 +328,6 @@ struct GlobalTabView: View {
 struct ContestTabView: View {
     @ObservedObject var contestViewModel: ContestViewModel
     @ObservedObject var feedViewModel: FeedViewModel
-    @Binding var scrollPosition: String?
-    @State private var shouldRestoreScroll = true
     @State private var isRefreshing = false
     let scrollToTopTrigger: Bool
     
@@ -417,12 +367,6 @@ struct ContestTabView: View {
                         ForEach(feedViewModel.contestFeed, id: \.contest_photo_id) { item in
                             ContestPhotoCard(feedItem: item, feedViewModel: feedViewModel, contestViewModel: contestViewModel)
                                 .id(item.contest_photo_id)
-                                .onAppear {
-                                    if !shouldRestoreScroll {
-                                        scrollPosition = item.contest_photo_id
-                                        print("📍 Tracking contest position: \(item.contest_photo_id)")
-                                    }
-                                }
                         }
                     }
                 }
@@ -432,37 +376,14 @@ struct ContestTabView: View {
             }
             .refreshable {
                 isRefreshing = true
-                print("🔄 Refreshing contest feed...")
-                await contestViewModel.fetchActiveContests()
+                await contestViewModel.fetchActiveContests(force: true)
                 if let activeContest = contestViewModel.activeContests.first, let contestId = activeContest.id {
                     await feedViewModel.fetchContestFeed(contestId: contestId)
                     await feedViewModel.fetchLeaderboard()
                 }
                 isRefreshing = false
-                print("✅ Contest feed refreshed")
-            }
-            .onAppear {
-                print("🔍 Contest onAppear - shouldRestore: \(shouldRestoreScroll), position: \(scrollPosition ?? "nil")")
-                if shouldRestoreScroll, let position = scrollPosition, !position.isEmpty {
-                    print("🔄 Attempting to restore contest scroll to: \(position)")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        proxy.scrollTo(position, anchor: .top)
-                        print("✅ Scroll command sent")
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            shouldRestoreScroll = false
-                            print("🏁 Contest restore complete")
-                        }
-                    }
-                } else {
-                    shouldRestoreScroll = false
-                }
-            }
-            .onDisappear {
-                shouldRestoreScroll = true
-                print("👋 Contest disappeared, saved position: \(scrollPosition ?? "nil")")
             }
             .onChange(of: scrollToTopTrigger) { _ in
-                print("🔝 Scrolling contest to top")
                 withAnimation {
                     proxy.scrollTo("contest_banner", anchor: .top)
                 }
@@ -476,7 +397,7 @@ struct ContestTabView: View {
 struct FriendPhotoCard: View {
     let feedItem: FriendsFeedItem
     @ObservedObject var feedViewModel: FeedViewModel
-    @StateObject private var imageLoader = ImageLoader()
+    @State private var displayedImage: UIImage?
     @State private var isLiked: Bool
     @State private var currentVotes: Int
     
@@ -485,6 +406,8 @@ struct FriendPhotoCard: View {
         self.feedViewModel = feedViewModel
         _isLiked = State(initialValue: feedItem.has_voted)
         _currentVotes = State(initialValue: feedItem.votes)
+        // Check cache synchronously to prevent flash
+        _displayedImage = State(initialValue: ImageCache.shared.image(forKey: feedItem.image_link))
     }
     
     var body: some View {
@@ -524,7 +447,7 @@ struct FriendPhotoCard: View {
                 let imageHeight = imageWidth  // Square 1:1 ratio
                 
                 ZStack {
-                    if let image = imageLoader.image {
+                    if let image = displayedImage {
                         Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -570,8 +493,11 @@ struct FriendPhotoCard: View {
             .frame(height: UIScreen.main.bounds.width * 0.95)
         }
         .task {
-            if !feedItem.image_link.isEmpty {
-                imageLoader.load(s3Key: feedItem.image_link)
+            if !feedItem.image_link.isEmpty && displayedImage == nil {
+                // Only load if not already cached
+                if let image = await ImageCache.shared.loadImage(forKey: feedItem.image_link) {
+                    displayedImage = image
+                }
             }
         }
     }
@@ -583,7 +509,7 @@ struct ContestPhotoCard: View {
     let feedItem: ContestFeedItem
     @ObservedObject var feedViewModel: FeedViewModel
     @ObservedObject var contestViewModel: ContestViewModel
-    @StateObject private var imageLoader = ImageLoader()
+    @State private var displayedImage: UIImage?
     @State private var showShare = false
     @State private var isLiked: Bool
     @State private var currentVotes: Int
@@ -594,6 +520,8 @@ struct ContestPhotoCard: View {
         self.contestViewModel = contestViewModel
         _isLiked = State(initialValue: feedItem.has_voted)
         _currentVotes = State(initialValue: feedItem.votes)
+        // Check cache synchronously to prevent flash
+        _displayedImage = State(initialValue: ImageCache.shared.image(forKey: feedItem.image_link))
     }
     
     var body: some View {
@@ -642,7 +570,7 @@ struct ContestPhotoCard: View {
                 let imageHeight = imageWidth  // Square 1:1 ratio
                 
                 ZStack {
-                    if let image = imageLoader.image {
+                    if let image = displayedImage {
                         Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -690,8 +618,11 @@ struct ContestPhotoCard: View {
             .frame(height: UIScreen.main.bounds.width * 0.95)
         }
         .task {
-            if !feedItem.image_link.isEmpty {
-                imageLoader.load(s3Key: feedItem.image_link)
+            if !feedItem.image_link.isEmpty && displayedImage == nil {
+                // Only load if not already cached
+                if let image = await ImageCache.shared.loadImage(forKey: feedItem.image_link) {
+                    displayedImage = image
+                }
             }
         }
     }
@@ -702,7 +633,7 @@ struct ContestPhotoCard: View {
 struct GlobalPhotoCard: View {
     let feedItem: GlobalFeedItem
     @ObservedObject var feedViewModel: FeedViewModel
-    @StateObject private var imageLoader = ImageLoader()
+    @State private var displayedImage: UIImage?
     @State private var isLiked: Bool
     @State private var currentVotes: Int
     
@@ -711,6 +642,8 @@ struct GlobalPhotoCard: View {
         self.feedViewModel = feedViewModel
         _isLiked = State(initialValue: feedItem.has_voted)
         _currentVotes = State(initialValue: feedItem.votes)
+        // Check cache synchronously to prevent flash
+        _displayedImage = State(initialValue: ImageCache.shared.image(forKey: feedItem.image_link))
     }
     
     var body: some View {
@@ -762,7 +695,7 @@ struct GlobalPhotoCard: View {
                 let imageHeight = imageWidth  // Square 1:1 ratio
                 
                 ZStack {
-                    if let image = imageLoader.image {
+                    if let image = displayedImage {
                         Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -844,8 +777,11 @@ struct GlobalPhotoCard: View {
             .frame(height: UIScreen.main.bounds.width * 0.95)
         }
         .task {
-            if !feedItem.image_link.isEmpty {
-                imageLoader.load(s3Key: feedItem.image_link)
+            if !feedItem.image_link.isEmpty && displayedImage == nil {
+                // Only load if not already cached
+                if let image = await ImageCache.shared.loadImage(forKey: feedItem.image_link) {
+                    displayedImage = image
+                }
             }
         }
     }
@@ -915,7 +851,14 @@ struct LeaderboardView: View {
 struct LeaderboardPodiumItem: View {
     let entry: LeaderboardEntry
     let rank: Int
-    @StateObject private var imageLoader = ImageLoader()
+    @State private var displayedImage: UIImage?
+    
+    init(entry: LeaderboardEntry, rank: Int) {
+        self.entry = entry
+        self.rank = rank
+        // Check cache synchronously to prevent flash
+        _displayedImage = State(initialValue: ImageCache.shared.image(forKey: entry.image_link))
+    }
     
     var rankColor: Color {
         switch rank {
@@ -947,7 +890,7 @@ struct LeaderboardPodiumItem: View {
                         .fill(Color.pawseGolden)
                         .frame(width: rank == 1 ? 50 : 44, height: rank == 1 ? 50 : 44)
                     
-                    if let image = imageLoader.image {
+                    if let image = displayedImage {
                         Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -988,9 +931,11 @@ struct LeaderboardPodiumItem: View {
         }
         .buttonStyle(.plain)
         .task {
-            // Load pet profile image
-            if !entry.image_link.isEmpty {
-                imageLoader.load(s3Key: entry.image_link)
+            // Load pet profile image only if not cached
+            if !entry.image_link.isEmpty && displayedImage == nil {
+                if let image = await ImageCache.shared.loadImage(forKey: entry.image_link) {
+                    displayedImage = image
+                }
             }
         }
     }
