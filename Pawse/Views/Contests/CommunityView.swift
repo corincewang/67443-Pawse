@@ -255,7 +255,7 @@ struct FriendsTabView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 20) {
+                LazyVStack(spacing: 50) {
                     if feedViewModel.isLoadingFriends || isRefreshing {
                         ProgressView()
                             .padding(.top, 40)
@@ -336,7 +336,7 @@ struct GlobalTabView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 50) {
                 if feedViewModel.isLoadingGlobal {
                     ProgressView()
                         .padding(.top, 40)
@@ -384,7 +384,7 @@ struct ContestTabView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 20) {
+                LazyVStack(spacing: 50) {
                     // Active contest banner
                     if let firstContest = contestViewModel.activeContests.first {
                         ActiveContestBanner(contest: firstContest)
@@ -489,86 +489,125 @@ struct FriendPhotoCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // User info header
-            NavigationLink {
-                OtherUserProfileView(userId: feedItem.owner_id)
-            } label: {
-                HStack(spacing: 12) {
-                    Circle()
-                        .fill(Color.pawseGolden)
-                        .frame(width: 44, height: 44)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 22))
-                                .foregroundColor(.pawseOliveGreen)
-                        )
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(feedItem.pet_name)
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.pawseBrown)
-                        
-                        Text("@\(feedItem.owner_nickname)")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.gray)
-                    }
-                    
-                    Spacer()
-                }
-            }
-            .buttonStyle(.plain)
-            
             // Photo with like button overlay
             GeometryReader { geometry in
                 let imageWidth = geometry.size.width * 0.95
                 let imageHeight = imageWidth  // Square 1:1 ratio
+                let imageLeftOffset = geometry.size.width * 0.025  // 2.5% left margin
                 
-                ZStack {
-                    if let imageData = imageData, let uiImage = UIImage(data: imageData) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: imageWidth, height: imageHeight)
-                            .clipped()
-                            .cornerRadius(12)
-                    } else {
-                        Rectangle()
-                            .fill(Color.pawseGolden.opacity(0.3))
-                            .frame(width: imageWidth, height: imageHeight)
-                            .cornerRadius(12)
-                            .overlay(
-                                ProgressView()
-                            )
-                    }
-                    
-                    // Like button positioned absolutely
-                    HStack(spacing: 6) {
-                        Button(action: {
-                            // Optimistically update UI
-                            isLiked.toggle()
-                            currentVotes += isLiked ? 1 : -1
-                            
-                            Task {
-                                await feedViewModel.toggleVoteOnFriendsPhoto(item: feedItem)
+                VStack(alignment: .leading, spacing: 12) {
+                    // User info header - aligned with photo left edge
+                    NavigationLink {
+                        OtherUserProfileView(userId: feedItem.owner_id)
+                    } label: {
+                        HStack(spacing: 12) {
+                            // Pet profile photo
+                            if !feedItem.pet_profile_photo.isEmpty {
+                                let profileImageURL = AWSManager.shared.getPhotoURL(from: feedItem.pet_profile_photo)
+                                AsyncImage(url: profileImageURL) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                            .frame(width: 48, height: 48)
+                                            .clipShape(Circle())
+                                    case .failure(_), .empty:
+                                        Circle()
+                                            .fill(Color.pawseGolden)
+                                            .frame(width: 48, height: 48)
+                                            .overlay(
+                                                Text(feedItem.pet_name.prefix(1).uppercased())
+                                                    .font(.system(size: 20, weight: .bold))
+                                                    .foregroundColor(.pawseOliveGreen)
+                                            )
+                                    @unknown default:
+                                        Circle()
+                                            .fill(Color.pawseGolden)
+                                            .frame(width: 48, height: 48)
+                                            .overlay(
+                                                Text(feedItem.pet_name.prefix(1).uppercased())
+                                                    .font(.system(size: 20, weight: .bold))
+                                                    .foregroundColor(.pawseOliveGreen)
+                                            )
+                                    }
+                                }
+                            } else {
+                                Circle()
+                                    .fill(Color.pawseGolden)
+                                    .frame(width: 48, height: 48)
+                                    .overlay(
+                                        Text(feedItem.pet_name.prefix(1).uppercased())
+                                            .font(.system(size: 20, weight: .bold))
+                                            .foregroundColor(.pawseOliveGreen)
+                                    )
                             }
-                        }) {
-                            Image(systemName: isLiked ? "heart.fill" : "heart")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundColor(isLiked ? .red : .white)
-                                .shadow(color: .black.opacity(0.3), radius: 2)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(feedItem.pet_name)
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.pawseBrown)
+                                
+                                Text("@\(feedItem.owner_nickname)")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding(.leading, imageLeftOffset)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    // Photo with like button overlay
+                    ZStack {
+                        if let imageData = imageData, let uiImage = UIImage(data: imageData) {
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: imageWidth, height: imageHeight)
+                                .clipped()
+                                .cornerRadius(12)
+                        } else {
+                            Rectangle()
+                                .fill(Color.pawseGolden.opacity(0.3))
+                                .frame(width: imageWidth, height: imageHeight)
+                                .cornerRadius(12)
+                                .overlay(
+                                    ProgressView()
+                                )
                         }
                         
-                        Text("\(currentVotes)")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.white)
-                            .shadow(color: .black.opacity(0.3), radius: 2)
+                        // Like button positioned absolutely
+                        HStack(spacing: 6) {
+                            Button(action: {
+                                // Optimistically update UI
+                                isLiked.toggle()
+                                currentVotes += isLiked ? 1 : -1
+                                
+                                Task {
+                                    await feedViewModel.toggleVoteOnFriendsPhoto(item: feedItem)
+                                }
+                            }) {
+                                Image(systemName: isLiked ? "heart.fill" : "heart")
+                                    .font(.system(size: 24, weight: .bold))
+                                    .foregroundColor(isLiked ? .red : .white)
+                                    .shadow(color: .black.opacity(0.3), radius: 2)
+                            }
+                            
+                            Text("\(currentVotes)")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.white)
+                                .shadow(color: .black.opacity(0.3), radius: 2)
+                        }
+                        .position(x: imageWidth - 30, y: imageHeight - 30)
                     }
-                    .position(x: imageWidth - 30, y: imageHeight - 30)
+                    .frame(width: imageWidth, height: imageHeight)
+                    .padding(.leading, imageLeftOffset)
                 }
-                .frame(width: geometry.size.width, height: imageHeight, alignment: .center)
             }
-            .frame(height: UIScreen.main.bounds.width * 0.95)
         }
+        .frame(height: UIScreen.main.bounds.width * 0.95)
         .task {
             if !feedItem.image_link.isEmpty {
                 do {
@@ -604,50 +643,86 @@ struct ContestPhotoCard: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // User info header
-            NavigationLink {
-                OtherUserProfileView(userId: feedItem.owner_id)
-            } label: {
-                HStack(spacing: 12) {
-                    Circle()
-                        .fill(Color.pawseGolden)
-                        .frame(width: 44, height: 44)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 22))
-                                .foregroundColor(.pawseOliveGreen)
-                        )
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(feedItem.pet_name)
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.pawseBrown)
-                        
-                        HStack(spacing: 4) {
-                            Text("@\(feedItem.owner_nickname)")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.gray)
-                            
-                            Text("•")
-                                .foregroundColor(.gray)
-                            
-                            Text("#\(feedItem.contest_tag)")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.pawseOrange)
-                        }
-                    }
-                    
-                    Spacer()
-                }
-            }
-            .buttonStyle(.plain)
+        // Photo with vote and share buttons overlay
+        GeometryReader { geometry in
+            let imageWidth = geometry.size.width * 0.95
+            let imageHeight = imageWidth  // Square 1:1 ratio
+            let imageLeftOffset = geometry.size.width * 0.025  // 2.5% left margin
             
-                        // Photo with vote and share buttons overlay
-            GeometryReader { geometry in
-                let imageWidth = geometry.size.width * 0.95
-                let imageHeight = imageWidth  // Square 1:1 ratio
+            VStack(alignment: .leading, spacing: 12) {
+                // User info header - aligned with photo left edge
+                NavigationLink {
+                    OtherUserProfileView(userId: feedItem.owner_id)
+                } label: {
+                    HStack(spacing: 12) {
+                        // Pet profile photo
+                        if !feedItem.pet_profile_photo.isEmpty {
+                            let profileImageURL = AWSManager.shared.getPhotoURL(from: feedItem.pet_profile_photo)
+                            AsyncImage(url: profileImageURL) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 48, height: 48)
+                                        .clipShape(Circle())
+                                case .failure(_), .empty:
+                                    Circle()
+                                        .fill(Color.pawseGolden)
+                                        .frame(width: 48, height: 48)
+                                        .overlay(
+                                            Text(feedItem.pet_name.prefix(1).uppercased())
+                                                .font(.system(size: 20, weight: .bold))
+                                                .foregroundColor(.pawseOliveGreen)
+                                        )
+                                @unknown default:
+                                    Circle()
+                                        .fill(Color.pawseGolden)
+                                        .frame(width: 48, height: 48)
+                                        .overlay(
+                                            Text(feedItem.pet_name.prefix(1).uppercased())
+                                                .font(.system(size: 20, weight: .bold))
+                                                .foregroundColor(.pawseOliveGreen)
+                                        )
+                                }
+                            }
+                        } else {
+                            Circle()
+                                .fill(Color.pawseGolden)
+                                .frame(width: 48, height: 48)
+                                .overlay(
+                                    Text(feedItem.pet_name.prefix(1).uppercased())
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundColor(.pawseOliveGreen)
+                                )
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(feedItem.pet_name)
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(.pawseBrown)
+                            
+                            HStack(spacing: 4) {
+                                Text("@\(feedItem.owner_nickname)")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.gray)
+                                
+                                Text("•")
+                                    .foregroundColor(.gray)
+                                
+                                Text("#\(feedItem.contest_tag)")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.pawseOrange)
+                            }
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(.leading, imageLeftOffset)
+                }
+                .buttonStyle(.plain)
                 
+                // Photo with vote and share buttons overlay
                 ZStack {
                     if let imageData = imageData, let uiImage = UIImage(data: imageData) {
                         Image(uiImage: uiImage)
@@ -690,12 +765,13 @@ struct ContestPhotoCard: View {
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.3), radius: 2)
                     }
-                                        .position(x: imageWidth - 30, y: imageHeight - 30)
+                    .position(x: imageWidth - 30, y: imageHeight - 30)
                 }
-                .frame(width: geometry.size.width, height: imageHeight, alignment: .center)
+                .frame(width: imageWidth, height: imageHeight)
+                .padding(.leading, imageLeftOffset)
             }
-            .frame(height: UIScreen.main.bounds.width * 0.95)
         }
+        .frame(height: UIScreen.main.bounds.width * 0.95)
         .task {
             if !feedItem.image_link.isEmpty {
                 do {
@@ -728,53 +804,89 @@ struct GlobalPhotoCard: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // User info header
-            NavigationLink {
-                OtherUserProfileView(userId: feedItem.owner_id)
-            } label: {
-                HStack(spacing: 12) {
-                    Circle()
-                        .fill(Color.pawseGolden)
-                        .frame(width: 44, height: 44)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 22))
-                                .foregroundColor(.pawseOliveGreen)
-                        )
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(feedItem.pet_name)
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.pawseBrown)
+        // Photo with like button overlay
+        GeometryReader { geometry in
+            let imageWidth = geometry.size.width * 0.95
+            let imageHeight = imageWidth  // Square 1:1 ratio
+            let imageLeftOffset = geometry.size.width * 0.025  // 2.5% left margin
+            
+            VStack(alignment: .leading, spacing: 12) {
+                // User info header - aligned with photo left edge
+                NavigationLink {
+                    OtherUserProfileView(userId: feedItem.owner_id)
+                } label: {
+                    HStack(spacing: 12) {
+                        // Pet profile photo
+                        if !feedItem.pet_profile_photo.isEmpty {
+                            let profileImageURL = AWSManager.shared.getPhotoURL(from: feedItem.pet_profile_photo)
+                            AsyncImage(url: profileImageURL) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 48, height: 48)
+                                        .clipShape(Circle())
+                                case .failure(_), .empty:
+                                    Circle()
+                                        .fill(Color.pawseGolden)
+                                        .frame(width: 48, height: 48)
+                                        .overlay(
+                                            Text(feedItem.pet_name.prefix(1).uppercased())
+                                                .font(.system(size: 20, weight: .bold))
+                                                .foregroundColor(.pawseOliveGreen)
+                                        )
+                                @unknown default:
+                                    Circle()
+                                        .fill(Color.pawseGolden)
+                                        .frame(width: 48, height: 48)
+                                        .overlay(
+                                            Text(feedItem.pet_name.prefix(1).uppercased())
+                                                .font(.system(size: 20, weight: .bold))
+                                                .foregroundColor(.pawseOliveGreen)
+                                        )
+                                }
+                            }
+                    } else {
+                        Circle()
+                            .fill(Color.pawseGolden)
+                            .frame(width: 48, height: 48)
+                            .overlay(
+                                Text(feedItem.pet_name.prefix(1).uppercased())
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.pawseOliveGreen)
+                            )
+                    }
                         
-                        HStack(spacing: 4) {
-                            Text("@\(feedItem.owner_nickname)")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.gray)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(feedItem.pet_name)
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(.pawseBrown)
                             
-                            // Show contest tag if this is a contest photo
-                            if let contestTag = feedItem.contest_tag {
-                                Text("•")
+                            HStack(spacing: 4) {
+                                Text("@\(feedItem.owner_nickname)")
+                                    .font(.system(size: 14, weight: .medium))
                                     .foregroundColor(.gray)
                                 
-                                Text("#\(contestTag)")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.pawseOrange)
+                                // Show contest tag if this is a contest photo
+                                if let contestTag = feedItem.contest_tag {
+                                    Text("•")
+                                        .foregroundColor(.gray)
+                                    
+                                    Text("#\(contestTag)")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.pawseOrange)
+                                }
                             }
                         }
+                        
+                        Spacer()
                     }
-                    
-                    Spacer()
+                    .padding(.leading, imageLeftOffset)
                 }
-            }
-            .buttonStyle(.plain)
-            
-            // Photo with like button overlay
-            GeometryReader { geometry in
-                let imageWidth = geometry.size.width * 0.95
-                let imageHeight = imageWidth  // Square 1:1 ratio
+                .buttonStyle(.plain)
                 
+                // Photo with like button overlay
                 ZStack {
                     if let imageData = imageData, let uiImage = UIImage(data: imageData) {
                         Image(uiImage: uiImage)
@@ -815,7 +927,8 @@ struct GlobalPhotoCard: View {
                                         submitted_at: feedItem.posted_at,
                                         contest_tag: feedItem.contest_tag ?? "",
                                         has_voted: !isLiked,
-                                        score: 0
+                                        score: 0,
+                                        pet_profile_photo: feedItem.pet_profile_photo
                                     )
                                     // Get contest ID from the tag - we'll need to fetch it
                                     // For simplicity, we can extract from the existing contest or fetch
@@ -834,7 +947,8 @@ struct GlobalPhotoCard: View {
                                         image_link: feedItem.image_link,
                                         votes: feedItem.votes,
                                         posted_at: feedItem.posted_at,
-                                        has_voted: !isLiked
+                                        has_voted: !isLiked,
+                                        pet_profile_photo: feedItem.pet_profile_photo
                                     )
                                     await feedViewModel.toggleVoteOnFriendsPhoto(item: friendsFeedItem)
                                 }
@@ -853,10 +967,11 @@ struct GlobalPhotoCard: View {
                     }
                     .position(x: imageWidth - 30, y: imageHeight - 30)
                 }
-                .frame(width: geometry.size.width, height: imageHeight, alignment: .center)
+                .frame(width: imageWidth, height: imageHeight)
+                .padding(.leading, imageLeftOffset)
             }
-            .frame(height: UIScreen.main.bounds.width * 0.95)
         }
+        .frame(height: UIScreen.main.bounds.width * 0.95)
         .task {
             if !feedItem.image_link.isEmpty {
                 do {
@@ -871,6 +986,7 @@ struct GlobalPhotoCard: View {
         }
     }
 }
+
 
 // MARK: - Leaderboard View
 

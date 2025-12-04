@@ -11,9 +11,10 @@ struct FriendsFeedItem: Codable, Identifiable {
     let votes: Int
     let posted_at: String
     var has_voted: Bool
+    let pet_profile_photo: String
     
     enum CodingKeys: String, CodingKey {
-        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted
+        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted, pet_profile_photo
     }
 }
 
@@ -30,9 +31,10 @@ struct ContestFeedItem: Codable, Identifiable {
     let contest_tag: String
     var has_voted: Bool
     var score: Double
+    let pet_profile_photo: String
     
     enum CodingKeys: String, CodingKey {
-        case contest_photo_id, pet_name, owner_nickname, owner_id, image_link, votes, submitted_at, contest_tag, has_voted, score
+        case contest_photo_id, pet_name, owner_nickname, owner_id, image_link, votes, submitted_at, contest_tag, has_voted, score, pet_profile_photo
     }
 }
 
@@ -67,9 +69,10 @@ struct GlobalFeedItem: Codable, Identifiable {
     var has_voted: Bool
     let contest_tag: String? // Optional: only present for contest photos
     let is_contest_photo: Bool // Indicates if this is a contest photo
+    let pet_profile_photo: String
     
     enum CodingKeys: String, CodingKey {
-        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted, contest_tag, is_contest_photo
+        case photo_id, pet_name, owner_nickname, owner_id, image_link, votes, posted_at, has_voted, contest_tag, is_contest_photo, pet_profile_photo
     }
 }
 
