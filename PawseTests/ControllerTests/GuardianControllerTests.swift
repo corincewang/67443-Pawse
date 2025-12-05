@@ -15,10 +15,9 @@ struct GuardianControllerTests {
     let testUserId = "1IU4XCi1oNewCD7HEULziOLjExg1"
     let testPetId = "test_pet_123"
     let testGuardianId = "test_guardian_123"
-    
+
     @Test("Request Guardian - should create pending guardian request")
     func testRequestGuardian() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
         let guardianRef = "users/\(testGuardianId)"
         let ownerRef = "users/\(testUserId)"
         
@@ -45,7 +44,6 @@ struct GuardianControllerTests {
     
     @Test("Fetch Guardians - should retrieve all guardians for pet")
     func testFetchGuardians() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
         let guardianRef = "users/\(testGuardianId)_\(UUID().uuidString.prefix(8))"
         let ownerRef = "users/\(testUserId)"
         
@@ -71,7 +69,6 @@ struct GuardianControllerTests {
     
     @Test("Approve Guardian - should change status to approved")
     func testApproveGuardian() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
         let guardianRef = "users/\(testGuardianId)_\(UUID().uuidString.prefix(8))"
         let ownerRef = "users/\(testUserId)"
         
@@ -108,7 +105,6 @@ struct GuardianControllerTests {
     
     @Test("Reject Guardian - should change status to rejected")
     func testRejectGuardian() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
         let guardianRef = "users/\(testGuardianId)_\(UUID().uuidString.prefix(8))"
         let ownerRef = "users/\(testUserId)"
         
@@ -145,7 +141,6 @@ struct GuardianControllerTests {
     
     @Test("Fetch Pending Invitations - should retrieve pending invitations for user")
     func testFetchPendingInvitations() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
         let guardianRef = "users/\(testUserId)"
         let ownerRef = "users/owner_\(UUID().uuidString.prefix(8))"
         
@@ -171,7 +166,6 @@ struct GuardianControllerTests {
     
     @Test("Fetch Pets For Guardian - should retrieve pets where user is approved guardian")
     func testFetchPetsForGuardian() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
         let guardianRef = "users/\(testUserId)"
         let ownerRef = "users/owner_\(UUID().uuidString.prefix(8))"
         
@@ -207,7 +201,6 @@ struct GuardianControllerTests {
     
     @Test("Fetch Guardians - should return empty array for pet with no guardians")
     func testFetchGuardiansEmpty() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
         let noPetId = "pet_with_no_guardians_\(UUID().uuidString)"
         
         // Fetch guardians

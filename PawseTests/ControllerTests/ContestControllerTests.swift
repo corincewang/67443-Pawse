@@ -13,10 +13,8 @@ import Foundation
 struct ContestControllerTests {
     let contestController = ContestController()
     let testPhotoId = "test_photo_123"
-    
     @Test("Create Contest - should successfully create a contest")
     func testCreateContest() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
         let testPrompt = "Test Contest - \(UUID().uuidString.prefix(8))"
         
         // Create contest
@@ -45,7 +43,6 @@ struct ContestControllerTests {
     
     @Test("Fetch Active Contests - should retrieve only active contests")
     func testFetchActiveContests() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
         // Create a test contest
         let testPrompt = "Active Contest Test - \(UUID().uuidString.prefix(8))"
         let contestId = try await contestController.createContest(prompt: testPrompt, durationDays: 7)
@@ -82,7 +79,7 @@ struct ContestControllerTests {
     
     @Test("Fetch Current Contest - should return the first active contest")
     func testFetchCurrentContest() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
+
         // Create a test contest
         let testPrompt = "Current Contest Test - \(UUID().uuidString.prefix(8))"
         let contestId = try await contestController.createContest(prompt: testPrompt, durationDays: 7)
@@ -105,8 +102,7 @@ struct ContestControllerTests {
     
     @Test("Join Contest - should create contest photo entry")
     func testJoinContest() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
-        // Create a test contest first
+
         let testPrompt = "Join Contest Test - \(UUID().uuidString.prefix(8))"
         let contestId = try await contestController.createContest(prompt: testPrompt, durationDays: 7)
         
@@ -139,7 +135,7 @@ struct ContestControllerTests {
     
     @Test("Fetch Leaderboard - should return contest photos sorted by votes")
     func testFetchLeaderboard() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
+
         // Get or create an active contest
         var currentContest = try await contestController.fetchCurrentContest()
         var contestId: String?
@@ -174,7 +170,7 @@ struct ContestControllerTests {
     
     @Test("Create Contest From Random Theme - should create contest with random theme")
     func testCreateContestFromRandomTheme() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
+
         // Create contest from random theme
         let contestId = try await contestController.createContestFromRandomTheme(durationDays: 7)
         
@@ -199,8 +195,6 @@ struct ContestControllerTests {
     
     @Test("Ensure Active Contest - should maintain exactly one active contest")
     func testEnsureActiveContest() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
-        // Deactivate all contests first
         let db = FirebaseManager.shared.db
         let allContestsSnap = try await db.collection(Collection.contests).getDocuments()
         for doc in allContestsSnap.documents {
@@ -224,7 +218,6 @@ struct ContestControllerTests {
     
     @Test("Rotate Expired Contests - should deactivate expired contests")
     func testRotateExpiredContests() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
         // Create an expired contest (with negative duration)
         let db = FirebaseManager.shared.db
         let expiredContest = Contest(

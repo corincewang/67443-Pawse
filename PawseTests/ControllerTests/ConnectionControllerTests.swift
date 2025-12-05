@@ -12,21 +12,22 @@ import Foundation
 
 struct ConnectionControllerTests {
     let connectionController = ConnectionController()
-    let testUserId = "1IU4XCi1oNewCD7HEULziOLjExg1"
+    // Use the logged-in user's ID dynamically instead of hardcoded
+    var testUserId: String {
+        FirebaseManager.shared.auth.currentUser?.uid ?? "1IU4XCi1oNewCD7HEULziOLjExg1"
+    }
     let testFriendId = "ysN3KMawXbNZ9IzRcgMoBeniH5C3"
     
     @Test("Send Friend Request - should create pending connection")
     func testSendFriendRequest() async throws {
-        // Ensure test user is signed in
-        try await TestHelper.ensureTestUserSignedIn()
         
         let friendRef = "users/\(testFriendId)"
         
         // Send friend request
         try await connectionController.sendFriendRequest(to: testFriendId, ref2: friendRef)
         
-        // Wait a bit for Firestore
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        // Wait for Firestore to index (increased for concurrent test execution)
+        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
         
         // Fetch connections to verify
         let connections = try await connectionController.fetchConnections(for: testUserId)
@@ -47,15 +48,13 @@ struct ConnectionControllerTests {
     
     @Test("Fetch Connections - should retrieve all connections for user")
     func testFetchConnections() async throws {
-        // Ensure test user is signed in
-        try await TestHelper.ensureTestUserSignedIn()
         
         // Create a test connection with the predefined test friend
         let friendRef = "users/\(testFriendId)"
         try await connectionController.sendFriendRequest(to: testFriendId, ref2: friendRef)
         
-        // Wait a bit for Firestore
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        // Wait for Firestore to index (increased for concurrent test execution)
+        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
         
         // Fetch connections
         let connections = try await connectionController.fetchConnections(for: testUserId)
@@ -78,15 +77,13 @@ struct ConnectionControllerTests {
     
     @Test("Remove Friend - should delete connection")
     func testRemoveFriend() async throws {
-        // Ensure test user is signed in
-        try await TestHelper.ensureTestUserSignedIn()
         
         // Create a test connection with the predefined test friend
         let friendRef = "users/\(testFriendId)"
         try await connectionController.sendFriendRequest(to: testFriendId, ref2: friendRef)
         
-        // Wait a bit for Firestore
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        // Wait for Firestore to index (increased for concurrent test execution)
+        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
         
         // Get the connection ID
         let connections = try await connectionController.fetchConnections(for: testUserId)
@@ -101,8 +98,8 @@ struct ConnectionControllerTests {
         // Remove the friend
         try await connectionController.removeFriend(connectionId: connectionId)
         
-        // Wait a bit for Firestore
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        // Wait for Firestore to delete (increased for concurrent test execution)
+        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
         
         // Verify connection was removed
         let updatedConnections = try await connectionController.fetchConnections(for: testUserId)
@@ -115,8 +112,6 @@ struct ConnectionControllerTests {
     
     @Test("Fetch Connections - should return empty array for user with no connections")
     func testFetchConnectionsEmpty() async throws {
-        // Ensure test user is signed in
-        try await TestHelper.ensureTestUserSignedIn()
         
         let noConnectionsUserId = "user_with_no_connections_\(UUID().uuidString)"
         

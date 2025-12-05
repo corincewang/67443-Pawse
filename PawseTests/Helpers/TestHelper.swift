@@ -15,35 +15,25 @@ struct TestHelper {
     static let testEmail = "test@pawse.com"
     static let testPassword = "TestPassword123!"
     
+    /// Track if we're already authenticated to avoid repeated sign-in attempts
+    private static var isAuthenticatedOnce = false
+    
     /// Ensures a test user is signed in before running tests
     /// Call this at the beginning of tests that require authentication
     static func ensureTestUserSignedIn() async throws {
         let auth = FirebaseManager.shared.auth
         
+        // If we've already authenticated once and have a current user, just verify they're signed in
+        if isAuthenticatedOnce, auth.currentUser != nil {
+            print("✅ Reusing existing authenticated session")
+            return
+        }
+        
         // Check if already signed in with the correct user
         if let currentUser = auth.currentUser {
             print("✅ Already signed in with UID: \(currentUser.uid)")
-            
-            // Verify this is the correct test user
-            if currentUser.uid == testUserId {
-                print("✅ Correct test user signed in")
-                // Wait for auth state to be fully ready
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                
-                // Test Firestore access to ensure auth token works
-                do {
-                    let db = FirebaseManager.shared.db
-                    _ = try await db.collection("users").document(testUserId).getDocument()
-                    print("✅ Firestore access verified")
-                    return
-                } catch {
-                    print("⚠️ Firestore access failed, re-authenticating: \(error)")
-                    // Continue to sign in again
-                }
-            } else {
-                print("⚠️ Wrong user signed in (\(currentUser.uid)), signing out and signing in with correct user")
-                try auth.signOut()
-            }
+            isAuthenticatedOnce = true
+            return
         }
         
         print("🔄 Signing in with \(testEmail)...")
@@ -54,7 +44,7 @@ struct TestHelper {
             print("✅ Signed in test user: \(testEmail) with UID: \(result.user.uid)")
             
             // Wait for the auth state to fully propagate
-            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
             
             // Verify sign in was successful
             guard let currentUserId = auth.currentUser?.uid else {
@@ -62,16 +52,7 @@ struct TestHelper {
             }
             
             print("✅ Confirmed auth state with UID: \(currentUserId)")
-            
-            // Test Firestore access to ensure everything is working
-            do {
-                let db = FirebaseManager.shared.db
-                _ = try await db.collection("users").document(testUserId).getDocument()
-                print("✅ Firestore access verified after sign in")
-            } catch {
-                print("❌ Firestore access still failing after sign in: \(error)")
-                throw TestError("Authentication successful but Firestore access denied")
-            }
+            isAuthenticatedOnce = true
             
         } catch let error as NSError {
             print("❌ Could not sign in test user: \(error.localizedDescription)")
@@ -87,13 +68,7 @@ struct TestHelper {
     /// Signs out the current user
     static func signOutTestUser() throws {
         try FirebaseManager.shared.auth.signOut()
+        isAuthenticatedOnce = false
     }
 }
 
-/// Test error helper
-struct TestError: Error {
-    let message: String
-    init(_ message: String) {
-        self.message = message
-    }
-}

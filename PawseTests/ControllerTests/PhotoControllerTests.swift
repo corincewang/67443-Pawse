@@ -12,7 +12,7 @@ import Foundation
 
 struct PhotoControllerTests {
     let photoController = PhotoController()
-    let testUserId = "1IU4XCi1oNewCD7HEULziOLjExg1"
+    let testUserId = "xtYAlZO1IQOvhiUEuI2CHcgZANz1"
     let testPetId = "test_pet_123"
     
     // Helper function to create a test photo
@@ -29,7 +29,6 @@ struct PhotoControllerTests {
     
     @Test("Save Photo Record - should successfully save a photo to Firestore")
     func testSavePhotoRecord() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
         let testPhoto = createTestPhoto()
         
         // Save photo record
@@ -52,27 +51,79 @@ struct PhotoControllerTests {
         }
     }
     
-    @Test("Fetch Photos - should retrieve photos for a pet")
+    @Test("Fetch Photos - should retrieve all photos for a pet")
     func testFetchPhotos() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
+        // Create and save a test photo
+        let testPhoto = createTestPhoto()
+        try await photoController.savePhotoRecord(photo: testPhoto)
         
-        // Simply test that fetchPhotos doesn't throw an error
+        // Wait a bit for Firestore to index
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        
+        // Fetch photos
         let photos = try await photoController.fetchPhotos(for: testPetId)
         
-        // Verify the method completed successfully
-        #expect(photos.count >= 0, "Should return an array of photos")
+        // Verify we got at least our test photo
+        let foundPhoto = photos.first { photo in
+            photo.uploaded_by == testPhoto.uploaded_by &&
+            photo.pet == testPhoto.pet
+        }
+        
+        #expect(foundPhoto != nil, "Should find the created photo")
+        #expect(foundPhoto?.pet == "pets/\(testPetId)", "Photo pet should match")
+        
+        // Verify photos are sorted by uploaded_at descending
+        if photos.count > 1 {
+            for i in 0..<photos.count - 1 {
+                #expect(photos[i].uploaded_at >= photos[i + 1].uploaded_at, "Photos should be sorted by date descending")
+            }
+        }
+        
+        // Cleanup
+        if let photoId = foundPhoto?.id {
+            try? await photoController.deletePhoto(photoId: photoId)
+        }
     }
     
     
     
-
+    @Test("Delete Photo - should successfully delete a photo")
+    func testDeletePhoto() async throws {
+        // Create and save a test photo
+        let testPhoto = createTestPhoto()
+        try await photoController.savePhotoRecord(photo: testPhoto)
+        
+        // Wait a bit for Firestore to index
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        
+        // Get the photo ID
+        let photos = try await photoController.fetchPhotos(for: testPetId)
+        let savedPhoto = photos.first { photo in
+            photo.uploaded_by == testPhoto.uploaded_by &&
+            photo.pet == testPhoto.pet
+        }
+        
+        guard let photoId = savedPhoto?.id else {
+            throw TestError("Failed to get photo ID after creation")
+        }
+        
+        // Delete the photo
+        try await photoController.deletePhoto(photoId: photoId)
+        
+        // Verify deletion by trying to fetch it (should throw error)
+        do {
+            _ = try await photoController.fetchPhoto(photoId: photoId)
+            #expect(Bool(false), "Photo should not exist after deletion")
+        } catch {
+            // Expected: photo should not be found
+            #expect(Bool(true), "Photo deletion successful")
+        }
+    }
     
     @Test("Fetch Photos - should return empty array when pet has no photos")
     func testFetchPhotosEmpty() async throws {
-        try await TestHelper.ensureTestUserSignedIn()
         // Fetch photos for a pet that doesn't exist or has no photos
         let photos = try await photoController.fetchPhotos(for: "non_existent_pet")
         #expect(photos.isEmpty, "Should return empty array for pet with no photos")
     }
 }
-

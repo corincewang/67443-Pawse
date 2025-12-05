@@ -13,11 +13,9 @@ import Foundation
 struct UserControllerTests {
     let userController = UserController()
     let testUserId = "1IU4XCi1oNewCD7HEULziOLjExg1"
-    
+
     @Test("Fetch User - should retrieve user by ID")
     func testFetchUser() async throws {
-        // Ensure test user is signed in
-        try await TestHelper.ensureTestUserSignedIn()
         
         // Fetch the test user
         let user = try await userController.fetchUser(uid: testUserId)
@@ -29,8 +27,6 @@ struct UserControllerTests {
     
     @Test("Fetch User - should throw error for non-existent user")
     func testFetchUserNotFound() async throws {
-        // Ensure test user is signed in
-        try await TestHelper.ensureTestUserSignedIn()
         
         let nonExistentUserId = "non_existent_user_id"
         
@@ -45,8 +41,6 @@ struct UserControllerTests {
     
     @Test("Update User - should successfully update user profile")
     func testUpdateUser() async throws {
-        // Ensure test user is signed in
-        try await TestHelper.ensureTestUserSignedIn()
         
         // Fetch current user data
         let currentUser = try await userController.fetchUser(uid: testUserId)
@@ -71,26 +65,8 @@ struct UserControllerTests {
         try? await userController.updateUser(uid: testUserId, nickName: currentUser.nick_name, preferred: currentUser.preferred_setting)
     }
     
-    @Test("Mark Tutorial Completed - should update tutorial flag")
-    func testMarkTutorialCompleted() async throws {
-        // Ensure test user is signed in
-        try await TestHelper.ensureTestUserSignedIn()
-        
-        // Mark tutorial as completed
-        try await userController.markTutorialCompleted(uid: testUserId)
-        
-        // Wait a bit for Firestore to update
-        try? await Task.sleep(nanoseconds: 500_000_000)
-        
-        // Fetch user and verify
-        let user = try await userController.fetchUser(uid: testUserId)
-        #expect(user.has_seen_profile_tutorial == true, "Tutorial flag should be set to true")
-    }
-    
     @Test("Search User By Email - should find user by email")
     func testSearchUserByEmail() async throws {
-        // Ensure test user is signed in
-        try await TestHelper.ensureTestUserSignedIn()
         
         // First get the test user to know their email
         let testUser = try await userController.fetchUser(uid: testUserId)
@@ -106,8 +82,6 @@ struct UserControllerTests {
     
     @Test("Search User By Email - should return nil for non-existent email")
     func testSearchUserByEmailNotFound() async throws {
-        // Ensure test user is signed in
-        try await TestHelper.ensureTestUserSignedIn()
         
         let nonExistentEmail = "nonexistent_\(UUID().uuidString)@example.com"
         

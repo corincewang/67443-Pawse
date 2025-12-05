@@ -14,7 +14,7 @@ struct NotificationControllerTests {
     let notificationController = NotificationController()
     let testUserId = "1IU4XCi1oNewCD7HEULziOLjExg1"
     let testSenderId = "test_sender_123"
-    
+
     @Test("Create Notification - should successfully create a notification")
     func testCreateNotification() async throws {
         try await TestHelper.ensureTestUserSignedIn()
