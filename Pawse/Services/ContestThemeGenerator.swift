@@ -84,6 +84,17 @@ class ContestThemeGenerator {
     
     /// Get multiple unique random themes
     static func getRandomThemes(count: Int) -> [String] {
+        // Handle edge cases: negative or zero count
+        guard count > 0 else {
+            return []
+        }
+        
+        // If count is greater than or equal to total themes, return all themes shuffled
+        if count >= themes.count {
+            return themes.shuffled()
+        }
+        
+        // Otherwise, return the requested count of shuffled themes
         return Array(themes.shuffled().prefix(count))
     }
 }
