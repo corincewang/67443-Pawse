@@ -127,4 +127,3 @@ struct PhotoControllerTests {
         #expect(photos.isEmpty, "Should return empty array for pet with no photos")
     }
 }
-
