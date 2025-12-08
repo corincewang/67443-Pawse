@@ -401,15 +401,16 @@ struct PhotoGalleryView: View {
                     )
                 }
                 
-                if showDelete {
-                    Button(action: onDelete) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(.red)
-                            .background(Color.white.clipShape(Circle()))
-                    }
-                    .offset(x: 8, y: -8)
-                }
+               if showDelete {
+                   Button(action: onDelete) {
+                       Image(systemName: "xmark.circle.fill")
+                           .font(.system(size: 20))
+                           // Use a slightly transparent gray for the icon
+                           .foregroundColor(Color.gray.opacity(0.5))
+                   }
+                   .contentShape(Circle())
+                   .offset(x: 8, y: -8)
+               }
             }
             .task {
                 // Load image only if not already cached

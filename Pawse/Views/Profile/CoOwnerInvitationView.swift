@@ -29,7 +29,7 @@ struct GuardianInvitationView: View {
             VStack(spacing: 0) {
                 // Title
                 HStack {
-                    Text("Pets Gallery")
+                    Text("Pet Galleries")
                         .font(.system(size: 46, weight: .bold))
                         .foregroundColor(.pawseBrown)
                         .padding(.leading, 30)

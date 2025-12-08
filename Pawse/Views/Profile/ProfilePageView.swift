@@ -149,7 +149,7 @@ struct ProfilePageView: View {
                 .padding(.bottom, 40)
                 
                 // Pets Gallery Title
-                Text("Pets Gallery")
+                Text("Pet Galleries")
                     .font(.system(size: 48, weight: .bold))
                     .foregroundColor(.pawseBrown)
                     .frame(maxWidth: .infinity, alignment: .leading)
