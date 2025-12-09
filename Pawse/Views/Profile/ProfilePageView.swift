@@ -398,6 +398,15 @@ struct ProfilePageView: View {
                 await petViewModel.fetchGuardianPets()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .petCreated)) { _ in
+            // Refresh pet list when a pet is created (critical for tutorial flow)
+            Task {
+                await petViewModel.fetchUserPets()
+                await petViewModel.fetchGuardianPets()
+                // Ensure the new pet's profile photo is loaded immediately
+                await ensurePetProfilePhotosLoaded()
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToPetGallery)) { notification in
             // Navigate to specific pet's gallery after photo upload
             if let userInfo = notification.userInfo,
@@ -1244,7 +1253,7 @@ private struct TutorialOverlayView: View {
     let onTap: () -> Void
     let onExit: () -> Void
     
-    var body: some View {
+     var body: some View {
         GeometryReader { proxy in
             let overlayFrame = proxy.frame(in: .global)
             let messageTop = localPosition(

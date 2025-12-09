@@ -624,8 +624,13 @@ struct PetFormView: View {
             }
         }
         
-        if petViewModel.errorMessage == nil && showSuccess {
-            showingSuccess = true
+        if petViewModel.errorMessage == nil {
+            // Post notification to trigger profile refresh
+            NotificationCenter.default.post(name: .petCreated, object: nil)
+            
+            if showSuccess {
+                showingSuccess = true
+            }
         }
         
         return petId
