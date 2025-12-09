@@ -6,6 +6,7 @@ struct FriendPhotoCard: View {
     @State private var displayedImage: UIImage?
     @State private var isLiked: Bool
     @State private var currentVotes: Int
+    @State private var isProcessingVote = false // Prevent double-tap race condition
     
     init(feedItem: FriendsFeedItem, feedViewModel: FeedViewModel) {
         self.feedItem = feedItem
@@ -122,14 +123,19 @@ struct FriendPhotoCard: View {
                         // Like button positioned absolutely
                         HStack(spacing: 6) {
                             Button(action: {
+                                // Prevent double-tap race condition
+                                guard !isProcessingVote else { return }
+                                isProcessingVote = true
+                                
                                 // Store original state before optimistic update
-                            let wasLiked = isLiked
+                                let wasLiked = isLiked
                             
                             // Optimistically update UI
                                 isLiked.toggle()
                                 currentVotes += isLiked ? 1 : -1
                                 
                                 Task {
+                                    defer { isProcessingVote = false }
                                     if feedItem.is_contest_photo, let contestPhotoId = feedItem.contest_photo_id {
                                     // For contest photos, need to get contest ID and call contest vote method
                                     let contestController = ContestController()
@@ -212,6 +218,7 @@ struct ContestPhotoCard: View {
     @State private var showShare = false
     @State private var currentVotes: Int
     @State private var isLiked: Bool
+    @State private var isProcessingVote = false // Prevent double-tap race condition
     
     init(feedItem: ContestFeedItem, feedViewModel: FeedViewModel, contestViewModel: ContestViewModel) {
         self.feedItem = feedItem
@@ -325,11 +332,16 @@ struct ContestPhotoCard: View {
                     // Like button positioned absolutely
                     HStack(spacing: 6) {
                         Button(action: {
+                            // Prevent double-tap race condition
+                            guard !isProcessingVote else { return }
+                            isProcessingVote = true
+                            
                             // Optimistically update UI
                             isLiked.toggle()
                             currentVotes += isLiked ? 1 : -1
                             
                             Task {
+                                defer { isProcessingVote = false }
                                 if let contestId = contestViewModel.activeContests.first?.id {
                                     await feedViewModel.toggleVoteOnContestPhoto(item: feedItem, contestId: contestId)
                                 }
@@ -387,6 +399,7 @@ struct GlobalPhotoCard: View {
     @State private var displayedImage: UIImage?
     @State private var isLiked: Bool
     @State private var currentVotes: Int
+    @State private var isProcessingVote = false // Prevent double-tap race condition
     
     init(feedItem: GlobalFeedItem, feedViewModel: FeedViewModel) {
         self.feedItem = feedItem
@@ -561,6 +574,10 @@ struct GlobalPhotoCard: View {
     }
     
     private func handleLikeToggle() {
+        // Prevent double-tap race condition
+        guard !isProcessingVote else { return }
+        isProcessingVote = true
+        
         // Store original state before optimistic update
         let wasLiked = isLiked
         
@@ -569,6 +586,7 @@ struct GlobalPhotoCard: View {
         currentVotes += isLiked ? 1 : -1
         
         Task {
+            defer { isProcessingVote = false }
             // Use appropriate vote method based on photo type
             if feedItem.is_contest_photo {
                 // For contest photos, need to fetch contest ID
