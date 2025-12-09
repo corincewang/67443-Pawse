@@ -50,17 +50,16 @@ final class ImageCache {
     /// - Parameter key: S3 key or URL string
     /// - Returns: Cached UIImage if available
     func image(forKey key: String) -> UIImage? {
-        lock.lock()
-        defer { lock.unlock() }
-        
-        let nsKey = key as NSString
-        let image = cache.object(forKey: nsKey)
-        
-        if image != nil {
-            print("✅ Cache HIT: \(key)")
+        lock.withLock {
+            let nsKey = key as NSString
+            let image = cache.object(forKey: nsKey)
+
+            if image != nil {
+                print("✅ Cache HIT: \(key)")
+            }
+
+            return image
         }
-        
-        return image
     }
     
     /// Load image from cache or download if not cached (with deduplication)
@@ -73,9 +72,8 @@ final class ImageCache {
         }
         
         // Check if already downloading
-        lock.lock()
-        if let existingTask = inFlightTasks[key] {
-            lock.unlock()
+        let existingTask = lock.withLock { inFlightTasks[key] }
+        if let existingTask {
             return await existingTask.value
         }
         
@@ -93,14 +91,15 @@ final class ImageCache {
             }
         }
         
-        inFlightTasks[key] = task
-        lock.unlock()
-        
+        lock.withLock {
+            inFlightTasks[key] = task
+        }
+
         let result = await task.value
-        
-        lock.lock()
-        inFlightTasks.removeValue(forKey: key)
-        lock.unlock()
+
+        lock.withLock {
+            inFlightTasks.removeValue(forKey: key)
+        }
         
         return result
     }
@@ -110,39 +109,36 @@ final class ImageCache {
     ///   - image: UIImage to cache
     ///   - key: S3 key or URL string
     func setImage(_ image: UIImage, forKey key: String) {
-        lock.lock()
-        defer { lock.unlock() }
-        
-        let nsKey = key as NSString
-        
-        // Resize image to reasonable display size before caching
-        let resizedImage = resizeForCache(image)
-        
-        // Calculate cost based on image size in bytes
-        let cost = calculateImageCost(resizedImage)
-        cache.setObject(resizedImage, forKey: nsKey, cost: cost)
-        
-        print("💾 Cache SET: \(key) (\(formatBytes(cost)))")
+        lock.withLock {
+            let nsKey = key as NSString
+            
+            // Resize image to reasonable display size before caching
+            let resizedImage = resizeForCache(image)
+            
+            // Calculate cost based on image size in bytes
+            let cost = calculateImageCost(resizedImage)
+            cache.setObject(resizedImage, forKey: nsKey, cost: cost)
+            
+            print("💾 Cache SET: \(key) (\(formatBytes(cost)))")
+        }
     }
     
     /// Remove specific image from cache
     /// - Parameter key: S3 key or URL string
     func removeImage(forKey key: String) {
-        lock.lock()
-        defer { lock.unlock() }
-        
-        let nsKey = key as NSString
-        cache.removeObject(forKey: nsKey)
-        print("🗑️ Cache REMOVE: \(key)")
+        lock.withLock {
+            let nsKey = key as NSString
+            cache.removeObject(forKey: nsKey)
+            print("🗑️ Cache REMOVE: \(key)")
+        }
     }
     
     /// Clear entire cache
     @objc func clearCache() {
-        lock.lock()
-        defer { lock.unlock() }
-        
-        cache.removeAllObjects()
-        inFlightTasks.removeAll()
+        lock.withLock {
+            cache.removeAllObjects()
+            inFlightTasks.removeAll()
+        }
         print("🧹 Cache CLEARED - Memory warning or manual clear")
     }
     
@@ -240,13 +236,10 @@ extension ImageCache {
 
     private func prefetchImageIfNeeded(forKey key: String) async {
         // Check if already cached or in-flight
-        lock.lock()
-        let existingImage = cache.object(forKey: key as NSString)
-        let existingTask = inFlightTasks[key]
-        lock.unlock()
+        let (existingImage, existingTask) = lock.withLock { (cache.object(forKey: key as NSString), inFlightTasks[key]) }
         
         if existingImage != nil { return }
-        if let existingTask = existingTask {
+        if let existingTask {
             _ = await existingTask.value
             return
         }
@@ -266,15 +259,15 @@ extension ImageCache {
             }
         }
         
-        lock.lock()
-        inFlightTasks[key] = task
-        lock.unlock()
+        lock.withLock {
+            inFlightTasks[key] = task
+        }
         
         _ = await task.value
         
-        lock.lock()
-        inFlightTasks.removeValue(forKey: key)
-        lock.unlock()
+        lock.withLock {
+            inFlightTasks.removeValue(forKey: key)
+        }
     }
     
     /// Remove multiple images from cache
