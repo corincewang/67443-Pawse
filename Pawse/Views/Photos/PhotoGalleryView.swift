@@ -235,6 +235,10 @@ struct PhotoGalleryView: View {
             // Dismiss to go back to profile (useful for tutorial flow)
             dismiss()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .petDeleted)) { _ in
+            // Dismiss when pet is deleted to avoid showing gallery of deleted pet
+            dismiss()
+        }
         .navigationDestination(item: $petForEdit) { pet in
             PetFormView(pet: pet)
         }
@@ -244,14 +248,23 @@ struct PhotoGalleryView: View {
             }
         }
         .task {
-            // Load everything in parallel without blocking UI
+            // Load current pet first to check if it exists
+            await loadCurrentPet()
+            
+            // Check if pet still exists (might have been deleted)
+            if currentPet == nil {
+                print("⚠️ Pet not found, dismissing gallery")
+                dismiss()
+                return
+            }
+            
+            // Load everything else in parallel without blocking UI
             async let contestPromptsTask = loadContestPrompts()
             async let photosTask = photoViewModel.fetchPhotos(for: petId)
-            async let petTask = loadCurrentPet()
             async let contestTask = contestViewModel.fetchCurrentContest()
             
             // Wait for all tasks to complete
-            _ = await (contestPromptsTask, photosTask, petTask, contestTask)
+            _ = await (contestPromptsTask, photosTask, contestTask)
         }
         .alert("Delete Photo", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}

@@ -21,6 +21,7 @@ struct UploadPhotoView: View {
     @State private var selectedPrivacy: PhotoPrivacy
     @State private var selectedPetId: String?
     @State private var postToContest = false
+    @State private var isProcessing = false // Prevent double-tap on upload button
     
     enum UploadSource {
         case profile
@@ -269,7 +270,7 @@ struct UploadPhotoView: View {
     private var uploadButton: some View {
         Button(action: uploadAction) {
             HStack(spacing: 15) {
-                if photoViewModel.isUploading {
+                if photoViewModel.isUploading || isProcessing {
                     ProgressView()
                         .tint(.white)
                 } else {
@@ -285,15 +286,16 @@ struct UploadPhotoView: View {
             .frame(width: 343, height: 70)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(selectedImage != nil ? Color.pawseOrange : Color.gray)
+                    .fill(selectedImage != nil && !isProcessing ? Color.pawseOrange : Color.gray)
             )
         }
-        .disabled(photoViewModel.isUploading || selectedImage == nil)
+        .disabled(photoViewModel.isUploading || selectedImage == nil || isProcessing)
         .padding(.bottom, 20)
     }
     
     private func uploadAction() {
         guard let selectedImage = selectedImage else { return }
+        guard !isProcessing else { return }
         
         // Get the pet ID (either from init or from selection)
         let uploadPetId = petId ?? selectedPetId
@@ -302,7 +304,9 @@ struct UploadPhotoView: View {
             return
         }
         
+        isProcessing = true
         Task {
+            defer { isProcessing = false }
             // Use AWSManager to process image for optimal upload
             if let imageData = AWSManager.shared.processImageForUpload(selectedImage) {
                 print("📸 Uploading photo with privacy: \(selectedPrivacy.rawValue)")

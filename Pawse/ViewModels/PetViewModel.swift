@@ -66,6 +66,11 @@ class PetViewModel: ObservableObject {
         
         do {
             try await petController.createPet(newPet)
+            // Clear the new profile photo from cache to ensure fresh load
+            if !profilePhoto.isEmpty {
+                ImageCache.shared.removeImage(forKey: profilePhoto)
+                print("🗑️ Cleared new pet's profile photo from cache to force fresh load: \(profilePhoto)")
+            }
             await fetchUserPets()
         } catch {
             errorMessage = error.localizedDescription
@@ -76,6 +81,15 @@ class PetViewModel: ObservableObject {
         guard let uid = authController.currentUID() else {
             errorMessage = "No user logged in"
             return
+        }
+        
+        // Get old pet data to clear old profile photo from cache
+        if let oldPet = pets.first(where: { $0.id == petId }) {
+            if !oldPet.profile_photo.isEmpty && oldPet.profile_photo != profilePhoto {
+                // Remove old profile photo from cache
+                ImageCache.shared.removeImage(forKey: oldPet.profile_photo)
+                print("🗑️ Cleared old profile photo from cache: \(oldPet.profile_photo)")
+            }
         }
         
         // Create Pet object with id using var initialization
@@ -91,6 +105,11 @@ class PetViewModel: ObservableObject {
         
         do {
             try await petController.updatePet(updatedPet)
+            // Clear the new profile photo from cache too to force reload
+            if !profilePhoto.isEmpty {
+                ImageCache.shared.removeImage(forKey: profilePhoto)
+                print("🗑️ Cleared updated profile photo from cache to force refresh: \(profilePhoto)")
+            }
             await fetchUserPets()
         } catch {
             errorMessage = error.localizedDescription
@@ -98,6 +117,14 @@ class PetViewModel: ObservableObject {
     }
     
     func deletePet(petId: String) async {
+        // Get pet data before deletion to clear its profile photo from cache
+        if let petToDelete = pets.first(where: { $0.id == petId }) {
+            if !petToDelete.profile_photo.isEmpty {
+                ImageCache.shared.removeImage(forKey: petToDelete.profile_photo)
+                print("🗑️ Cleared deleted pet's profile photo from cache: \(petToDelete.profile_photo)")
+            }
+        }
+        
         do {
             try await petController.deletePet(petId: petId)
             await fetchUserPets()

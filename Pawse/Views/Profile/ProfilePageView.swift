@@ -182,6 +182,7 @@ struct ProfilePageView: View {
                                 NavigationLink(destination: PhotoGalleryView(petId: pet.id ?? "", petName: pet.name)) {
                                     PetCardView(pet: pet)
                                 }
+                                .id("\(pet.id ?? pet.name)_\(pet.profile_photo)") // Force refresh on pet changes
                                 .background(
                                     Group {
                                         if isFirstPet(pet) {
@@ -327,11 +328,9 @@ struct ProfilePageView: View {
                 NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
             }
             
-            // Fetch pet data only if not already loaded
-            if petViewModel.allPets.isEmpty {
-                await petViewModel.fetchUserPets()
-                await petViewModel.fetchGuardianPets()
-            }
+            // Always fetch pet data to ensure it's up-to-date (catches deletions, additions, etc.)
+            await petViewModel.fetchUserPets()
+            await petViewModel.fetchGuardianPets()
             
             // Always check for new invitations (they can arrive anytime)
             await guardianViewModel.fetchPendingInvitationsForCurrentUser()
@@ -374,6 +373,13 @@ struct ProfilePageView: View {
         .onReceive(NotificationCenter.default.publisher(for: .userDidSignOut)) { _ in
             // Clear pet name immediately when user logs out
             selectedPetNameStorage = ""
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .petDeleted)) { _ in
+            // Refresh pet list when a pet is deleted
+            Task {
+                await petViewModel.fetchUserPets()
+                await petViewModel.fetchGuardianPets()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showProfileTutorial)) { _ in
             startTutorialFlow(resetProgress: true)
@@ -1330,9 +1336,13 @@ private struct TutorialOverlayView: View {
 private struct PetCardImageView: View {
     let pet: Pet
     @State private var displayedImage: UIImage?
+    // Add ID to force view refresh when pet changes
+    let refreshId: String
     
     init(pet: Pet) {
         self.pet = pet
+        // Create unique ID combining pet ID and profile photo to force refresh on changes
+        self.refreshId = "\(pet.id ?? pet.name)_\(pet.profile_photo)"
         // Check cache synchronously to prevent flash
         _displayedImage = State(initialValue: ImageCache.shared.image(forKey: pet.profile_photo))
     }
@@ -1352,12 +1362,15 @@ private struct PetCardImageView: View {
                     .foregroundColor(.white.opacity(0.5))
             }
         }
-        .task {
-            // Load image only if not already cached
-            if !pet.profile_photo.isEmpty && displayedImage == nil {
+        .id(refreshId) // Force view refresh when ID changes
+        .task(id: refreshId) {
+            // Reload image when refreshId changes (pet updated)
+            if !pet.profile_photo.isEmpty {
                 if let image = await ImageCache.shared.loadImage(forKey: pet.profile_photo) {
                     displayedImage = image
                 }
+            } else {
+                displayedImage = nil
             }
         }
     }

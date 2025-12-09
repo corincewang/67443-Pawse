@@ -34,6 +34,7 @@ struct PetFormView: View {
     @State private var profileImageData: Data? // Store image data for upload
     @State private var showingDeleteConfirmation = false
     @State private var isUpdating = false // Track if we're updating an existing pet
+    @State private var isProcessing = false // Prevent double-tap on buttons
     
     // Guardian invite states
     @State private var showInviteFloatingWindow = false
@@ -252,19 +253,29 @@ struct PetFormView: View {
                             if pet == nil {
                                 // Create Pet button for new pet
                                 Button(action: {
+                                    guard !isProcessing else { return }
+                                    isProcessing = true
                                     Task {
                                         await savePet()
+                                        isProcessing = false
                                     }
                                 }) {
-                                    Text("Create Pet")
-                                        .font(.system(size: 20, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 50)
-                                        .background(isFormValid ? Color.pawseOrange : Color.pawseOrange.opacity(0.5))
-                                        .cornerRadius(20)
+                                    HStack {
+                                        if isProcessing {
+                                            ProgressView()
+                                                .tint(.white)
+                                        } else {
+                                            Text("Create Pet")
+                                                .font(.system(size: 20, weight: .bold))
+                                                .foregroundColor(.white)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(isFormValid && !isProcessing ? Color.pawseOrange : Color.pawseOrange.opacity(0.5))
+                                    .cornerRadius(20)
                                 }
-                                .disabled(!isFormValid || petViewModel.isLoading)
+                                .disabled(!isFormValid || petViewModel.isLoading || isProcessing)
                                 .padding(.horizontal, 60)
                                 .padding(.bottom, 150)
                             } else {
@@ -322,16 +333,25 @@ struct PetFormView: View {
                             
                             // Checkmark button (right)
                             Button(action: {
+                                guard !isProcessing else { return }
+                                isProcessing = true
                                 Task {
                                     await savePet()
+                                    isProcessing = false
                                 }
                             }) {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 22, weight: .bold))
-                                    .foregroundColor(isFormValid ? .white : .white.opacity(0.5))
-                                    .frame(width: 44, height: 44)
+                                if isProcessing {
+                                    ProgressView()
+                                        .tint(.white)
+                                        .frame(width: 44, height: 44)
+                                } else {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 22, weight: .bold))
+                                        .foregroundColor(isFormValid ? .white : .white.opacity(0.5))
+                                        .frame(width: 44, height: 44)
+                                }
                             }
-                            .disabled(!isFormValid || petViewModel.isLoading)
+                            .disabled(!isFormValid || petViewModel.isLoading || isProcessing)
                             .padding(.trailing, 30)
                         }
                         .padding(.top, geometry.safeAreaInsets.top - 10)
@@ -620,7 +640,16 @@ struct PetFormView: View {
         await petViewModel.deletePet(petId: petId)
         
         if petViewModel.errorMessage == nil {
+            // Post notification to trigger profile refresh
+            NotificationCenter.default.post(name: .petDeleted, object: nil)
+            
+            // Dismiss back to profile - need to pop entire navigation stack
             dismiss()
+            
+            // Additional dismiss to exit PhotoGalleryView if we came from there
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                NotificationCenter.default.post(name: .navigateToProfile, object: nil)
+            }
         }
     }
     
