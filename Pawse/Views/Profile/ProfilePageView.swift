@@ -59,6 +59,8 @@ struct ProfilePageView: View {
     @State private var showInvitationOverlay = true
     @AppStorage("selectedPetName") private var selectedPetNameStorage: String = "" // Persisted across sessions
     @State private var showTutorialHelp = false
+    @State private var navigateToPetGalleryId: String? = nil
+    @State private var navigateToPetGalleryName: String? = nil
     
     private var selectedPetName: String? {
         selectedPetNameStorage.isEmpty ? nil : selectedPetNameStorage
@@ -313,6 +315,16 @@ struct ProfilePageView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .navigationDestination(isPresented: .constant(navigateToPetGalleryId != nil)) {
+            if let petId = navigateToPetGalleryId, let petName = navigateToPetGalleryName {
+                PhotoGalleryView(petId: petId, petName: petName)
+                    .onDisappear {
+                        // Clear navigation state when gallery is dismissed
+                        navigateToPetGalleryId = nil
+                        navigateToPetGalleryName = nil
+                    }
+            }
+        }
         .task {
             // Only start tutorial if it's not already in progress or completed
             let shouldStartTutorial = tutorialStep == nil
@@ -328,9 +340,14 @@ struct ProfilePageView: View {
                 NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
             }
             
-            // Always fetch pet data to ensure it's up-to-date (catches deletions, additions, etc.)
-            await petViewModel.fetchUserPets()
-            await petViewModel.fetchGuardianPets()
+            // Fetch pet data only on first load to prevent flash (deletions/updates handled via notifications)
+            if !petViewModel.hasLoadedUserPets {
+                await petViewModel.fetchUserPets()
+                await petViewModel.fetchGuardianPets()
+                
+                // PRIORITY: Ensure pet profile photos are loaded FIRST before any other prefetching
+                await ensurePetProfilePhotosLoaded()
+            }
             
             // Always check for new invitations (they can arrive anytime)
             await guardianViewModel.fetchPendingInvitationsForCurrentUser()
@@ -354,8 +371,8 @@ struct ProfilePageView: View {
                 }
             }
             
-            // Aggressively prefetch gallery photos for instant navigation
-            Task(priority: .high) {
+            // Prefetch gallery photos AFTER profile photos are loaded (lower priority, background task)
+            Task(priority: .utility) {
                 await prefetchGalleryPhotosForAllPets()
             }
             
@@ -379,6 +396,15 @@ struct ProfilePageView: View {
             Task {
                 await petViewModel.fetchUserPets()
                 await petViewModel.fetchGuardianPets()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToPetGallery)) { notification in
+            // Navigate to specific pet's gallery after photo upload
+            if let userInfo = notification.userInfo,
+               let petId = userInfo["petId"] as? String,
+               let petName = userInfo["petName"] as? String {
+                navigateToPetGalleryId = petId
+                navigateToPetGalleryName = petName
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showProfileTutorial)) { _ in
@@ -714,6 +740,24 @@ struct ProfilePageView: View {
     
     private var tutorialPetDisplayName: String {
         petViewModel.allPets.first?.name ?? selectedPetName ?? "your pet"
+    }
+    
+    private func ensurePetProfilePhotosLoaded() async {
+        let allPets = petViewModel.allPets
+        guard !allPets.isEmpty else { return }
+        
+        let profilePhotoKeys = allPets
+            .map { $0.profile_photo.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        
+        guard !profilePhotoKeys.isEmpty else { return }
+        
+        print("📸 PRIORITY: Loading \(profilePhotoKeys.count) pet profile photos first...")
+        
+        // Load all profile photos with high priority, small chunk for immediate display
+        await ImageCache.shared.preloadImages(forKeys: profilePhotoKeys, chunkSize: profilePhotoKeys.count)
+        
+        print("✅ Pet profile photos loaded!")
     }
     
     private func prefetchGalleryPhotosForAllPets() async {
@@ -1364,12 +1408,13 @@ private struct PetCardImageView: View {
         }
         .id(refreshId) // Force view refresh when ID changes
         .task(id: refreshId) {
-            // Reload image when refreshId changes (pet updated)
-            if !pet.profile_photo.isEmpty {
+            // Only reload image if not already displayed (avoid flash on initial load)
+            if !pet.profile_photo.isEmpty && displayedImage == nil {
                 if let image = await ImageCache.shared.loadImage(forKey: pet.profile_photo) {
                     displayedImage = image
                 }
-            } else {
+            } else if pet.profile_photo.isEmpty && displayedImage != nil {
+                // Clear image if profile photo was removed
                 displayedImage = nil
             }
         }

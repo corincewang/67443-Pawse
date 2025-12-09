@@ -199,6 +199,7 @@ extension Notification.Name {
     static let navigateToCommunity = Notification.Name("navigateToCommunity")
     static let navigateToContest = Notification.Name("navigateToContest")
     static let navigateToProfile = Notification.Name("navigateToProfile")
+    static let navigateToPetGallery = Notification.Name("navigateToPetGallery")
     static let refreshPhotoGallery = Notification.Name("refreshPhotoGallery")
     static let switchToContestTab = Notification.Name("switchToContestTab")
     static let showProfileTutorial = Notification.Name("showProfileTutorial")

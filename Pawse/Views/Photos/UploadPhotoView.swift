@@ -354,13 +354,21 @@ struct UploadPhotoView: View {
                             NotificationCenter.default.post(name: .navigateToCommunity, object: nil)
                         }
                     } else {
-                        // Private photo - just dismiss
-                        print("🔒 Private photo uploaded")
+                        // Private photo - navigate to pet's gallery
+                        print("🔒 Private photo uploaded, navigating to gallery")
+                        
+                        // Get pet name for navigation
+                        let petName = petViewModel.allPets.first(where: { $0.id == uploadPetId })?.name ?? "Pet"
+                        
                         dismiss()
                         
-                        // Post notification to navigate back to profile (for tutorial flow)
+                        // Post notification to navigate to pet gallery with pet info
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            NotificationCenter.default.post(name: .navigateToProfile, object: nil)
+                            NotificationCenter.default.post(
+                                name: .navigateToPetGallery,
+                                object: nil,
+                                userInfo: ["petId": uploadPetId, "petName": petName]
+                            )
                         }
                     }
                 } else {
