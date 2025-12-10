@@ -32,6 +32,168 @@ struct ProfilePageView: View {
         return "User"
     }
 
+    private var headerSection: some View {
+        ZStack(alignment: .topLeading) {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Hi, \(displayName)")
+                        .font(.system(size: 56, weight: .bold))
+                        .foregroundColor(.pawseOliveGreen)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                    if petViewModel.allPets.isEmpty {
+                        Text("Create Your First Pet Album!")
+                            .font(.system(size: 24, weight: .regular))
+                            .foregroundColor(.pawseBrown)
+                            .padding(.top, 4)
+                            .captureTutorialFrame(.headerSubtitle)
+                    } else if let petName = selectedPetName {
+                        Text("How is \(petName) doing?")
+                            .font(.system(size: 24, weight: .regular))
+                            .foregroundColor(.pawseBrown)
+                            .padding(.top, 4)
+                            .captureTutorialFrame(.headerSubtitle)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 30)
+
+                NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
+                    Circle()
+                        .fill(Color.pawseWarmGrey)
+                        .frame(width: 52, height: 52)
+                        .overlay(
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 24, weight: .medium))
+                                .foregroundColor(.white)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .offset(y: -UIScreen.main.bounds.height * 0.05)
+            }
+
+            Button(action: {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    showTutorialHelp = true
+                }
+            }) {
+                Circle()
+                    .fill(Color.pawseWarmGrey)
+                    .frame(width: 52, height: 52)
+                    .overlay(
+                        Image(systemName: "questionmark")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(.white)
+                    )
+                    .contentShape(Rectangle())
+            }
+            .offset(y: -UIScreen.main.bounds.height * 0.05)
+        }
+        .padding(.horizontal, 30)
+        .padding(.top, 50)
+        .padding(.bottom, 40)
+    }
+
+    private var petGallerySection: some View {
+        VStack(spacing: 0) {
+            Text("Pet Galleries")
+                .font(.system(size: 48, weight: .bold))
+                .foregroundColor(.pawseBrown)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 30)
+                .padding(.bottom, 20)
+
+            if petViewModel.allPets.isEmpty && petViewModel.isLoading {
+                Spacer()
+                ProgressView()
+                    .padding()
+                Spacer()
+            } else if petViewModel.allPets.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    NavigationLink(destination: PetFormView()) {
+                        AddPetCardView()
+                    }
+                    .captureTutorialFrame(.addPetCard)
+                }
+                .captureTutorialFrame(.petCardsArea)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 30)
+                Spacer()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 20) {
+                        ForEach(petViewModel.allPets) { pet in
+                            NavigationLink(destination: PhotoGalleryView(petId: pet.id ?? "", petName: pet.name)) {
+                                PetCardView(pet: pet)
+                            }
+                            .id("\(pet.id ?? pet.name)_\(pet.profile_photo)")
+                            .background(
+                                Group {
+                                    if isFirstPet(pet) {
+                                        GeometryReader { proxy in
+                                            Color.clear.preference(
+                                                key: TutorialFramePreferenceKey.self,
+                                                value: [.firstPetCard: proxy.frame(in: .global)]
+                                            )
+                                        }
+                                    }
+                                }
+                            )
+                        }
+
+                        NavigationLink(destination: PetFormView()) {
+                            AddPetCardView()
+                        }
+                    }
+                    .padding(.horizontal, 30)
+                }
+                .captureTutorialFrame(.petCardsArea)
+                .padding(.bottom, 20)
+
+                Spacer()
+            }
+        }
+    }
+
+    private var contestBannerSection: some View {
+        VStack {
+            Spacer()
+            ActiveContestBannerView(contestTitle: contestViewModel.currentContest?.prompt ?? "No Active Contest")
+                .captureTutorialFrame(.contestBanner)
+                .padding(.bottom, 10)
+        }
+    }
+
+    private var addPhotoButtonSection: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                VStack(spacing: 15) {
+                    NavigationLink(destination: UploadPhotoView(source: .profile)) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.pawseOrange)
+                                .frame(width: 65, height: 65)
+
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 65))
+                                .foregroundColor(.pawseOrange)
+                                .background(
+                                    Circle()
+                                        .fill(Color.pawseBackground)
+                                        .frame(width: 45, height: 45)
+                                )
+                        }
+                    }
+                    .captureTutorialFrame(.addPhotoButton)
+                }
+                .padding(.trailing, 30)
+                .padding(.bottom, 120)
+            }
+        }
+    }
+
     private func isFirstPet(_ pet: Pet) -> Bool {
         guard let first = petViewModel.allPets.first else { return false }
         let firstID = first.id ?? first.name
@@ -39,345 +201,141 @@ struct ProfilePageView: View {
         return firstID == currentID
     }
 
-    var body: some View {
-        ZStack {
-            Color.pawseBackground
-                .ignoresSafeArea()
+    var body: some View { profileBodyWithOverlays }
 
-            VStack(spacing: 0) {
-                ZStack(alignment: .topLeading) {
-                    HStack(alignment: .top, spacing: 8) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Hi, \(displayName)")
-                                .font(.system(size: 56, weight: .bold))
-                                .foregroundColor(.pawseOliveGreen)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.5)
-                            if petViewModel.allPets.isEmpty {
-                                Text("Create Your First Pet Album!")
-                                    .font(.system(size: 24, weight: .regular))
-                                    .foregroundColor(.pawseBrown)
-                                    .padding(.top, 4)
-                                    .captureTutorialFrame(.headerSubtitle)
-                            } else if let petName = selectedPetName {
-                                Text("How is \(petName) doing?")
-                                    .font(.system(size: 24, weight: .regular))
-                                    .foregroundColor(.pawseBrown)
-                                    .padding(.top, 4)
-                                    .captureTutorialFrame(.headerSubtitle)
+    private var profileBodyWithOverlays: some View {
+        let decoratedBody = profileBody
+            .overlay { invitationAndTutorialOverlay }
+            .overlayPreferenceValue(TutorialFramePreferenceKey.self) { preferences in
+                tutorialOverlay(preferences: preferences)
+            }
+
+        return AnyView(
+            decoratedBody
+                .navigationBarBackButtonHidden(true)
+                .navigationDestination(isPresented: .constant(navigateToPetGalleryId != nil)) {
+                    if let petId = navigateToPetGalleryId, let petName = navigateToPetGalleryName {
+                        PhotoGalleryView(petId: petId, petName: petName)
+                            .onDisappear {
+                                navigateToPetGalleryId = nil
+                                navigateToPetGalleryName = nil
                             }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 30)
-
-                        NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
-                            Circle()
-                                .fill(Color.pawseWarmGrey)
-                                .frame(width: 52, height: 52)
-                                .overlay(
-                                    Image(systemName: "gearshape")
-                                        .font(.system(size: 24, weight: .medium))
-                                        .foregroundColor(.white)
-                                )
-                                .contentShape(Rectangle())
-                        }
-                        .offset(y: -UIScreen.main.bounds.height * 0.05)
                     }
-
-                    Button(action: {
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                            showTutorialHelp = true
-                        }
-                    }) {
-                        Circle()
-                            .fill(Color.pawseWarmGrey)
-                            .frame(width: 52, height: 52)
-                            .overlay(
-                                Image(systemName: "questionmark")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(.white)
-                            )
-                            .contentShape(Rectangle())
-                    }
-                    .offset(y: -UIScreen.main.bounds.height * 0.05)
                 }
-                .padding(.horizontal, 30)
-                .padding(.top, 50)
-                .padding(.bottom, 40)
+                .task {
+                    let shouldStartTutorial = tutorialStep == nil
 
-                Text("Pet Galleries")
-                    .font(.system(size: 48, weight: .bold))
-                    .foregroundColor(.pawseBrown)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 30)
-                    .padding(.bottom, 20)
-
-                if petViewModel.allPets.isEmpty && petViewModel.isLoading {
-                    Spacer()
-                    ProgressView()
-                        .padding()
-                    Spacer()
-                } else if petViewModel.allPets.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        NavigationLink(destination: PetFormView()) {
-                            AddPetCardView()
-                        }
-                        .captureTutorialFrame(.addPetCard)
-                    }
-                    .captureTutorialFrame(.petCardsArea)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 30)
-                    Spacer()
-                } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 20) {
-                            ForEach(petViewModel.allPets) { pet in
-                                NavigationLink(destination: PhotoGalleryView(petId: pet.id ?? "", petName: pet.name)) {
-                                    PetCardView(pet: pet)
-                                }
-                                .id("\(pet.id ?? pet.name)_\(pet.profile_photo)")
-                                .background(
-                                    Group {
-                                        if isFirstPet(pet) {
-                                            GeometryReader { proxy in
-                                                Color.clear.preference(
-                                                    key: TutorialFramePreferenceKey.self,
-                                                    value: [.firstPetCard: proxy.frame(in: .global)]
-                                                )
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-
-                            NavigationLink(destination: PetFormView()) {
-                                AddPetCardView()
-                            }
-                        }
-                        .padding(.horizontal, 30)
-                    }
-                    .captureTutorialFrame(.petCardsArea)
-                    .padding(.bottom, 20)
-
-                    Spacer()
+                if userViewModel.currentUser == nil {
+                    await userViewModel.fetchCurrentUser()
                 }
-            }
 
-            VStack {
-                Spacer()
-                ActiveContestBannerView(contestTitle: contestViewModel.currentContest?.prompt ?? "No Active Contest")
-                    .captureTutorialFrame(.contestBanner)
-                    .padding(.bottom, 10)
-            }
-
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    VStack(spacing: 15) {
-                        NavigationLink(destination: UploadPhotoView(source: .profile)) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.pawseOrange)
-                                    .frame(width: 65, height: 65)
-
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 65))
-                                    .foregroundColor(.pawseOrange)
-                                    .background(
-                                        Circle()
-                                            .fill(Color.pawseBackground)
-                                            .frame(width: 45, height: 45)
-                                    )
-                            }
-                        }
-                        .captureTutorialFrame(.addPhotoButton)
-                    }
-                    .padding(.trailing, 30)
-                    .padding(.bottom, 120)
+                if shouldStartTutorial, let user = userViewModel.currentUser, !(user.has_seen_profile_tutorial ?? false) {
+                    NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
                 }
-            }
-        }
-        .overlay {
-            ZStack {
-                if showInvitationOverlay, let firstInvitation = guardianViewModel.receivedInvitations.first {
-                    ZStack {
-                        Color.black.opacity(0.3)
-                            .ignoresSafeArea()
 
-                        VStack {
-                            Spacer()
-                            GuardianInvitationCard(
-                                guardian: firstInvitation,
-                                petViewModel: petViewModel,
-                                onDismiss: {
-                                    withAnimation {
-                                        showInvitationOverlay = false
-                                    }
-                                    Task {
-                                        try? await Task.sleep(nanoseconds: 500_000_000)
-                                        await guardianViewModel.fetchPendingInvitationsForCurrentUser()
-                                    }
-                                }
-                            )
-                            .environmentObject(guardianViewModel)
-                            Spacer()
-                        }
+                if !petViewModel.hasLoadedUserPets {
+                    await petViewModel.fetchUserPets()
+                    await petViewModel.fetchGuardianPets()
+                    await ensurePetProfilePhotosLoaded()
+                }
+
+                await guardianViewModel.fetchPendingInvitationsForCurrentUser()
+                await contestViewModel.fetchCurrentContest()
+                let pets = petViewModel.allPets
+                let photosExist = await determinePhotoPresence(for: pets)
+                hasUploadedPhotos = photosExist
+                if !guardianViewModel.receivedInvitations.isEmpty {
+                    showInvitationOverlay = true
+                }
+
+                if !petViewModel.allPets.isEmpty {
+                    let currentPets = Set(petViewModel.allPets.map { $0.name })
+                    if selectedPetName == nil || (selectedPetName != nil && !currentPets.contains(selectedPetNameStorage)) {
+                        selectedPetNameStorage = petViewModel.allPets.randomElement()?.name ?? ""
                     }
                 }
 
-                if showTutorialHelp {
-                    TutorialHelpPopup(
-                        isPresented: $showTutorialHelp,
-                        restartAction: {
-                            NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
-                        }
-                    )
+                Task(priority: .utility) {
+                    await prefetchGalleryPhotosForAllPets()
+                }
+
+                guard shouldStartTutorial else { return }
+
+                if tutorialStepRaw >= 0, let savedStep = TutorialStep(rawValue: tutorialStepRaw) {
+                    tutorialStep = savedStep
+                    NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
                 }
             }
-        }
-        .overlayPreferenceValue(TutorialFramePreferenceKey.self) { preferences in
-            if let currentStep = tutorialStep {
-                let highlights = tutorialHighlights(for: currentStep, frames: preferences)
-                let messageAnchor = messageTopAnchorY(from: preferences)
-                let hintPosition = hintYPosition(for: currentStep, frames: preferences, highlights: highlights)
-                TutorialOverlayView(
-                    step: currentStep,
-                    highlights: highlights,
-                    message: tutorialMessage(for: currentStep),
-                    detail: tutorialDetail(for: currentStep),
-                    hintText: overlayHint(for: currentStep),
-                    allowsOverlayTap: overlayAllowsTap(for: currentStep),
-                    passthroughRects: tutorialPassthroughRects(for: currentStep, highlights: highlights),
-                    messageTopAnchor: messageAnchor,
-                    hintYPosition: hintPosition,
-                    onTap: handleTutorialTap,
-                    onExit: finishTutorial
-                )
-            }
-        }
-        .navigationBarBackButtonHidden(true)
-        .navigationDestination(isPresented: .constant(navigateToPetGalleryId != nil)) {
-            if let petId = navigateToPetGalleryId, let petName = navigateToPetGalleryName {
-                PhotoGalleryView(petId: petId, petName: petName)
-                    .onDisappear {
-                        navigateToPetGalleryId = nil
-                        navigateToPetGalleryName = nil
-                    }
-            }
-        }
-        .task {
-            let shouldStartTutorial = tutorialStep == nil
-
-            if userViewModel.currentUser == nil {
-                await userViewModel.fetchCurrentUser()
-            }
-
-            if shouldStartTutorial, let user = userViewModel.currentUser, !(user.has_seen_profile_tutorial ?? false) {
-                NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
-            }
-
-            if !petViewModel.hasLoadedUserPets {
-                await petViewModel.fetchUserPets()
-                await petViewModel.fetchGuardianPets()
-                await ensurePetProfilePhotosLoaded()
-            }
-
-            await guardianViewModel.fetchPendingInvitationsForCurrentUser()
-            await contestViewModel.fetchCurrentContest()
-            let pets = petViewModel.allPets
-            let photosExist = await determinePhotoPresence(for: pets)
-            hasUploadedPhotos = photosExist
-            if !guardianViewModel.receivedInvitations.isEmpty {
-                showInvitationOverlay = true
-            }
-
-            if !petViewModel.allPets.isEmpty {
-                let currentPets = Set(petViewModel.allPets.map { $0.name })
-                if selectedPetName == nil || (selectedPetName != nil && !currentPets.contains(selectedPetNameStorage)) {
-                    selectedPetNameStorage = petViewModel.allPets.randomElement()?.name ?? ""
-                }
-            }
-
-            Task(priority: .utility) {
-                await prefetchGalleryPhotosForAllPets()
-            }
-
-            guard shouldStartTutorial else { return }
-
-            if tutorialStepRaw >= 0, let savedStep = TutorialStep(rawValue: tutorialStepRaw) {
-                tutorialStep = savedStep
-                NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .userDidSignOut)) { _ in
-            selectedPetNameStorage = ""
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .petDeleted)) { _ in
-            Task {
-                await petViewModel.fetchUserPets()
-                await petViewModel.fetchGuardianPets()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .navigateToPetGallery)) { notification in
-            if let userInfo = notification.userInfo,
-               let petId = userInfo["petId"] as? String,
-               let petName = userInfo["petName"] as? String {
-                navigateToPetGalleryId = petId
-                navigateToPetGalleryName = petName
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .showProfileTutorial)) { _ in
-            startTutorialFlow(resetProgress: true)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .refreshPhotoGallery)) { _ in
-            refreshPhotoStatusAsync()
-        }
-        .onChange(of: petViewModel.allPets) { _, pets in
-            if selectedPetName == nil && !pets.isEmpty {
-                selectedPetNameStorage = pets.randomElement()?.name ?? ""
-            }
-            if tutorialStep == .addPet && !pets.isEmpty {
-                tutorialStep = nextStep(after: .addPet)
-            }
-            refreshPhotoStatusAsync()
-        }
-        .onChange(of: hasUploadedPhotos) { _, newValue in
-            if newValue && tutorialStep == .uploadPhoto {
-                tutorialStep = nextStep(after: .uploadPhoto)
-            }
-        }
-        .onChange(of: tutorialStep) { _, newValue in
-            notifyBottomBarHighlight(for: newValue)
-            if let step = newValue {
-                tutorialStepRaw = step.rawValue
-            } else {
-                tutorialStepRaw = -1
-            }
-        }
-        .onChange(of: guardianViewModel.receivedInvitations.count) { _, newCount in
-            if newCount > 0 {
-                showInvitationOverlay = true
-            } else {
-                showInvitationOverlay = false
-            }
-        }
-        .onChange(of: userViewModel.currentUser?.id) { oldUserId, newUserId in
-            if oldUserId != newUserId {
+            .onReceive(NotificationCenter.default.publisher(for: .userDidSignOut)) { _ in
                 selectedPetNameStorage = ""
-
-                if let newUser = userViewModel.currentUser, newUserId != nil {
-                    if !(newUser.has_seen_profile_tutorial ?? false) {
-                        tutorialStep = nil
-                        tutorialStepRaw = -1
-                        NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
-                    }
-                } else if newUserId == nil {
-                    tutorialStep = nil
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .petDeleted)) { _ in
+                Task {
+                    await petViewModel.fetchUserPets()
+                    await petViewModel.fetchGuardianPets()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .navigateToPetGallery)) { notification in
+                if let userInfo = notification.userInfo,
+                   let petId = userInfo["petId"] as? String,
+                   let petName = userInfo["petName"] as? String {
+                    navigateToPetGalleryId = petId
+                    navigateToPetGalleryName = petName
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .showProfileTutorial)) { _ in
+                startTutorialFlow(resetProgress: true)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .refreshPhotoGallery)) { _ in
+                refreshPhotoStatusAsync()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .petDataDidChange), perform: handlePetDataChange(_:))
+            .onChange(of: petViewModel.allPets) { _, pets in
+                if selectedPetName == nil && !pets.isEmpty {
+                    selectedPetNameStorage = pets.randomElement()?.name ?? ""
+                }
+                if tutorialStep == .addPet && !pets.isEmpty {
+                    tutorialStep = nextStep(after: .addPet)
+                }
+                refreshPhotoStatusAsync()
+            }
+            .onChange(of: hasUploadedPhotos) { _, newValue in
+                if newValue && tutorialStep == .uploadPhoto {
+                    tutorialStep = nextStep(after: .uploadPhoto)
+                }
+            }
+            .onChange(of: tutorialStep) { _, newValue in
+                notifyBottomBarHighlight(for: newValue)
+                if let step = newValue {
+                    tutorialStepRaw = step.rawValue
+                } else {
                     tutorialStepRaw = -1
                 }
             }
-        }
+            .onChange(of: guardianViewModel.receivedInvitations.count) { _, newCount in
+                if newCount > 0 {
+                    showInvitationOverlay = true
+                } else {
+                    showInvitationOverlay = false
+                }
+            }
+                .onChange(of: userViewModel.currentUser?.id) { oldUserId, newUserId in
+                    if oldUserId != newUserId {
+                        selectedPetNameStorage = ""
+
+                    if let newUser = userViewModel.currentUser, newUserId != nil {
+                        if !(newUser.has_seen_profile_tutorial ?? false) {
+                            tutorialStep = nil
+                            tutorialStepRaw = -1
+                            NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
+                        }
+                    } else if newUserId == nil {
+                        tutorialStep = nil
+                        tutorialStepRaw = -1
+                    }
+                }
+                }
+        )
     }
 
     private func startTutorialFlow(resetProgress: Bool) {
@@ -625,6 +583,90 @@ struct ProfilePageView: View {
             userInfo["tab"] = tab.rawValue
         }
         NotificationCenter.default.post(name: .tutorialBottomHighlight, object: nil, userInfo: userInfo)
+    }
+
+    private func handlePetDataChange(_ notification: Notification) {
+        Task {
+            await petViewModel.fetchUserPets()
+            await petViewModel.fetchGuardianPets()
+            await ensurePetProfilePhotosLoaded()
+            refreshPhotoStatusAsync()
+        }
+    }
+
+    private var profileBody: some View {
+        ZStack {
+            Color.pawseBackground
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                headerSection
+                petGallerySection
+            }
+
+            contestBannerSection
+            addPhotoButtonSection
+        }
+    }
+
+    @ViewBuilder
+    private var invitationAndTutorialOverlay: some View {
+        ZStack {
+            if showInvitationOverlay, let firstInvitation = guardianViewModel.receivedInvitations.first {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+
+                VStack {
+                    Spacer()
+                    GuardianInvitationCard(
+                        guardian: firstInvitation,
+                        petViewModel: petViewModel,
+                        onDismiss: {
+                            withAnimation {
+                                showInvitationOverlay = false
+                            }
+                            Task {
+                                try? await Task.sleep(nanoseconds: 500_000_000)
+                                await guardianViewModel.fetchPendingInvitationsForCurrentUser()
+                            }
+                        }
+                    )
+                    .environmentObject(guardianViewModel)
+                    Spacer()
+                }
+            }
+
+            if showTutorialHelp {
+                TutorialHelpPopup(
+                    isPresented: $showTutorialHelp,
+                    restartAction: {
+                        NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
+                    }
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func tutorialOverlay(preferences: [TutorialTarget: CGRect]) -> some View {
+        if let currentStep = tutorialStep {
+            let highlights = tutorialHighlights(for: currentStep, frames: preferences)
+            let messageAnchor = messageTopAnchorY(from: preferences)
+            let hintPosition = hintYPosition(for: currentStep, frames: preferences, highlights: highlights)
+            TutorialOverlayView(
+                step: currentStep,
+                highlights: highlights,
+                message: tutorialMessage(for: currentStep),
+                detail: tutorialDetail(for: currentStep),
+                hintText: overlayHint(for: currentStep),
+                allowsOverlayTap: overlayAllowsTap(for: currentStep),
+                passthroughRects: tutorialPassthroughRects(for: currentStep, highlights: highlights),
+                messageTopAnchor: messageAnchor,
+                hintYPosition: hintPosition,
+                onTap: handleTutorialTap,
+                onExit: finishTutorial
+            )
+        }
     }
 }
 

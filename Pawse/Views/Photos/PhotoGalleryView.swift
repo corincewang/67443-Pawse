@@ -227,7 +227,16 @@ struct PhotoGalleryView: View {
                 // Add a small delay to ensure Firestore write is complete
                 Task {
                     try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
-                    await photoViewModel.fetchPhotos(for: petId)
+                    await refreshGalleryData()
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .petDataDidChange)) { notification in
+            if let userInfo = notification.userInfo,
+               let notifiedPetId = userInfo["petId"] as? String,
+               notifiedPetId == petId {
+                Task {
+                    await refreshGalleryData()
                 }
             }
         }
@@ -339,6 +348,11 @@ struct PhotoGalleryView: View {
             print("❌ Failed to load contest prompts: \(error)")
             isLoadingContestPrompts = false
         }
+    }
+
+    private func refreshGalleryData() async {
+        await loadCurrentPet()
+        await photoViewModel.fetchPhotos(for: petId)
     }
     
     
