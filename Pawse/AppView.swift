@@ -207,6 +207,7 @@ extension Notification.Name {
     static let tutorialActiveState = Notification.Name("tutorialActiveState")
     static let userDidSignOut = Notification.Name("userDidSignOut")
     static let petDeleted = Notification.Name("petDeleted")
+    static let petDataDidChange = Notification.Name("petDataDidChange")
     static let petCreated = Notification.Name("petCreated")
 }
 

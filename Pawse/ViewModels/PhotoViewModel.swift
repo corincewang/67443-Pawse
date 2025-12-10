@@ -87,6 +87,12 @@ class PhotoViewModel: ObservableObject {
                 object: nil,
                 userInfo: ["petId": petId]
             )
+
+            NotificationCenter.default.post(
+                name: .petDataDidChange,
+                object: nil,
+                userInfo: ["petId": petId, "action": "photoAdded"]
+            )
             
             isUploading = false
             return photoId

@@ -567,6 +567,14 @@ struct PetFormView: View {
             if petViewModel.errorMessage == nil && showSuccess {
                 showingSuccess = true
             }
+
+            if petViewModel.errorMessage == nil {
+                NotificationCenter.default.post(
+                    name: .petDataDidChange,
+                    object: nil,
+                    userInfo: ["petId": existingPetId, "action": "update"]
+                )
+            }
             
             return existingPetId
         }
@@ -626,6 +634,13 @@ struct PetFormView: View {
         
         if petViewModel.errorMessage == nil {
             // Post notification to trigger profile refresh
+            if let petId = petId {
+                NotificationCenter.default.post(
+                    name: .petDataDidChange,
+                    object: nil,
+                    userInfo: ["petId": petId, "action": "create"]
+                )
+            }
             NotificationCenter.default.post(name: .petCreated, object: nil)
             
             if showSuccess {
