@@ -422,24 +422,22 @@ struct PhotoGalleryView: View {
                         )
                         .cornerRadius(10)
                     
-                    // Contest prompt or date overlay at the bottom of the photo
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        Text(contestPrompt ?? formatDate(photo.uploaded_at))
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-                            .padding(.horizontal, 8)
-                    }
-                    .frame(width: 106, height: 26)
-                    .background(Color.pawseGolden)
-                    .clipShape(
-                        UnevenRoundedRectangle(
-                            topLeadingRadius: 0,
-                            bottomLeadingRadius: 10,
-                            bottomTrailingRadius: 10,
-                            topTrailingRadius: 0
+                    // Date overlay at the bottom of the photo
+                    Text(formatDate(photo.uploaded_at))
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .padding(.horizontal, 8)
+                        .frame(width: 106, height: 26)
+                        .background(Color.pawseGolden)
+                        .clipShape(
+                            UnevenRoundedRectangle(
+                                topLeadingRadius: 0,
+                                bottomLeadingRadius: 10,
+                                bottomTrailingRadius: 10,
+                                topTrailingRadius: 0
+                            )
                         )
-                    )
                 }
                 
                if showDelete {
