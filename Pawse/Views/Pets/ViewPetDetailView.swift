@@ -504,6 +504,9 @@ struct ViewPetDetailView: View {
         await petViewModel.deletePet(petId: petId)
         isDeleting = false
         
+        // Notify other views to refresh
+        NotificationCenter.default.post(name: .petDeleted, object: nil)
+        
         // Navigate back after deletion
         await MainActor.run {
             dismiss()
