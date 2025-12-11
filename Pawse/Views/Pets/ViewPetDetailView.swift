@@ -29,6 +29,8 @@ struct ViewPetDetailView: View {
     @State private var showingSaveSuccess = false
     @State private var showingInviteSuccess = false
     @State private var isSaving = false
+    @State private var showDeleteConfirmation = false
+    @State private var isDeleting = false
     
     // Check if current user is the owner
     private var isOwner: Bool {
@@ -254,6 +256,23 @@ struct ViewPetDetailView: View {
                             }
                             .disabled(isSaving)
                             .padding(.horizontal, 30)
+                            .padding(.bottom, 15)
+                            .background(Color.white)
+                            
+                            // Delete Pet button
+                            Button(action: {
+                                showDeleteConfirmation = true
+                            }) {
+                                Text(isDeleting ? "Deleting..." : "Delete Pet")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 50)
+                                    .background(Color.red)
+                                    .cornerRadius(20)
+                            }
+                            .disabled(isDeleting || isSaving)
+                            .padding(.horizontal, 30)
                             .padding(.bottom, 160)
                             .background(Color.white)
                         }
@@ -387,6 +406,16 @@ struct ViewPetDetailView: View {
         }
         .navigationBarBackButtonHidden(true)
         .swipeBack(dismiss: dismiss)
+        .alert("Delete Pet?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Task {
+                    await deletePet()
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete \(pet.name)? This action cannot be undone.")
+        }
         .onAppear {
             // Initialize editable fields with current pet data
             petType = pet.type
@@ -465,6 +494,23 @@ struct ViewPetDetailView: View {
         
         // Refresh guardians list
         await guardianViewModel.fetchGuardians(for: petId)
+    }
+    
+    // Delete pet
+    private func deletePet() async {
+        guard let petId = pet.id else { return }
+        
+        isDeleting = true
+        await petViewModel.deletePet(petId: petId)
+        isDeleting = false
+        
+        // Notify other views to refresh
+        NotificationCenter.default.post(name: .petDeleted, object: nil)
+        
+        // Navigate back after deletion
+        await MainActor.run {
+            dismiss()
+        }
     }
 }
 
