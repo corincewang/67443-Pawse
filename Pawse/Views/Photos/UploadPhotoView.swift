@@ -11,6 +11,7 @@ import PhotosUI
 struct UploadPhotoView: View {
     let petId: String?
     let source: UploadSource
+    let isTutorialFlow: Bool
     
     @Environment(\.dismiss) var dismiss
     @StateObject private var photoViewModel = PhotoViewModel()
@@ -44,9 +45,10 @@ struct UploadPhotoView: View {
         }
     }
     
-    init(petId: String? = nil, source: UploadSource = .profile) {
+    init(petId: String? = nil, source: UploadSource = .profile, isTutorialFlow: Bool = false) {
         self.petId = petId
         self.source = source
+        self.isTutorialFlow = isTutorialFlow
         
         // Set default privacy and contest checkbox based on source
         switch source {
@@ -361,14 +363,18 @@ struct UploadPhotoView: View {
                         let petName = petViewModel.allPets.first(where: { $0.id == uploadPetId })?.name ?? "Pet"
                         
                         dismiss()
-                        
-                        // Post notification to navigate to pet gallery with pet info
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            NotificationCenter.default.post(
-                                name: .navigateToPetGallery,
-                                object: nil,
-                                userInfo: ["petId": uploadPetId, "petName": petName]
-                            )
+
+                        if isTutorialFlow {
+                            NotificationCenter.default.post(name: .navigateToProfile, object: nil)
+                            NotificationCenter.default.post(name: .tutorialPhotoUploaded, object: nil)
+                        } else {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                NotificationCenter.default.post(
+                                    name: .navigateToPetGallery,
+                                    object: nil,
+                                    userInfo: ["petId": uploadPetId, "petName": petName]
+                                )
+                            }
                         }
                     }
                 } else {

@@ -241,9 +241,11 @@ struct TutorialOverlayView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal)
                 .allowsHitTesting(false)
-                hintLabel
-                    .position(x: proxy.size.width / 2, y: hintY)
-                    .allowsHitTesting(false)
+                if !hintText.isEmpty {
+                    hintLabel
+                        .position(x: proxy.size.width / 2, y: hintY)
+                        .allowsHitTesting(false)
+                }
 
                 Button(action: onExit) {
                     Circle()

@@ -8,6 +8,7 @@
 import SwiftUI
 import PhotosUI
 import Foundation
+import UIKit
 
 struct PetFormView: View {
     let pet: Pet? // Optional pet for edit mode
@@ -59,32 +60,43 @@ struct PetFormView: View {
     
     let petTypes = ["Cat", "Dog", "Bird", "Rabbit", "Other"]
     
+    @FocusState private var isNameFocused: Bool
+
     var body: some View {
         GeometryReader { geometry in
+            let screenHeight = UIScreen.main.bounds.height
+            let topSectionHeightMultiplier: CGFloat = 0.3
+            let topSectionHeight = screenHeight * topSectionHeightMultiplier + geometry.safeAreaInsets.top
+            let photoPickerOffset = screenHeight * 0.03
             ZStack(alignment: .top) {
                 // Scrollable content - starts below the top section
                 ScrollView {
                     VStack(spacing: 0) {
                         // Spacer to push content below the top section
                         Spacer()
-                            .frame(height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
+                            .frame(height: topSectionHeight)
                         
                         // Content with white background - extends all the way to eliminate black bar
                         VStack(spacing: 0) {
                             // Form section
                             VStack(alignment: .leading, spacing: 20) {
                                 // Name
-                                VStack(alignment: .leading, spacing: 0) {
+                                VStack(alignment: .leading, spacing: 12) {
                                     Text("Name")
                                         .font(.system(size: 18, weight: .bold))
                                         .foregroundColor(.pawseBrown)
                                         .frame(maxWidth: .infinity, alignment: .leading)
-                                    
-                                    TextField("enter your pet name!", text: $petName)
-                                        .padding(.horizontal, 0)
+
+                                    TextField("", text: $petName, prompt: Text("Your Pet's name").foregroundColor(.pawseBrown.opacity(0.65)))
+                                        .focused($isNameFocused)
+                                        .padding(.horizontal, 16)
                                         .padding(.vertical, 16)
                                         .frame(height: 52)
                                         .background(Color.white)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color.pawseBrown.opacity(0.35), lineWidth: 1)
+                                        )
                                         .cornerRadius(10)
                                         .font(.system(size: 16, weight: .bold))
                                         .foregroundColor(.black)
@@ -246,7 +258,7 @@ struct PetFormView: View {
                                 }
                             }
                             .padding(.horizontal, 60)
-                            .padding(.top, 0)
+                            .padding(.top, -10)
                             .padding(.bottom, 20)
                             
                             // Bottom button: Create Pet (new) or Delete Pet (edit)
@@ -256,7 +268,7 @@ struct PetFormView: View {
                                     guard !isProcessing else { return }
                                     isProcessing = true
                                     Task {
-                                        await savePet()
+                                        _ = await savePet()
                                         isProcessing = false
                                     }
                                 }) {
@@ -298,10 +310,15 @@ struct PetFormView: View {
                         .background(Color.white)
                     }
                 }
+                .onTapGesture {
+                    if isNameFocused {
+                        dismissKeyboard()
+                    }
+                }
                 .scrollIndicators(.hidden)
                 .background(Color.white) // Ensure entire scroll area has white background
                 
-                // Top section: Fixed 40% with gradient - always on top
+                // Top section: Fixed ~30% with gradient - always on top
                 ZStack {
                     // Gradient background - fills the entire top section
                     LinearGradient(
@@ -312,7 +329,7 @@ struct PetFormView: View {
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(width: geometry.size.width, height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
+                    .frame(width: geometry.size.width, height: topSectionHeight)
                     .ignoresSafeArea(.all, edges: .top)
                     
                     // Navigation buttons at the very top
@@ -336,7 +353,7 @@ struct PetFormView: View {
                                 guard !isProcessing else { return }
                                 isProcessing = true
                                 Task {
-                                    await savePet()
+                                    _ = await savePet()
                                     isProcessing = false
                                 }
                             }) {
@@ -380,7 +397,6 @@ struct PetFormView: View {
                                     .clipShape(Circle())
                             }
                             
-                            // Plus button overlay - overlapping the photo picker
                             VStack {
                                 Spacer()
                                 HStack {
@@ -399,6 +415,7 @@ struct PetFormView: View {
                             .frame(width: 160, height: 160)
                         }
                     }
+                    .offset(y: photoPickerOffset)
                     .onChange(of: selectedImage) { _, newValue in
                         Task {
                             if let data = try? await newValue?.loadTransferable(type: Data.self),
@@ -409,7 +426,7 @@ struct PetFormView: View {
                         }
                     }
                 }
-                .frame(height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
+                .frame(height: topSectionHeight)
                 .ignoresSafeArea(.all, edges: .top)
                 .allowsHitTesting(true) // Ensure top section can receive touches
             }
@@ -526,6 +543,11 @@ struct PetFormView: View {
         !petName.isEmpty && !petType.isEmpty && !petAge.isEmpty && selectedGender != nil
     }
     
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        isNameFocused = false
+    }
+
     private func savePet(showSuccess: Bool = true) async -> String? {
         guard let age = Int(petAge), let gender = selectedGender else { return nil }
         

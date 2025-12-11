@@ -20,13 +20,15 @@ class PetViewModel: ObservableObject {
     private let guardianController = GuardianController()
     private let authController = AuthController()
     
-    func fetchUserPets() async {
+    func fetchUserPets(showLoading: Bool = true) async {
         guard let uid = authController.currentUID() else {
             errorMessage = "No user logged in"
             return
         }
         
-        isLoading = true
+        if showLoading {
+            isLoading = true
+        }
         do {
             pets = try await petController.fetchPets(for: uid)
             hasLoadedUserPets = true
@@ -35,7 +37,9 @@ class PetViewModel: ObservableObject {
             errorMessage = error.localizedDescription
             hasLoadedUserPets = false
         }
-        isLoading = false
+        if showLoading {
+            isLoading = false
+        }
     }
     
     func fetchPetsForUser(userId: String) async {
