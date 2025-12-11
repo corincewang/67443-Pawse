@@ -87,7 +87,7 @@ struct PetFormView: View {
                                         .foregroundColor(.pawseBrown)
                                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                                    TextField("", text: $petName, prompt: Text("Your Pet's name").foregroundColor(.pawseBrown.opacity(0.65)))
+                                    TextField("", text: $petName, prompt: Text(" ").foregroundColor(.pawseBrown.opacity(0.65)))
                                         .focused($isNameFocused)
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 16)
