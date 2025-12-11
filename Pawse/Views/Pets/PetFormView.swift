@@ -26,6 +26,7 @@ struct PetFormView: View {
     @State private var petName = ""
     @State private var petType = "Cat"
     @State private var petAge = ""
+    @State private var petAgeValue: Int?
     @State private var selectedGender: PetGender? = nil
     @State private var hasSelectedType = false
     @State private var hasSelectedAge = false
@@ -147,11 +148,17 @@ struct PetFormView: View {
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                         
                                         Menu {
-                                            ForEach(1...20, id: \.self) { age in
+                                            ForEach(1...30, id: \.self) { age in
                                                 Button("\(age)") {
                                                     petAge = "\(age)"
+                                                    petAgeValue = age
                                                     hasSelectedAge = true
                                                 }
+                                            }
+                                            Button("31+") {
+                                                petAge = "31+"
+                                                petAgeValue = 31
+                                                hasSelectedAge = true
                                             }
                                         } label: {
                                             HStack {
@@ -458,7 +465,9 @@ struct PetFormView: View {
             if let existingPet = pet {
                 petName = existingPet.name
                 petType = existingPet.type
-                petAge = String(existingPet.age)
+                let existingAge = existingPet.age
+                petAgeValue = existingAge
+                petAge = existingAge >= 31 ? "31+" : String(existingAge)
                 selectedGender = existingPet.gender == "M" ? .male : .female
                 currentPetId = existingPet.id
                 hasSelectedType = true
@@ -540,16 +549,19 @@ struct PetFormView: View {
     }
     
     private var isFormValid: Bool {
-        !petName.isEmpty && !petType.isEmpty && !petAge.isEmpty && selectedGender != nil
+        !petName.isEmpty
+            && !petType.isEmpty
+            && petAgeValue != nil
+            && selectedGender != nil
     }
-    
+
     private func dismissKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         isNameFocused = false
     }
 
     private func savePet(showSuccess: Bool = true) async -> String? {
-        guard let age = Int(petAge), let gender = selectedGender else { return nil }
+        guard let age = petAgeValue ?? Int(petAge), let gender = selectedGender else { return nil }
         
         // Upload profile photo if selected
         var profilePhotoURL = pet?.profile_photo ?? ""
