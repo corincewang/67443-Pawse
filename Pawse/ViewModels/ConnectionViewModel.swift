@@ -40,7 +40,10 @@ class ConnectionViewModel: ObservableObject {
             connections = try await connectionController.fetchConnections(for: userId)
             
             // Filter pending and approved
-            pendingRequests = connections.filter { $0.status == "pending" }
+            // Only show pending requests where current user is the recipient (uid2)
+            pendingRequests = connections.filter { connection in
+                connection.status == "pending" && connection.uid2 == userId
+            }
             approvedConnections = connections.filter { $0.status == "approved" }
             
             // Fetch friend details
