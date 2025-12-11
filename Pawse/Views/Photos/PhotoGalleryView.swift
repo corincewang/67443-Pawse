@@ -120,14 +120,10 @@ struct PhotoGalleryView: View {
                                     ForEach(contestPhotos) { photo in
                                         PhotoThumbnailView(
                                             photo: photo,
-                                            showDelete: true,
                                             contestPrompt: photoContestMap[photo.id ?? ""],
                                             allPhotos: photoViewModel.photos,
                                             photoContestMap: photoContestMap
-                                        ) {
-                                            selectedPhotoForDelete = photo
-                                            showingDeleteConfirmation = true
-                                        }
+                                        )
                                     }
                                 }
                             }
@@ -158,14 +154,10 @@ struct PhotoGalleryView: View {
                                     ForEach(memoryPhotos) { photo in
                                         PhotoThumbnailView(
                                             photo: photo,
-                                            showDelete: true,
                                             contestPrompt: nil,
                                             allPhotos: photoViewModel.photos,
                                             photoContestMap: photoContestMap
-                                        ) {
-                                            selectedPhotoForDelete = photo
-                                            showingDeleteConfirmation = true
-                                        }
+                                        )
                                     }
                                 }
                             }
@@ -362,21 +354,17 @@ struct PhotoGalleryView: View {
     
     struct PhotoThumbnailView: View {
         let photo: Photo
-        let showDelete: Bool
         let contestPrompt: String?
         let allPhotos: [Photo]
         let photoContestMap: [String: String]
-        let onDelete: () -> Void
         @State private var displayedImage: UIImage?
         @State private var isLoading = false
         
-        init(photo: Photo, showDelete: Bool, contestPrompt: String?, allPhotos: [Photo], photoContestMap: [String: String], onDelete: @escaping () -> Void) {
+        init(photo: Photo, contestPrompt: String?, allPhotos: [Photo], photoContestMap: [String: String]) {
             self.photo = photo
-            self.showDelete = showDelete
             self.contestPrompt = contestPrompt
             self.allPhotos = allPhotos
             self.photoContestMap = photoContestMap
-            self.onDelete = onDelete
             // Check cache synchronously to prevent flash
             _displayedImage = State(initialValue: ImageCache.shared.image(forKey: photo.image_link))
             _isLoading = State(initialValue: ImageCache.shared.image(forKey: photo.image_link) == nil)
@@ -439,17 +427,6 @@ struct PhotoGalleryView: View {
                             )
                         )
                 }
-                
-               if showDelete {
-                   Button(action: onDelete) {
-                       Image(systemName: "xmark.circle.fill")
-                           .font(.system(size: 20))
-                           // Use a slightly transparent gray for the icon
-                           .foregroundColor(Color.gray.opacity(0.5))
-                   }
-                   .contentShape(Circle())
-                   .offset(x: 8, y: -8)
-               }
             }
             .task {
                 // Load image only if not already cached

@@ -152,5 +152,15 @@ class PhotoViewModel: ObservableObject {
             errorMessage = error.localizedDescription
         }
     }
+    
+    func updatePhoto(photoId: String, petId: String, privacy: String) async {
+        do {
+            try await photoController.updatePhoto(photoId: photoId, petId: petId, privacy: privacy)
+            print("✅ Successfully updated photo \(photoId)")
+        } catch {
+            errorMessage = error.localizedDescription
+            print("❌ Failed to update photo: \(error)")
+        }
+    }
 }
 
