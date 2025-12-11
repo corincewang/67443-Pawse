@@ -26,9 +26,11 @@ struct PetFormView: View {
     @State private var petName = ""
     @State private var petType = "Cat"
     @State private var petAge = ""
+    @State private var petAgeValue: Int?
     @State private var selectedGender: PetGender? = nil
     @State private var hasSelectedType = false
     @State private var hasSelectedAge = false
+    @State private var showAgeSheet = false
     @State private var showingSuccess = false
     @State private var selectedImage: PhotosPickerItem?
     @State private var profileImage: Image?
@@ -146,13 +148,8 @@ struct PetFormView: View {
                                             .foregroundColor(.pawseBrown)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                         
-                                        Menu {
-                                            ForEach(1...20, id: \.self) { age in
-                                                Button("\(age)") {
-                                                    petAge = "\(age)"
-                                                    hasSelectedAge = true
-                                                }
-                                            }
+                                        Button {
+                                            showAgeSheet = true
                                         } label: {
                                             HStack {
                                                 Text(petAge.isEmpty ? "Select age" : petAge)
@@ -458,7 +455,9 @@ struct PetFormView: View {
             if let existingPet = pet {
                 petName = existingPet.name
                 petType = existingPet.type
-                petAge = String(existingPet.age)
+                let existingAge = existingPet.age
+                petAgeValue = existingAge
+                petAge = existingAge >= 31 ? "31+" : String(existingAge)
                 selectedGender = existingPet.gender == "M" ? .male : .female
                 currentPetId = existingPet.id
                 hasSelectedType = true
@@ -537,19 +536,81 @@ struct PetFormView: View {
         } message: {
             Text("Are you sure you want to delete \(petName)? This action cannot be undone.")
         }
+        .sheet(isPresented: $showAgeSheet) {
+            VStack(spacing: 16) {
+                Capsule()
+                    .fill(Color.gray.opacity(0.4))
+                    .frame(width: 40, height: 5)
+                    .padding(.top, 8)
+
+                Text("Select Age")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.pawseBrown)
+
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(1...30, id: \.self) { age in
+                            ageSelectionRow(text: "\(age)", value: age)
+                        }
+                        ageSelectionRow(text: "31+", value: 31)
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .presentationDetents([.fraction(0.5)])
+            .presentationDragIndicator(.visible)
+        }
     }
     
     private var isFormValid: Bool {
-        !petName.isEmpty && !petType.isEmpty && !petAge.isEmpty && selectedGender != nil
+        !petName.isEmpty
+            && !petType.isEmpty
+            && petAgeValue != nil
+            && selectedGender != nil
     }
-    
+
+    private func updateAgeSelection(value: Int, label: String) {
+        petAgeValue = value
+        petAge = label
+        hasSelectedAge = true
+        showAgeSheet = false
+    }
+
+    @ViewBuilder
+    private func ageSelectionRow(text: String, value: Int) -> some View {
+        Button {
+            updateAgeSelection(value: value, label: text)
+        } label: {
+            HStack {
+                Text(text)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.pawseBrown)
+                Spacer()
+                if petAgeValue == value {
+                    Image(systemName: "checkmark")
+                        .foregroundColor(.pawseOrange)
+                }
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity)
+            .background(petAgeValue == value ? Color.pawseOrange.opacity(0.12) : Color.white)
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
+        if value != 31 {
+            Divider()
+                .padding(.horizontal, 16)
+        }
+    }
+
     private func dismissKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         isNameFocused = false
     }
 
     private func savePet(showSuccess: Bool = true) async -> String? {
-        guard let age = Int(petAge), let gender = selectedGender else { return nil }
+        guard let age = petAgeValue ?? Int(petAge), let gender = selectedGender else { return nil }
         
         // Upload profile photo if selected
         var profilePhotoURL = pet?.profile_photo ?? ""
