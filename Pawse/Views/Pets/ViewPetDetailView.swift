@@ -11,7 +11,53 @@ struct ViewPetDetailView: View {
     let pet: Pet
     @Environment(\.dismiss) var dismiss
     @StateObject private var guardianViewModel = GuardianViewModel()
+    @StateObject private var petViewModel = PetViewModel()
     @State private var navigateToGallery = false
+    
+    // Editable pet fields
+    @State private var petType = "Cat"
+    @State private var petAge = ""
+    @State private var petAgeValue: Int?
+    @State private var selectedGender: PetGender? = nil
+    
+    // Guardian invite states
+    @State private var showInviteFloatingWindow = false
+    @State private var inviteEmail = ""
+    @State private var isInviting = false
+    
+    // UI states
+    @State private var showingSaveSuccess = false
+    @State private var showingInviteSuccess = false
+    @State private var isSaving = false
+    
+    // Check if current user is the owner
+    private var isOwner: Bool {
+        let authController = AuthController()
+        guard let currentUID = authController.currentUID() else { return false }
+        return pet.owner == "users/\(currentUID)"
+    }
+    
+    // Check if any changes have been made
+    private var hasChanges: Bool {
+        if petType != pet.type { return true }
+        if let gender = selectedGender, gender.firebaseValue != pet.gender { return true }
+        if let ageValue = petAgeValue, ageValue != pet.age { return true }
+        return false
+    }
+    
+    enum PetGender: String, CaseIterable {
+        case male = "♂"
+        case female = "♀"
+        
+        var firebaseValue: String {
+            switch self {
+            case .male: return "M"
+            case .female: return "F"
+            }
+        }
+    }
+    
+    let petTypes = ["Cat", "Dog", "Bird", "Rabbit", "Other"]
     
     // Get profile photo URL from S3 key
     private var profilePhotoURL: URL? {
@@ -22,77 +68,146 @@ struct ViewPetDetailView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .top) {
+                // White background for entire view
+                Color.white
+                    .ignoresSafeArea()
+                
                 // Scrollable content - starts below the top section
                 ScrollView {
                     VStack(spacing: 0) {
-                        // Spacer to push content below the top section
-                        Spacer()
-                            .frame(height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
-                        
-                        // Content with white background
+                        // Content with white background - positioned to meet the photo section
                         VStack(spacing: 0) {
-                            // Pet name - same font size as Guardians
-                            Text(pet.name)
-                                .font(.system(size: 26, weight: .bold))
-                                .foregroundColor(.pawseBrown)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 30)
-                                .padding(.top, 0)
-                                .padding(.bottom, 15)
-                                .background(Color.white)
+                            // Pet name display
+                            HStack(spacing: 8) {
+                                Text(pet.name)
+                                    .font(.system(size: 32, weight: .bold))
+                                    .foregroundColor(.pawseBrown)
+
+                                Spacer()
+                            }
+                            .padding(.horizontal, 30)
+                            .padding(.top, 0)
+                            .padding(.bottom, 15)
+                            .background(Color.white)
                             
-                            // Pet info card
-            VStack(spacing: 0) {
+                            // Pet info card - editable fields
+                            VStack(spacing: 0) {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 20)
                                         .fill(Color.pawseGreyBackground)
                                         .frame(height: 80)
                                     
                                     HStack(spacing: 40) {
-                                        VStack(spacing: 5) {
-                                            Text("Pet Type")
-                                                .font(.system(size: 14, weight: .bold))
-                                                .foregroundColor(Color.pawseDarkCoral)
-                                            Text(pet.type)
-                                                .font(.system(size: 14, weight: .medium))
-                                                .foregroundColor(Color(hex: "6B68A9"))
+                                        // Pet Type - tappable menu
+                                        Menu {
+                                            ForEach(petTypes, id: \.self) { type in
+                                                Button(type) {
+                                                    petType = type
+                                                }
+                                            }
+                                        } label: {
+                                            VStack(spacing: 5) {
+                                                Text("Pet Type")
+                                                    .font(.system(size: 14, weight: .bold))
+                                                    .foregroundColor(Color.pawseDarkCoral)
+                                                HStack(spacing: 4) {
+                                                    Text(petType)
+                                                        .font(.system(size: 14, weight: .medium))
+                                                        .foregroundColor(Color(hex: "6B68A9"))
+                                                    Image(systemName: "chevron.down")
+                                                        .font(.system(size: 10, weight: .bold))
+                                                        .foregroundColor(Color(hex: "6B68A9"))
+                                                }
+                                            }
                                         }
                                         
                                         Divider()
                                             .frame(height: 25)
                                         
-                                        VStack(spacing: 5) {
-                                            Text("Sex")
-                                                .font(.system(size: 14, weight: .bold))
-                                                .foregroundColor(Color.pawseDarkCoral)
-                                            Text(pet.gender == "F" ? "Female" : "Male")
-                                                .font(.system(size: 14, weight: .medium))
-                                                .foregroundColor(Color(hex: "6B68A9"))
+                                        // Sex - tappable menu
+                                        Menu {
+                                            Button("♂ Male") {
+                                                selectedGender = .male
+                                            }
+                                            Button("♀ Female") {
+                                                selectedGender = .female
+                                            }
+                                        } label: {
+                                            VStack(spacing: 5) {
+                                                Text("Sex")
+                                                    .font(.system(size: 14, weight: .bold))
+                                                    .foregroundColor(Color.pawseDarkCoral)
+                                                HStack(spacing: 4) {
+                                                    Text(selectedGender == .male ? "Male" : "Female")
+                                                        .font(.system(size: 14, weight: .medium))
+                                                        .foregroundColor(Color(hex: "6B68A9"))
+                                                    Image(systemName: "chevron.down")
+                                                        .font(.system(size: 10, weight: .bold))
+                                                        .foregroundColor(Color(hex: "6B68A9"))
+                                                }
+                                            }
                                         }
                                         
                                         Divider()
                                             .frame(height: 25)
                                         
-                                        VStack(spacing: 5) {
-                                            Text("Age")
-                                                .font(.system(size: 14, weight: .bold))
-                                                .foregroundColor(Color.pawseDarkCoral)
-                                            Text("\(pet.age)")
-                                                .font(.system(size: 14, weight: .medium))
-                                                .foregroundColor(Color(hex: "6B68A9"))
+                                        // Age - tappable menu
+                                        Menu {
+                                            ForEach(1...30, id: \.self) { age in
+                                                Button("\(age)") {
+                                                    petAge = "\(age)"
+                                                    petAgeValue = age
+                                                }
+                                            }
+                                            Button("31+") {
+                                                petAge = "31+"
+                                                petAgeValue = 31
+                                            }
+                                        } label: {
+                                            VStack(spacing: 5) {
+                                                Text("Age")
+                                                    .font(.system(size: 14, weight: .bold))
+                                                    .foregroundColor(Color.pawseDarkCoral)
+                                                HStack(spacing: 4) {
+                                                    Text(petAge)
+                                                        .font(.system(size: 14, weight: .medium))
+                                                        .foregroundColor(Color(hex: "6B68A9"))
+                                                    Image(systemName: "chevron.down")
+                                                        .font(.system(size: 10, weight: .bold))
+                                                        .foregroundColor(Color(hex: "6B68A9"))
+                                                }
+                                            }
                                         }
                                     }
                                 }
                                 .padding(.horizontal, 30)
-                                .padding(.bottom, 30)
+                                .padding(.bottom, 45)
                                 .background(Color.white)
                             }
                             
-                            // Guardians section
+                            // Guardians section with invite button
                             VStack(alignment: .leading, spacing: 15) {
-                                Text("Guardians")
-                                    .font(.system(size: 26, weight: .bold))
-                                    .foregroundColor(.pawseBrown)
+                                HStack(spacing: 12) {
+                                    Text("Guardians")
+                                        .font(.system(size: 26, weight: .bold))
+                                        .foregroundColor(.pawseBrown)
+                                    
+                                    // + button to invite guardians
+                                    Button(action: {
+                                        showInviteFloatingWindow = true
+                                    }) {
+                                        Circle()
+                                            .fill(Color.pawseOrange)
+                                            .frame(width: 32, height: 32)
+                                            .overlay(
+                                                Image(systemName: "plus")
+                                                    .font(.system(size: 16, weight: .bold))
+                                                    .foregroundColor(.white)
+                                            )
+                                    }
+                                    
+                                    Spacer()
+                                }
                                 
                                 if guardianViewModel.isLoading {
                                     ProgressView()
@@ -102,7 +217,12 @@ struct ViewPetDetailView: View {
                                         .foregroundColor(.gray)
                                 } else {
                                     ForEach(guardianViewModel.guardians.filter { $0.status == "approved" }) { guardian in
-                                        GuardianRowView(guardian: guardian)
+                                        GuardianRowView(guardian: guardian, isOwner: isOwner, petId: pet.id ?? "", onRemove: {
+                                            Task {
+                                                await guardianViewModel.removeGuardian(guardianId: guardian.id ?? "")
+                                                await guardianViewModel.fetchGuardians(for: pet.id ?? "")
+                                            }
+                                        })
                                     }
                                 }
                             }
@@ -111,24 +231,34 @@ struct ViewPetDetailView: View {
                             .padding(.bottom, 20)
                             .background(Color.white)
                             
-                            // Go to gallery button
-                            // Go to gallery button - use programmatic navigation
+                            // Save Changes button
                             Button(action: {
-                                navigateToGallery = true
+                                guard !isSaving else { return }
+                                isSaving = true
+                                Task {
+                                    await savePetChanges()
+                                    isSaving = false
+                                }
                             }) {
-                                Text("Go to gallery")
+                                Text(isSaving ? "Saving..." : "Save Changes")
                                     .font(.system(size: 20, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(hasChanges ? .white : Color.pawseCoralRed)
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 50)
-                                    .background(Color.pawseCoralRed)
+                                    .background(hasChanges ? Color.pawseCoralRed : Color.clear)
                                     .cornerRadius(20)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .stroke(Color.pawseCoralRed, lineWidth: 2)
+                                    )
                             }
+                            .disabled(isSaving)
                             .padding(.horizontal, 30)
-                            .padding(.bottom, 150)
+                            .padding(.bottom, 160)
                             .background(Color.white)
                         }
                     }
+                    .padding(.top, geometry.size.height * 0.37 + geometry.safeAreaInsets.top)
                 }
                 .scrollIndicators(.hidden)
                 
@@ -206,12 +336,63 @@ struct ViewPetDetailView: View {
                 .frame(height: geometry.size.height * 0.4 + geometry.safeAreaInsets.top)
                 .ignoresSafeArea(.all, edges: .top)
                 .allowsHitTesting(true) // Ensure top section can receive touches
+                
+                // Invite guardian floating window
+                if showInviteFloatingWindow {
+                    InputFloatingWindow(
+                        isPresented: showInviteFloatingWindow,
+                        title: "Invite Guardian",
+                        placeholder: "Guardian's Email",
+                        inputText: $inviteEmail,
+                        confirmText: "invite",
+                        confirmAction: {
+                            Task {
+                                await inviteGuardian()
+                            }
+                        },
+                        cancelAction: {
+                            showInviteFloatingWindow = false
+                            inviteEmail = ""
+                        },
+                        isLoading: isInviting
+                    )
+                }
+                
+                // Save success message
+                if showingSaveSuccess {
+                    VStack {
+                        Spacer()
+                        Text("Changes saved successfully!")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(Color.pawseOliveGreen)
+                            .cornerRadius(10)
+                            .padding(.bottom, 100)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                
+                // Invite success message
+                if showingInviteSuccess {
+                    Text("Invite sent!")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.pawseOliveGreen)
+                        .cornerRadius(10)
+                        .transition(.opacity)
+                }
             }
         }
         .navigationBarBackButtonHidden(true)
         .swipeBack(dismiss: dismiss)
-        .navigationDestination(isPresented: $navigateToGallery) {
-            PhotoGalleryView(petId: pet.id ?? "", petName: pet.name)
+        .onAppear {
+            // Initialize editable fields with current pet data
+            petType = pet.type
+            petAge = pet.age > 30 ? "31+" : "\(pet.age)"
+            petAgeValue = pet.age
+            selectedGender = pet.gender == "M" ? .male : .female
         }
         .task {
             if let petId = pet.id {
@@ -222,11 +403,77 @@ struct ViewPetDetailView: View {
             print("✅ ViewPetDetailView disappeared")
         }
     }
+    
+    // Save pet changes
+    private func savePetChanges() async {
+                guard let petId = pet.id,
+                            let ageValue = petAgeValue,
+                            let gender = selectedGender else {
+            return
+        }
+        
+        await petViewModel.updatePet(
+            petId: petId,
+                        name: pet.name,
+            type: petType,
+            age: ageValue,
+            gender: gender.firebaseValue,
+            profilePhoto: pet.profile_photo // Keep existing photo
+        )
+        
+        // Show success message
+        await MainActor.run {
+            withAnimation {
+                showingSaveSuccess = true
+            }
+        }
+        
+        // Auto-hide after 2 seconds
+        try? await Task.sleep(nanoseconds: 2_000_000_000)
+        await MainActor.run {
+            withAnimation {
+                showingSaveSuccess = false
+            }
+        }
+    }
+    
+    // Invite guardian
+    private func inviteGuardian() async {
+        guard let petId = pet.id, !inviteEmail.isEmpty else { return }
+        
+        isInviting = true
+        await guardianViewModel.requestGuardian(petId: petId, guardianEmail: inviteEmail)
+        isInviting = false
+        
+        showInviteFloatingWindow = false
+        inviteEmail = ""
+        
+        // Show success message
+        await MainActor.run {
+            withAnimation {
+                showingInviteSuccess = true
+            }
+        }
+        
+        // Auto-hide after 2 seconds
+        try? await Task.sleep(nanoseconds: 2_000_000_000)
+        await MainActor.run {
+            withAnimation {
+                showingInviteSuccess = false
+            }
+        }
+        
+        // Refresh guardians list
+        await guardianViewModel.fetchGuardians(for: petId)
+    }
 }
 
 // Guardian Row Component
 struct GuardianRowView: View {
     let guardian: Guardian
+    let isOwner: Bool
+    let petId: String
+    let onRemove: () -> Void
     @State private var userEmail: String = ""
     @State private var isLoading = true
     
@@ -243,6 +490,17 @@ struct GuardianRowView: View {
                 Text(userEmail)
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(Color(hex: "6B68A9"))
+            }
+            
+            Spacer()
+            
+            // Show X button only if current user is the owner
+            if isOwner {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(Color.gray.opacity(0.5))
+                }
             }
         }
         .task {

@@ -36,6 +36,10 @@ final class GuardianController {
             .updateData(["status": "rejected"])
     }
     
+    func removeGuardian(guardianId: String) async throws {
+        try await db.collection(Collection.Guardians).document(guardianId).delete()
+    }
+    
     // Fetch all pets where the user is an approved guardian
     func fetchPetsForGuardian(guardianRef: String) async throws -> [Guardian] {
         let snap = try await db.collection(Collection.Guardians)
