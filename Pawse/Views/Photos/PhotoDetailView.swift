@@ -14,12 +14,42 @@ struct PhotoDetailView: View {
     @Environment(\.dismiss) var dismiss
     let testPhoto: UIImage? // Add parameter for test photo
     let photo: Photo? // Add parameter for photo data
+    let allPhotos: [Photo] // All photos for swiping
+    let currentIndex: Int // Starting index
+    let photoContestMap: [String: String] // Contest prompts map
+    @State private var currentPhotoIndex: Int
     @State private var contestPrompt: String? = nil
+    @State private var loadedImages: [String: UIImage] = [:] // Cache for loaded images
     
     // Initialize with optional test photo and photo data
-    init(testPhoto: UIImage? = nil, photo: Photo? = nil) {
+    init(testPhoto: UIImage? = nil, photo: Photo? = nil, allPhotos: [Photo] = [], currentIndex: Int = 0, photoContestMap: [String: String] = [:]) {
         self.testPhoto = testPhoto
         self.photo = photo
+        self.allPhotos = allPhotos
+        self.currentIndex = currentIndex
+        self.photoContestMap = photoContestMap
+        _currentPhotoIndex = State(initialValue: currentIndex)
+        
+        // Initialize cache with test photo if provided
+        if let testPhoto = testPhoto, let photoId = photo?.id {
+            _loadedImages = State(initialValue: [photoId: testPhoto])
+        }
+    }
+    
+    // Current photo based on index
+    private var currentPhoto: Photo? {
+        guard !allPhotos.isEmpty, currentPhotoIndex < allPhotos.count else {
+            return photo
+        }
+        return allPhotos[currentPhotoIndex]
+    }
+    
+    // Current contest prompt based on index
+    private var currentContestPrompt: String? {
+        guard let photo = currentPhoto, let photoId = photo.id else {
+            return contestPrompt
+        }
+        return photoContestMap[photoId] ?? contestPrompt
     }
     
     // Format the upload date
@@ -32,14 +62,34 @@ struct PhotoDetailView: View {
         return "10/21/2025" // Fallback for preview
     }
     
+    // Format the current photo's upload date
+    private var currentFormattedDate: String {
+        if let photo = currentPhoto {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MM/dd/yyyy"
+            return formatter.string(from: photo.uploaded_at)
+        }
+        return formattedDate
+    }
+    
     var body: some View {
         ZStack {
             // Black background like native Photos app
             Color.black
                 .ignoresSafeArea()
             
-            // Full-screen photo
-            if let testPhoto = testPhoto {
+            // TabView for swipeable photos
+            if !allPhotos.isEmpty {
+                TabView(selection: $currentPhotoIndex.animation(.easeInOut(duration: 0.3))) {
+                    ForEach(Array(allPhotos.enumerated()), id: \.element.id) { index, photo in
+                        PhotoImageView(photo: photo, loadedImages: $loadedImages)
+                            .tag(index)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .ignoresSafeArea()
+            } else if let testPhoto = testPhoto {
+                // Fallback for preview/single photo mode
                 Image(uiImage: testPhoto)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -72,14 +122,14 @@ struct PhotoDetailView: View {
                     
                     Spacer()
                     
-                    Text(formattedDate)
+                    Text(currentFormattedDate)
                         .font(.system(size: 20, weight: .bold))
                         .foregroundColor(.white)
                     
                     Spacer()
                     
                     // Only show share button for private photos
-                    if let photo = photo, photo.privacy == "private" {
+                    if currentPhoto?.privacy == "private" {
                         Button(action: {
                             showingShareOptions = true
                         }) {
@@ -110,13 +160,13 @@ struct PhotoDetailView: View {
             }
             
             // Bottom overlay with contest info and like button - only for public (contest) photos
-            if let photo = photo, photo.privacy == "public" {
+            if currentPhoto?.privacy == "public" {
                 VStack {
                     Spacer()
                     
                     HStack {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(contestPrompt ?? "Contest")
+                            Text(currentContestPrompt ?? "Contest")
                                 .font(.system(size: 28, weight: .bold))
                                 .foregroundColor(.white)
                         }
@@ -157,7 +207,7 @@ struct PhotoDetailView: View {
                 confirmText: "share",
                 confirmAction: {
                     // Handle share action - change privacy to friends_only if it's private
-                    if let photo = photo, let photoId = photo.id, photo.privacy == "private" {
+                    if let photo = currentPhoto, let photoId = photo.id, photo.privacy == "private" {
                         Task {
                             await photoViewModel.updatePhotoPrivacy(photoId: photoId, privacy: "friends_only")
                             
@@ -190,26 +240,22 @@ struct PhotoDetailView: View {
             SuccessToastBar(message: "share success", isPresented: $showShareSuccess)
         }
         .navigationBarBackButtonHidden(true)
-        .gesture(
-            DragGesture(minimumDistance: 20, coordinateSpace: .global)
-                .onEnded { value in
-                    // Left swipe: from left edge, swipe right
-                    let startX = value.startLocation.x
-                    let translationX = value.translation.width
-                    let translationY = value.translation.height
-                    
-                    // Check if swipe starts from left edge and moves right
-                    if startX < 50 && translationX > 50 && abs(translationY) < 100 {
-                        dismiss()
-                    }
+        .onChange(of: currentPhotoIndex) { oldValue, newValue in
+            // Update contest prompt when photo changes
+            if let photo = currentPhoto, photo.privacy == "public", let photoId = photo.id {
+                Task {
+                    await loadContestPrompt(for: photoId)
                 }
-        )
+            } else {
+                contestPrompt = nil
+            }
+        }
         .onAppear {
             // Fast bottom bar hiding
             NotificationCenter.default.post(name: .hideBottomBar, object: nil)
             
             // Load contest prompt if this is a public (contest) photo
-            if let photo = photo, photo.privacy == "public", let photoId = photo.id {
+            if let photo = currentPhoto, photo.privacy == "public", let photoId = photo.id {
                 Task {
                     await loadContestPrompt(for: photoId)
                 }
@@ -247,6 +293,57 @@ struct PhotoDetailView: View {
             }
         } catch {
             print("❌ Failed to load contest prompt for photo \(photoId): \(error)")
+        }
+    }
+}
+
+// Helper view to load and display photo images
+struct PhotoImageView: View {
+    let photo: Photo
+    @Binding var loadedImages: [String: UIImage]
+    @State private var isLoading = false
+    
+    var body: some View {
+        GeometryReader { geometry in
+            Group {
+                if let photoId = photo.id, let image = loadedImages[photoId] {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                } else if isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.5)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                } else {
+                    Color.clear
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .onAppear {
+                            loadImage()
+                        }
+                }
+            }
+        }
+        .ignoresSafeArea()
+    }
+    
+    private func loadImage() {
+        guard let photoId = photo.id, loadedImages[photoId] == nil else { return }
+        
+        isLoading = true
+        Task {
+            if let image = await ImageCache.shared.loadImage(forKey: photo.image_link) {
+                await MainActor.run {
+                    loadedImages[photoId] = image
+                    isLoading = false
+                }
+            } else {
+                print("❌ Failed to load image for photo \(photoId)")
+                await MainActor.run {
+                    isLoading = false
+                }
+            }
         }
     }
 }
