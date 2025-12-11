@@ -121,7 +121,9 @@ struct PhotoGalleryView: View {
                                         PhotoThumbnailView(
                                             photo: photo,
                                             showDelete: true,
-                                            contestPrompt: photoContestMap[photo.id ?? ""]
+                                            contestPrompt: photoContestMap[photo.id ?? ""],
+                                            allPhotos: photoViewModel.photos,
+                                            photoContestMap: photoContestMap
                                         ) {
                                             selectedPhotoForDelete = photo
                                             showingDeleteConfirmation = true
@@ -157,7 +159,9 @@ struct PhotoGalleryView: View {
                                         PhotoThumbnailView(
                                             photo: photo,
                                             showDelete: true,
-                                            contestPrompt: nil
+                                            contestPrompt: nil,
+                                            allPhotos: photoViewModel.photos,
+                                            photoContestMap: photoContestMap
                                         ) {
                                             selectedPhotoForDelete = photo
                                             showingDeleteConfirmation = true
@@ -360,14 +364,18 @@ struct PhotoGalleryView: View {
         let photo: Photo
         let showDelete: Bool
         let contestPrompt: String?
+        let allPhotos: [Photo]
+        let photoContestMap: [String: String]
         let onDelete: () -> Void
         @State private var displayedImage: UIImage?
         @State private var isLoading = false
         
-        init(photo: Photo, showDelete: Bool, contestPrompt: String?, onDelete: @escaping () -> Void) {
+        init(photo: Photo, showDelete: Bool, contestPrompt: String?, allPhotos: [Photo], photoContestMap: [String: String], onDelete: @escaping () -> Void) {
             self.photo = photo
             self.showDelete = showDelete
             self.contestPrompt = contestPrompt
+            self.allPhotos = allPhotos
+            self.photoContestMap = photoContestMap
             self.onDelete = onDelete
             // Check cache synchronously to prevent flash
             _displayedImage = State(initialValue: ImageCache.shared.image(forKey: photo.image_link))
@@ -383,7 +391,13 @@ struct PhotoGalleryView: View {
                         .overlay(
                             Group {
                                 if let image = displayedImage {
-                                    NavigationLink(destination: PhotoDetailView(testPhoto: image, photo: photo)) {
+                                    NavigationLink(destination: PhotoDetailView(
+                                        testPhoto: image,
+                                        photo: photo,
+                                        allPhotos: allPhotos,
+                                        currentIndex: allPhotos.firstIndex(where: { $0.id == photo.id }) ?? 0,
+                                        photoContestMap: photoContestMap
+                                    )) {
                                         Image(uiImage: image)
                                             .resizable()
                                             .aspectRatio(contentMode: .fill)
