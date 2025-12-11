@@ -16,7 +16,6 @@ struct PhotoGalleryView: View {
     @State private var showingDeleteConfirmation = false
     @State private var selectedPhotoForDelete: Photo? = nil
     @State private var currentPet: Pet? = nil
-    @State private var petForEdit: Pet? = nil
     @State private var navigateToViewPet = false
     @State private var photoContestMap: [String: String] = [:] // photoId -> contest prompt
     @State private var isLoadingContestPrompts = true
@@ -45,32 +44,13 @@ struct PhotoGalleryView: View {
                     
                     Spacer()
                     
-                    // View button that goes to ViewPetDetailView
-                    Button(action: {
-                        if let pet = currentPet {
-                            navigateToViewPet = true
-                        }
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.pawseYellow)
-                                .frame(width: 44, height: 44)
-                            
-                            Image(systemName: "eye")
-                                .font(.system(size: 24))
-                                .foregroundColor(.white)
-                        }
-                    }
-                    .disabled(currentPet == nil)
-                    .padding(.top, 5) // Move down a bit
-                    
-                    // Edit button that goes to Pet Form View
+                    // Edit button that goes to ViewPetDetailView
                     Button(action: {
                         if let pet = currentPet {
                             print("🔵 Edit button clicked, pet: \(pet.name), id: \(pet.id ?? "no-id")")
-                            // Set petForEdit which will trigger navigationDestination(item:)
-                            petForEdit = pet
-                            print("✅ petForEdit set to: \(pet.name)")
+                            // Set navigateToViewPet which will trigger navigation to ViewPetDetailView
+                            navigateToViewPet = true
+                            print("✅ navigateToViewPet set to true")
                         } else {
                             print("🔴 Edit button clicked but currentPet is nil")
                         }
@@ -201,10 +181,7 @@ struct PhotoGalleryView: View {
             
         }
         .onAppear {
-            // Clear petForEdit immediately when view appears to prevent auto-navigation
-            // This must happen synchronously before navigationDestination can trigger
-            // Reset to nil to prevent any stale state from causing unwanted navigation
-            petForEdit = nil
+            // Reset navigation state to prevent unwanted navigation
             navigateToViewPet = false
             
             // Show bottom bar when this view appears
@@ -243,9 +220,6 @@ struct PhotoGalleryView: View {
         .onReceive(NotificationCenter.default.publisher(for: .petDeleted)) { _ in
             // Dismiss when pet is deleted to avoid showing gallery of deleted pet
             dismiss()
-        }
-        .navigationDestination(item: $petForEdit) { pet in
-            PetFormView(pet: pet)
         }
         .navigationDestination(isPresented: $navigateToViewPet) {
             if let pet = currentPet {

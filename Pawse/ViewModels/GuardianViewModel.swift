@@ -144,6 +144,23 @@ class GuardianViewModel: ObservableObject {
         isLoading = false
     }
     
+    // MARK: - Remove Guardian
+    
+    func removeGuardian(guardianId: String) async {
+        isLoading = true
+        error = nil
+        successMessage = nil
+        
+        do {
+            try await guardianController.removeGuardian(guardianId: guardianId)
+            successMessage = "Guardian removed"
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isLoading = false
+    }
+    
     // MARK: - Helper Methods
     
     private func lookupUserByEmail(_ email: String) async throws -> String {

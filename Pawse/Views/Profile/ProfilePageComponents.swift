@@ -221,7 +221,7 @@ struct AddPetCardView: View {
                 .frame(width: 200, height: 50)
                 .background(
                     RoundedCorners(cornerRadius: 20, corners: [.bottomLeft, .bottomRight])
-                        .fill(Color.pawseGolden.opacity(0.6))
+                        .fill(Color.pawseGolden.opacity(0.3))
                 )
         }
         .frame(width: 200, height: 260)
