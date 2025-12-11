@@ -127,20 +127,24 @@ struct UploadPhotoView: View {
     }
     
     private var backButton: some View {
-        HStack {
-            Button(action: {
-                dismiss()
-            }) {
-                Image(systemName: "chevron.backward")
-                    .font(.system(size: 24))
-                    .foregroundColor(.pawseOliveGreen)
-            }
-            
+        ZStack {
+            // Centered title
             Text("Upload Photo")
                 .font(.system(size: 48, weight: .bold))
                 .foregroundColor(.pawseOliveGreen)
             
-            Spacer()
+            // Back button on the left
+            HStack {
+                Button(action: {
+                    dismiss()
+                }) {
+                    Image(systemName: "chevron.backward")
+                        .font(.system(size: 24))
+                        .foregroundColor(.pawseOliveGreen)
+                }
+                
+                Spacer()
+            }
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
