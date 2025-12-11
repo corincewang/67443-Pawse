@@ -10,7 +10,11 @@ import SwiftUI
 struct PhotoDetailView: View {
     @State private var showingShareOptions = false
     @State private var showShareSuccess = false
+    @State private var showingMenuOptions = false
+    @State private var showingEditPopup = false
+    @State private var showingDeleteConfirmation = false
     @StateObject private var photoViewModel = PhotoViewModel()
+    @StateObject private var petViewModel = PetViewModel()
     @Environment(\.dismiss) var dismiss
     let testPhoto: UIImage? // Add parameter for test photo
     let photo: Photo? // Add parameter for photo data
@@ -20,6 +24,8 @@ struct PhotoDetailView: View {
     @State private var currentPhotoIndex: Int
     @State private var contestPrompt: String? = nil
     @State private var loadedImages: [String: UIImage] = [:] // Cache for loaded images
+    @State private var selectedPetId: String = ""
+    @State private var selectedPrivacy: String = "private"
     
     // Initialize with optional test photo and photo data
     init(testPhoto: UIImage? = nil, photo: Photo? = nil, allPhotos: [Photo] = [], currentIndex: Int = 0, photoContestMap: [String: String] = [:]) {
@@ -128,21 +134,16 @@ struct PhotoDetailView: View {
                     
                     Spacer()
                     
-                    // Only show share button for private photos
-                    if currentPhoto?.privacy == "private" {
-                        Button(action: {
-                            showingShareOptions = true
-                        }) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 24))
-                                .foregroundColor(.white)
-                        }
-                        .frame(width: 40, height: 40)
-                    } else {
-                        // Empty space to maintain layout consistency
-                        Spacer()
-                            .frame(width: 40, height: 40)
+                    // 3-dot menu button for all photos
+                    Button(action: {
+                        showingMenuOptions = true
+                    }) {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(.white)
+                            .rotationEffect(.degrees(90))
                     }
+                    .frame(width: 40, height: 40)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
@@ -200,6 +201,100 @@ struct PhotoDetailView: View {
                 }
             }
             
+            // Menu options popup (Edit or Delete)
+            if showingMenuOptions {
+                ZStack {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            showingMenuOptions = false
+                        }
+                    
+                    VStack(spacing: 0) {
+                        Button(action: {
+                            showingMenuOptions = false
+                            // Load current photo data into edit form
+                            if let currentPhoto = currentPhoto, let photoId = currentPhoto.id {
+                                selectedPetId = currentPhoto.pet.replacingOccurrences(of: "pets/", with: "")
+                                selectedPrivacy = currentPhoto.privacy
+                                showingEditPopup = true
+                            }
+                        }) {
+                            Text("Edit")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(.pawseOliveGreen)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 56)
+                                .background(Color.white)
+                        }
+                        
+                        Divider()
+                            .background(Color.gray.opacity(0.3))
+                        
+                        Button(action: {
+                            showingMenuOptions = false
+                            showingDeleteConfirmation = true
+                        }) {
+                            Text("Delete")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(.red)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 56)
+                                .background(Color.white)
+                        }
+                    }
+                    .cornerRadius(12)
+                    .shadow(radius: 10)
+                    .padding(.horizontal, 40)
+                }
+            }
+            
+            // Edit photo popup
+            PhotoEditPopup(
+                isPresented: $showingEditPopup,
+                selectedPetId: $selectedPetId,
+                selectedPrivacy: $selectedPrivacy,
+                availablePets: petViewModel.pets + petViewModel.guardianPets,
+                onSave: {
+                    Task {
+                        if let currentPhoto = currentPhoto, let photoId = currentPhoto.id {
+                            await photoViewModel.updatePhoto(
+                                photoId: photoId,
+                                petId: selectedPetId,
+                                privacy: selectedPrivacy
+                            )
+                            showingEditPopup = false
+                            // Dismiss to refresh gallery
+                            dismiss()
+                        }
+                    }
+                },
+                onCancel: {
+                    showingEditPopup = false
+                }
+            )
+            
+            // Delete confirmation dialog
+            ConfirmationFloatingWindow(
+                isPresented: showingDeleteConfirmation,
+                title: "Delete this photo?",
+                confirmText: "delete",
+                confirmAction: {
+                    Task {
+                        if let currentPhoto = currentPhoto, let photoId = currentPhoto.id {
+                            let petId = currentPhoto.pet.replacingOccurrences(of: "pets/", with: "")
+                            await photoViewModel.deletePhoto(photoId: photoId, petId: petId)
+                            showingDeleteConfirmation = false
+                            // Dismiss to go back to gallery
+                            dismiss()
+                        }
+                    }
+                },
+                cancelAction: {
+                    showingDeleteConfirmation = false
+                }
+            )
+            
             // Share confirmation dialog using reusable component
             ConfirmationFloatingWindow(
                 isPresented: showingShareOptions,
@@ -253,6 +348,12 @@ struct PhotoDetailView: View {
         .onAppear {
             // Fast bottom bar hiding
             NotificationCenter.default.post(name: .hideBottomBar, object: nil)
+            
+            // Load user's pets for edit functionality
+            Task {
+                await petViewModel.fetchUserPets()
+                await petViewModel.fetchGuardianPets()
+            }
             
             // Load contest prompt if this is a public (contest) photo
             if let photo = currentPhoto, photo.privacy == "public", let photoId = photo.id {
@@ -393,6 +494,153 @@ struct PhotoImageView: View {
                     isLoading = false
                 }
             }
+        }
+    }
+}
+
+// Photo Edit Popup Component
+struct PhotoEditPopup: View {
+    @Binding var isPresented: Bool
+    @Binding var selectedPetId: String
+    @Binding var selectedPrivacy: String
+    let availablePets: [Pet]
+    let onSave: () -> Void
+    let onCancel: () -> Void
+    
+    var body: some View {
+        if isPresented {
+            ZStack {
+                // Semi-transparent background
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        onCancel()
+                    }
+                
+                // Popup content
+                VStack(spacing: 20) {
+                    Text("Edit Photo")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.pawseOliveGreen)
+                        .padding(.top, 10)
+                    
+                    // Pet selection section
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Pet")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.pawseOliveGreen)
+                        
+                        Menu {
+                            ForEach(availablePets, id: \.id) { pet in
+                                Button(action: {
+                                    selectedPetId = pet.id ?? ""
+                                }) {
+                                    Text(pet.name)
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text(availablePets.first(where: { $0.id == selectedPetId })?.name ?? "Select Pet")
+                                    .foregroundColor(.pawseOliveGreen)
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                                    .foregroundColor(.pawseOliveGreen)
+                            }
+                            .padding()
+                            .background(Color(hex: "F7D4BF"))
+                            .cornerRadius(10)
+                        }
+                    }
+                    
+                    Divider()
+                        .background(Color.gray.opacity(0.3))
+                        .padding(.vertical, 5)
+                    
+                    // Privacy selection section
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Privacy")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.pawseOliveGreen)
+                        
+                        VStack(spacing: 8) {
+                            PrivacyOptionButton(
+                                title: "Global (Public)",
+                                isSelected: selectedPrivacy == "public",
+                                action: { selectedPrivacy = "public" }
+                            )
+                            
+                            PrivacyOptionButton(
+                                title: "Friends Only",
+                                isSelected: selectedPrivacy == "friends_only",
+                                action: { selectedPrivacy = "friends_only" }
+                            )
+                            
+                            PrivacyOptionButton(
+                                title: "Private",
+                                isSelected: selectedPrivacy == "private",
+                                action: { selectedPrivacy = "private" }
+                            )
+                        }
+                    }
+                    
+                    // Action buttons
+                    HStack(spacing: 15) {
+                        Button(action: onSave) {
+                            Text("save")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(Color.pawseOrange)
+                                .cornerRadius(25)
+                        }
+                        
+                        Button(action: onCancel) {
+                            Text("cancel")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(Color(hex: "DFA894"))
+                                .cornerRadius(25)
+                        }
+                    }
+                    .padding(.bottom, 10)
+                }
+                .padding(24)
+                .background(Color.white)
+                .cornerRadius(20)
+                .shadow(radius: 10)
+                .padding(.horizontal, 40)
+            }
+        }
+    }
+}
+
+// Privacy option button component
+struct PrivacyOptionButton: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 16))
+                    .foregroundColor(.pawseOliveGreen)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.pawseOrange)
+                } else {
+                    Image(systemName: "circle")
+                        .foregroundColor(.gray.opacity(0.3))
+                }
+            }
+            .padding()
+            .background(Color(hex: "F7D4BF").opacity(isSelected ? 1.0 : 0.5))
+            .cornerRadius(10)
         }
     }
 }

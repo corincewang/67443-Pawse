@@ -59,6 +59,22 @@ final class PhotoController {
         ])
     }
     
+    func updatePhoto(photoId: String, petId: String?, privacy: String?) async throws {
+        var updateData: [String: Any] = [:]
+        
+        if let petId = petId {
+            updateData["pet"] = "pets/\(petId)"
+        }
+        
+        if let privacy = privacy {
+            updateData["privacy"] = privacy
+        }
+        
+        guard !updateData.isEmpty else { return }
+        
+        try await db.collection(Collection.photos).document(photoId).updateData(updateData)
+    }
+    
     // MARK: - Vote Management
     
     /// Toggle vote on a photo (increment or decrement)
