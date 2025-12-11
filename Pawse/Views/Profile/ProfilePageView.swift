@@ -164,13 +164,15 @@ struct ProfilePageView: View {
         }
     }
 
+    @State private var shouldShowUploadPhoto = false
+
     private var addPhotoButtonSection: some View {
         VStack {
             Spacer()
             HStack {
                 Spacer()
                 VStack(spacing: 15) {
-                    NavigationLink(destination: UploadPhotoView(source: .profile)) {
+                    Button(action: addPhotoButtonTapped) {
                         ZStack {
                             Circle()
                                 .fill(Color.pawseOrange)
@@ -191,6 +193,27 @@ struct ProfilePageView: View {
                 .padding(.trailing, 30)
                 .padding(.bottom, 120)
             }
+        }
+        .background(
+            NavigationLink(
+                destination: UploadPhotoView(source: .profile),
+                isActive: $shouldShowUploadPhoto
+            ) {
+                EmptyView()
+            }
+            .opacity(0)
+        )
+    }
+
+    private func addPhotoButtonTapped() {
+        if tutorialStep == .addPhoto {
+            if let next = nextStep(after: .addPhoto) {
+                tutorialStep = next
+            } else {
+                finishTutorial()
+            }
+        } else {
+            shouldShowUploadPhoto = true
         }
     }
 
@@ -290,6 +313,12 @@ struct ProfilePageView: View {
                 refreshPhotoStatusAsync()
             }
             .onReceive(NotificationCenter.default.publisher(for: .petDataDidChange), perform: handlePetDataChange(_:))
+            .onReceive(NotificationCenter.default.publisher(for: .tutorialPhotoUploaded)) { _ in
+                hasUploadedPhotos = true
+                if tutorialStep == .uploadPhoto {
+                    tutorialStep = nextStep(after: .uploadPhoto)
+                }
+            }
             .onChange(of: petViewModel.allPets) { _, pets in
                 if selectedPetName == nil && !pets.isEmpty {
                     selectedPetNameStorage = pets.randomElement()?.name ?? ""
@@ -427,7 +456,7 @@ struct ProfilePageView: View {
         case .welcome:
             return "Let's take a quick tour of the key areas."
         case .addPet:
-            return "Tap the glowing card to open the pet form."
+            return "Tap the glowing card to add a new pet."
         case .uploadPhoto:
             return "Choose a favorite photo to kick things off."
         case .addPhoto:
@@ -446,7 +475,7 @@ struct ProfilePageView: View {
     private func overlayHint(for step: TutorialStep) -> String {
         switch step {
         case .addPet:
-            return "Tap the highlighted card to add a pet"
+            return ""
         case .uploadPhoto:
             return "Open the highlighted gallery to add a photo"
         case .finished:
@@ -587,7 +616,7 @@ struct ProfilePageView: View {
 
     private func handlePetDataChange(_ notification: Notification) {
         Task {
-            await petViewModel.fetchUserPets()
+            await petViewModel.fetchUserPets(showLoading: false)
             await petViewModel.fetchGuardianPets()
             await ensurePetProfilePhotosLoaded()
             refreshPhotoStatusAsync()
