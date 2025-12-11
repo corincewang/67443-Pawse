@@ -202,13 +202,26 @@ struct PetCardView: View {
 struct AddPetCardView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
+            // Main card background
             RoundedRectangle(cornerRadius: 20)
                 .fill(Color.pawseGolden.opacity(0.3))
                 .frame(width: 200, height: 260)
                 .overlay(
+                    // Plus icon centered in the upper portion (above the label)
                     Image(systemName: "plus")
                         .font(.system(size: 60, weight: .regular))
                         .foregroundColor(.white)
+                        .offset(y: -25) // Move up to center between top and label
+                )
+            
+            // Bottom label bar
+            Text("add pet")
+                .font(.system(size: 26, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: 200, height: 50)
+                .background(
+                    RoundedCorners(cornerRadius: 20, corners: [.bottomLeft, .bottomRight])
+                        .fill(Color.pawseGolden.opacity(0.6))
                 )
         }
         .frame(width: 200, height: 260)
