@@ -31,6 +31,10 @@ struct ProfilePageView: View {
         }
         return "User"
     }
+    
+    private var shouldNavigateToGallery: Bool {
+        navigateToPetGalleryId != nil
+    }
 
     private var headerSection: some View {
         ZStack(alignment: .topLeading) {
@@ -224,6 +228,51 @@ struct ProfilePageView: View {
         return firstID == currentID
     }
 
+    private func performInitialSetup() async {
+        let shouldStartTutorial = tutorialStep == nil
+
+        if userViewModel.currentUser == nil {
+            await userViewModel.fetchCurrentUser()
+        }
+
+        if shouldStartTutorial, let user = userViewModel.currentUser, !(user.has_seen_profile_tutorial ?? false) {
+            NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
+        }
+
+        if !petViewModel.hasLoadedUserPets {
+            await petViewModel.fetchUserPets()
+            await petViewModel.fetchGuardianPets()
+            await ensurePetProfilePhotosLoaded()
+        }
+
+        await guardianViewModel.fetchPendingInvitationsForCurrentUser()
+        await contestViewModel.fetchCurrentContest()
+        let pets = petViewModel.allPets
+        let photosExist = await determinePhotoPresence(for: pets)
+        hasUploadedPhotos = photosExist
+        if !guardianViewModel.receivedInvitations.isEmpty {
+            showInvitationOverlay = true
+        }
+
+        if !petViewModel.allPets.isEmpty {
+            let currentPets = Set(petViewModel.allPets.map { $0.name })
+            if selectedPetName == nil || (selectedPetName != nil && !currentPets.contains(selectedPetNameStorage)) {
+                selectedPetNameStorage = petViewModel.allPets.randomElement()?.name ?? ""
+            }
+        }
+
+        Task(priority: .utility) {
+            await prefetchGalleryPhotosForAllPets()
+        }
+
+        guard shouldStartTutorial else { return }
+
+        if tutorialStepRaw >= 0, let savedStep = TutorialStep(rawValue: tutorialStepRaw) {
+            tutorialStep = savedStep
+            NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
+        }
+    }
+
     var body: some View { profileBodyWithOverlays }
 
     private var profileBodyWithOverlays: some View {
@@ -233,62 +282,24 @@ struct ProfilePageView: View {
                 tutorialOverlay(preferences: preferences)
             }
 
-        return AnyView(
-            decoratedBody
-                .navigationBarBackButtonHidden(true)
-                .navigationDestination(isPresented: .constant(navigateToPetGalleryId != nil)) {
-                    if let petId = navigateToPetGalleryId, let petName = navigateToPetGalleryName {
-                        PhotoGalleryView(petId: petId, petName: petName)
-                            .onDisappear {
-                                navigateToPetGalleryId = nil
-                                navigateToPetGalleryName = nil
-                            }
-                    }
-                }
-                .task {
-                    let shouldStartTutorial = tutorialStep == nil
-
-                if userViewModel.currentUser == nil {
-                    await userViewModel.fetchCurrentUser()
-                }
-
-                if shouldStartTutorial, let user = userViewModel.currentUser, !(user.has_seen_profile_tutorial ?? false) {
-                    NotificationCenter.default.post(name: .showProfileTutorial, object: nil)
-                }
-
-                if !petViewModel.hasLoadedUserPets {
-                    await petViewModel.fetchUserPets()
-                    await petViewModel.fetchGuardianPets()
-                    await ensurePetProfilePhotosLoaded()
-                }
-
-                await guardianViewModel.fetchPendingInvitationsForCurrentUser()
-                await contestViewModel.fetchCurrentContest()
-                let pets = petViewModel.allPets
-                let photosExist = await determinePhotoPresence(for: pets)
-                hasUploadedPhotos = photosExist
-                if !guardianViewModel.receivedInvitations.isEmpty {
-                    showInvitationOverlay = true
-                }
-
-                if !petViewModel.allPets.isEmpty {
-                    let currentPets = Set(petViewModel.allPets.map { $0.name })
-                    if selectedPetName == nil || (selectedPetName != nil && !currentPets.contains(selectedPetNameStorage)) {
-                        selectedPetNameStorage = petViewModel.allPets.randomElement()?.name ?? ""
-                    }
-                }
-
-                Task(priority: .utility) {
-                    await prefetchGalleryPhotosForAllPets()
-                }
-
-                guard shouldStartTutorial else { return }
-
-                if tutorialStepRaw >= 0, let savedStep = TutorialStep(rawValue: tutorialStepRaw) {
-                    tutorialStep = savedStep
-                    NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
+        let navigationBody = decoratedBody
+            .navigationBarBackButtonHidden(true)
+            .navigationDestination(isPresented: .constant(shouldNavigateToGallery)) {
+                if let petId = navigateToPetGalleryId, let petName = navigateToPetGalleryName {
+                    PhotoGalleryView(petId: petId, petName: petName)
+                        .onDisappear {
+                            navigateToPetGalleryId = nil
+                            navigateToPetGalleryName = nil
+                        }
                 }
             }
+
+        let taskBody = navigationBody
+            .task {
+                await performInitialSetup()
+            }
+            
+        let receiversBody = taskBody
             .onReceive(NotificationCenter.default.publisher(for: .userDidSignOut)) { _ in
                 selectedPetNameStorage = ""
             }
@@ -319,6 +330,8 @@ struct ProfilePageView: View {
                     tutorialStep = nextStep(after: .uploadPhoto)
                 }
             }
+            
+        let changeListenersBody = receiversBody
             .onChange(of: petViewModel.allPets) { _, pets in
                 if selectedPetName == nil && !pets.isEmpty {
                     selectedPetNameStorage = pets.randomElement()?.name ?? ""
@@ -348,9 +361,9 @@ struct ProfilePageView: View {
                     showInvitationOverlay = false
                 }
             }
-                .onChange(of: userViewModel.currentUser?.id) { oldUserId, newUserId in
-                    if oldUserId != newUserId {
-                        selectedPetNameStorage = ""
+            .onChange(of: userViewModel.currentUser?.id) { oldUserId, newUserId in
+                if oldUserId != newUserId {
+                    selectedPetNameStorage = ""
 
                     if let newUser = userViewModel.currentUser, newUserId != nil {
                         if !(newUser.has_seen_profile_tutorial ?? false) {
@@ -363,8 +376,9 @@ struct ProfilePageView: View {
                         tutorialStepRaw = -1
                     }
                 }
-                }
-        )
+            }
+
+        return AnyView(changeListenersBody)
     }
 
     private func startTutorialFlow(resetProgress: Bool) {
