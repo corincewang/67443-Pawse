@@ -16,6 +16,21 @@ final class ConnectionController {
             user2: ref2
         )
         try await db.collection(Collection.connections).addDocument(from: conn)
+        
+        // Fetch current user's name
+        let currentUserDoc = try await db.collection(Collection.users).document(uid1).getDocument()
+        guard let currentUser = try? currentUserDoc.data(as: User.self) else { return }
+        
+        // Send notification to the recipient (uid2)
+        let notificationController = NotificationController()
+        try await notificationController.createNotification(
+            type: "friend_request",
+            recipientUid: uid2,
+            senderUid: uid1,
+            senderName: currentUser.nick_name,
+            message: "\(currentUser.nick_name) sent you a friend request.",
+            actionData: uid1  // Store user ID for profile link
+        )
     }
 
     func removeFriend(connectionId: String) async throws {

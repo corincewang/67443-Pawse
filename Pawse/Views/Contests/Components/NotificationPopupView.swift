@@ -72,8 +72,8 @@ struct NotificationsPopup: View {
                                 )
                             }
                             
-                            // Other Notifications
-                            ForEach(notifications) { notification in
+                            // Other Notifications (exclude friend_request since those are shown above)
+                            ForEach(notifications.filter { $0.type != "friend_request" }) { notification in
                                 NotificationCard(
                                     notification: notification,
                                     onDismiss: {
