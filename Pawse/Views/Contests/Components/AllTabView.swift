@@ -106,7 +106,7 @@ struct ContestTabView: View {
                     // Leaderboard
                     if let leaderboard = feedViewModel.leaderboard {
                         LeaderboardView(leaderboard: leaderboard)
-                            .id("leaderboard")
+                            .id("leaderboard-\(leaderboard.leaderboard.map { $0.image_link }.joined(separator: "-"))")
                             .padding(.top, 5)
                     }
                     
@@ -138,6 +138,12 @@ struct ContestTabView: View {
             }
             .refreshable {
                 isRefreshing = true
+                
+                // Clear cached leaderboard images before refreshing
+                if let currentLeaderboard = feedViewModel.leaderboard {
+                    let imageKeys = currentLeaderboard.leaderboard.map { $0.image_link }
+                    ImageCache.shared.removeImages(forKeys: imageKeys)
+                }
                 
                 // Refresh contest data first
                 await contestViewModel.fetchActiveContests(force: true)
