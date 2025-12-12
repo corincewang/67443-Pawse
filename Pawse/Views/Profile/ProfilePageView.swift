@@ -299,6 +299,12 @@ struct ProfilePageView: View {
     }
     
     private func performInitialSetup() async {
+        // First, restore tutorial state from AppStorage if it exists
+        if tutorialStep == nil && tutorialStepRaw >= 0, let savedStep = TutorialStep(rawValue: tutorialStepRaw) {
+            tutorialStep = savedStep
+            NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
+        }
+        
         let shouldStartTutorial = tutorialStep == nil
 
         if userViewModel.currentUser == nil {
@@ -327,19 +333,13 @@ struct ProfilePageView: View {
         if !petViewModel.allPets.isEmpty {
             let currentPets = Set(petViewModel.allPets.map { $0.name })
             if selectedPetName == nil || (selectedPetName != nil && !currentPets.contains(selectedPetNameStorage)) {
-                selectedPetNameStorage = petViewModel.allPets.randomElement()?.name ?? ""
+                // Use first pet instead of random to ensure consistency during tutorial
+                selectedPetNameStorage = petViewModel.allPets.first?.name ?? ""
             }
         }
 
         Task(priority: .utility) {
             await prefetchGalleryPhotosForAllPets()
-        }
-
-        guard shouldStartTutorial else { return }
-
-        if tutorialStepRaw >= 0, let savedStep = TutorialStep(rawValue: tutorialStepRaw) {
-            tutorialStep = savedStep
-            NotificationCenter.default.post(name: .tutorialActiveState, object: nil, userInfo: ["isActive": true])
         }
     }
 
@@ -415,7 +415,7 @@ struct ProfilePageView: View {
         case .uploadPhoto:
             return "Great! Add \(tutorialPetDisplayName)’s first picture to build their story."
         case .addPhoto:
-            return "You can directly upload photos to galleries or community feeds from here."
+            return "You can directly upload photos to galleries or the community from here."
         case .camera:
             return "You can also take photos on Pawse directly!"
         case .contest:
@@ -697,7 +697,8 @@ struct StateChangeModifiers: ViewModifier {
         content
             .onChange(of: petViewModel.allPets) { _, pets in
                 if selectedPetName == nil && !pets.isEmpty {
-                    selectedPetNameStorage = pets.randomElement()?.name ?? ""
+                    // Use first pet instead of random to ensure consistency during tutorial
+                    selectedPetNameStorage = pets.first?.name ?? ""
                 }
                 if tutorialStep == .addPet && !pets.isEmpty {
                     tutorialStep = onNextStep(.addPet)

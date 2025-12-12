@@ -45,7 +45,7 @@ struct RegisterView: View {
                 .padding(.top, 20)
                 
                 // Title at top on gradient background
-                Text("Register An Account")
+                Text("Sign Up")
                     .font(.system(size: 42, weight: .bold))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.leading)

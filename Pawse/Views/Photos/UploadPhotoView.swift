@@ -363,8 +363,36 @@ struct UploadPhotoView: View {
                         // Private photo - navigate to pet's gallery
                         print("🔒 Private photo uploaded, navigating to gallery")
                         
-                        // Get pet name for navigation
-                        let petName = petViewModel.allPets.first(where: { $0.id == uploadPetId })?.name ?? "Pet"
+                        // Get pet name for navigation - try to find the pet in our loaded pets
+                        var petName = "Pet"
+                        
+                        // First try to find in already loaded pets
+                        if let pet = petViewModel.allPets.first(where: { $0.id == uploadPetId }) {
+                            petName = pet.name
+                            print("✅ Found pet name: \(petName) for pet ID: \(uploadPetId)")
+                        } else {
+                            print("⚠️ Could not find pet with ID \(uploadPetId) in petViewModel.allPets (count: \(petViewModel.allPets.count))")
+                            print("   Available pets: \(petViewModel.allPets.map { "\($0.name) (\($0.id ?? "no-id"))" }.joined(separator: ", "))")
+                            
+                            // Fetch the pet directly from Firestore as a fallback
+                            do {
+                                let petController = PetController()
+                                let fetchedPet = try await petController.fetchPet(petId: uploadPetId)
+                                petName = fetchedPet.name
+                                print("✅ Fetched pet name from Firestore: \(petName)")
+                            } catch {
+                                print("❌ Failed to fetch pet from Firestore: \(error)")
+                                // As a last resort, try the first pet if we only have one
+                                if petViewModel.allPets.count == 1 {
+                                    petName = petViewModel.allPets.first?.name ?? "Pet"
+                                    print("ℹ️ Using first pet name as last resort: \(petName)")
+                                }
+                            }
+                        }
+                        
+                        // Capture the final pet name in a constant for the closure
+                        let finalPetName = petName
+                        let finalPetId = uploadPetId
                         
                         dismiss()
 
@@ -376,7 +404,7 @@ struct UploadPhotoView: View {
                                 NotificationCenter.default.post(
                                     name: .navigateToPetGallery,
                                     object: nil,
-                                    userInfo: ["petId": uploadPetId, "petName": petName]
+                                    userInfo: ["petId": finalPetId, "petName": finalPetName]
                                 )
                             }
                         }
