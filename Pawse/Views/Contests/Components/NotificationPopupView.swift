@@ -96,6 +96,7 @@ struct NotificationsPopup: View {
         }
         .task {
             await loadNotifications()
+            await connectionViewModel.fetchConnections()
         }
     }
     
@@ -106,6 +107,8 @@ struct NotificationsPopup: View {
         let controller = NotificationController()
         do {
             notifications = try await controller.fetchNotifications(for: userId)
+            print("✅ Loaded \(notifications.count) notifications for user \(userId)")
+            print("   Friend requests in ConnectionViewModel: \(connectionViewModel.pendingRequests.count)")
         } catch {
             print("❌ Failed to load notifications: \(error)")
         }

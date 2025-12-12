@@ -16,10 +16,14 @@ final class ConnectionController {
             user2: ref2
         )
         try await db.collection(Collection.connections).addDocument(from: conn)
+        print("✅ Friend request created in Firestore: \(uid1) → \(uid2)")
         
         // Fetch current user's name
         let currentUserDoc = try await db.collection(Collection.users).document(uid1).getDocument()
-        guard let currentUser = try? currentUserDoc.data(as: User.self) else { return }
+        guard let currentUser = try? currentUserDoc.data(as: User.self) else { 
+            print("❌ Failed to fetch current user data for notification")
+            return 
+        }
         
         // Send notification to the recipient (uid2)
         let notificationController = NotificationController()
@@ -31,6 +35,7 @@ final class ConnectionController {
             message: "\(currentUser.nick_name) sent you a friend request.",
             actionData: uid1  // Store user ID for profile link
         )
+        print("✅ Friend request notification sent to user \(uid2)")
     }
 
     func removeFriend(connectionId: String) async throws {

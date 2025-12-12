@@ -141,6 +141,7 @@ struct ContestView: View {
             } else {
                 print("⚠️ No active contest found")
             }
+            await connectionViewModel.fetchConnections()
         }
     }
 }

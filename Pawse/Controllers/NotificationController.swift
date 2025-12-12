@@ -24,8 +24,9 @@ final class NotificationController {
             is_read: false
         )
         
-        try await db.collection(Collection.notifications).addDocument(from: notification)
-        print("✅ Created notification for user \(recipientUid)")
+        let docRef = try await db.collection(Collection.notifications).addDocument(from: notification)
+        print("✅ Created notification [\(type)] for user \(recipientUid) - Document ID: \(docRef.documentID)")
+        print("   Message: \(message)")
     }
     
     // MARK: - Fetch Notifications
