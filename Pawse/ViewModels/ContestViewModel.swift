@@ -39,10 +39,9 @@ class ContestViewModel: ObservableObject {
         do {
             currentContest = try await contestController.fetchCurrentContest()
             
-            // If no active contest exists, create one
+            // Don't automatically create contests here - let initializeSystem handle it
             if currentContest == nil {
-                try await contestController.ensureActiveContest()
-                currentContest = try await contestController.fetchCurrentContest()
+                print("⚠️ No current contest found - should be initialized via ContestRotationService")
             }
             
             error = nil
@@ -63,10 +62,9 @@ class ContestViewModel: ObservableObject {
         do {
             activeContests = try await contestController.fetchActiveContests()
             
-            // If no active contests exist, create a default one
+            // Don't automatically create contests here - let initializeSystem handle it
             if activeContests.isEmpty {
-                try await contestController.ensureActiveContest()
-                activeContests = try await contestController.fetchActiveContests()
+                print("⚠️ No active contests found - should be initialized via ContestRotationService")
             }
             
             // Update currentContest to the first active contest

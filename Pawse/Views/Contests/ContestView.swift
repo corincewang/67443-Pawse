@@ -44,17 +44,17 @@ struct ContestView: View {
                     if let firstContest = contestViewModel.activeContests.first {
                         HStack(spacing: 8) {
                             Image(systemName: "trophy.fill")
-                                .font(.system(size: 20))
+                                .font(.system(size: 22))
                                 .foregroundColor(.yellow)
                             
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(firstContest.prompt)")
-                                    .font(.system(size: 14, weight: .bold))
+                                    .font(.system(size: 16, weight: .bold))
                                     .foregroundColor(.white)
                                     .lineLimit(1)
                                 
                                 Text("Ends: \(firstContest.end_date.formatted(.dateTime.month().day()))")
-                                    .font(.system(size: 12))
+                                    .font(.system(size: 14))
                                     .foregroundColor(.white.opacity(0.9))
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)

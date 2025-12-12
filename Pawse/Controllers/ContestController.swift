@@ -4,6 +4,8 @@ import FirebaseFunctions
 final class ContestController {
     private let db = FirebaseManager.shared.db
     private let functions = FirebaseManager.shared.functions
+    private var isCreatingContest = false
+    private let contestCreationLock = NSLock()
 
     func joinContest(contestId: String, photoId: String) async throws {
         // Create contest photo entry directly instead of using Firebase Functions
@@ -28,6 +30,13 @@ final class ContestController {
         return allContests
             .filter { $0.end_date > now && $0.active_status }
             .sorted { $0.start_date < $1.start_date }
+    }
+    
+    /// Fetch all contests regardless of active status
+    func fetchAllContests() async throws -> [Contest] {
+        let snap = try await db.collection(Collection.contests).getDocuments()
+        let allContests = try snap.documents.compactMap { try $0.data(as: Contest.self) }
+        return allContests.sorted { $0.start_date > $1.start_date } // Most recent first
     }
     
     /// Fetch the current active contest (should be only one)
@@ -69,7 +78,9 @@ final class ContestController {
     
     func createContest(prompt: String, durationDays: Int = 7) async throws -> String {
         let startDate = Date()
-        let endDate = Calendar.current.date(byAdding: .day, value: durationDays, to: startDate) ?? startDate.addingTimeInterval(7 * 24 * 60 * 60)
+        // Set end date to 11:59:59 PM on the final day, not midnight at start of final day
+        var endDate = Calendar.current.date(byAdding: .day, value: durationDays, to: startDate) ?? startDate.addingTimeInterval(7 * 24 * 60 * 60)
+        endDate = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: endDate) ?? endDate
         
         let contest = Contest(
             active_status: true,
@@ -132,6 +143,22 @@ final class ContestController {
     
     /// Ensure there's always exactly one active contest
     func ensureActiveContest() async throws {
+        // Prevent race conditions with a lock
+        contestCreationLock.lock()
+        if isCreatingContest {
+            contestCreationLock.unlock()
+            print("⏳ Contest creation already in progress, skipping...")
+            return
+        }
+        isCreatingContest = true
+        contestCreationLock.unlock()
+        
+        defer {
+            contestCreationLock.lock()
+            isCreatingContest = false
+            contestCreationLock.unlock()
+        }
+        
         let activeContests = try await fetchActiveContests()
         
         if activeContests.isEmpty {
@@ -152,6 +179,23 @@ final class ContestController {
         } else {
             print("✅ Active contest exists: \(activeContests.first?.prompt ?? "Unknown")")
         }
+    }
+    
+    /// Reactivate a specific contest (useful for recovering contests that were prematurely deactivated)
+    func reactivateContest(contestId: String) async throws {
+        // First, deactivate all currently active contests
+        let allContests = try await fetchAllContests()
+        for contest in allContests where contest.active_status {
+            guard let cid = contest.id else { continue }
+            try await db.collection(Collection.contests).document(cid)
+                .updateData(["active_status": false])
+            print("⏰ Deactivated contest: \(contest.prompt)")
+        }
+        
+        // Now reactivate the specified contest
+        try await db.collection(Collection.contests).document(contestId)
+            .updateData(["active_status": true])
+        print("✅ Reactivated contest: \(contestId)")
     }
     
     /// Initialize the contest system (call once when app starts or when setting up)

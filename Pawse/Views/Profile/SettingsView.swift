@@ -13,6 +13,12 @@ struct SettingsView: View {
     @State private var showSaveConfirmation = false
     @State private var showResetConfirmation = false
     @State private var resetMessage: String = ""
+    
+    // Admin whitelist
+    private var isAdmin: Bool {
+        let adminEmails = ["test0@gmail.com"]
+        return adminEmails.contains(userViewModel.currentUser?.email ?? "")
+    }
 
     var body: some View {
         ZStack {
@@ -109,6 +115,25 @@ struct SettingsView: View {
                 .padding(.horizontal, 30)
                 .padding(.top, 10)
 
+                // Contest Admin button (only for whitelisted admins)
+                if isAdmin {
+                    NavigationLink(destination: ContestAdminView()) {
+                        Text("Contest Admin")
+                            .font(.system(size: 16, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.pawseWarmGrey.opacity(0.3))
+                            .foregroundColor(.pawseBrown)
+                            .cornerRadius(20)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.pawseBrown.opacity(0.5), lineWidth: 1)
+                            )
+                            .padding(.horizontal, 30)
+                    }
+                    .padding(.top, 5)
+                }
+                
                 // Sign Out button - white background with orange text
                 Button(role: .destructive) {
                     showingSignOutAlert = true
