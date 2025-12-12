@@ -374,8 +374,11 @@ struct LeaderboardPodiumItem: View {
         }
         .buttonStyle(.plain)
         .task {
-            // Load pet profile image only if not cached
-            if !entry.image_link.isEmpty && displayedImage == nil {
+            // Always try to load/refresh the image
+            if !entry.image_link.isEmpty {
+                // Clear current image to show loading state
+                displayedImage = nil
+                
                 if let image = await ImageCache.shared.loadImage(forKey: entry.image_link) {
                     displayedImage = image
                 }
