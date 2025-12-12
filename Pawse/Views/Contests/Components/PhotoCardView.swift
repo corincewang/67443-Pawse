@@ -174,7 +174,7 @@ struct FriendPhotoCard: View {
                                 .foregroundColor(.white)
                                 .shadow(color: .black.opacity(0.3), radius: 2)
                         }
-                        .position(x: imageWidth - 30, y: imageHeight - 30)
+                        .position(x: imageWidth - 45, y: imageHeight - 30)
                     }
                     .frame(width: imageWidth, height: imageHeight)
                     .padding(.leading, imageLeftOffset)
@@ -358,7 +358,7 @@ struct ContestPhotoCard: View {
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.3), radius: 2)
                     }
-                    .position(x: imageWidth - 30, y: imageHeight - 30)
+                    .position(x: imageWidth - 45, y: imageHeight - 30)
                 }
                 .frame(width: imageWidth, height: imageHeight)
                 .padding(.leading, imageLeftOffset)
@@ -541,7 +541,7 @@ struct GlobalPhotoCard: View {
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.3), radius: 2)
                     }
-                    .position(x: imageWidth - 30, y: imageHeight - 30)
+                    .position(x: imageWidth - 45, y: imageHeight - 30)
                 }
                 .frame(width: imageWidth, height: imageHeight)
                 .padding(.leading, imageLeftOffset)

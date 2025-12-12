@@ -137,7 +137,7 @@ struct FriendPhotoPost: View {
                                 .font(.system(size: 24, weight: .bold))
                                 .foregroundColor(.white)
                         }
-                        .padding(.trailing, 20)
+                        .padding(.trailing, 35)
                         .padding(.bottom, 20)
                     }
                 }
