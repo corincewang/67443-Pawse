@@ -74,12 +74,12 @@ struct ContestView: View {
                     
                     Spacer()
                     
-                    NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
+                    NavigationLink(destination: FriendsView()) {
                         Circle()
                             .fill(Color.pawseWarmGrey)
                             .frame(width: 44, height: 44)
                             .overlay(
-                                Image(systemName: "gearshape")
+                                Image(systemName: "person.2")
                                     .font(.system(size: 18, weight: .medium))
                                     .foregroundColor(Color.white)
                             )
