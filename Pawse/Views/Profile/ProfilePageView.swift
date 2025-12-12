@@ -58,16 +58,30 @@ struct ProfilePageView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 30)
 
-                NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
-                    Circle()
-                        .fill(Color.pawseWarmGrey)
-                        .frame(width: 52, height: 52)
-                        .overlay(
-                            Image(systemName: "gearshape")
-                                .font(.system(size: 24, weight: .medium))
-                                .foregroundColor(.white)
-                        )
-                        .contentShape(Rectangle())
+                VStack(spacing: 12) {
+                    NavigationLink(destination: SettingsView().environmentObject(userViewModel)) {
+                        Circle()
+                            .fill(Color.pawseWarmGrey)
+                            .frame(width: 52, height: 52)
+                            .overlay(
+                                Image(systemName: "gearshape")
+                                    .font(.system(size: 24, weight: .medium))
+                                    .foregroundColor(.white)
+                            )
+                            .contentShape(Rectangle())
+                    }
+                    
+                    NavigationLink(destination: FriendsView()) {
+                        Circle()
+                            .fill(Color.pawseWarmGrey)
+                            .frame(width: 52, height: 52)
+                            .overlay(
+                                Image(systemName: "person.2")
+                                    .font(.system(size: 24, weight: .medium))
+                                    .foregroundColor(.white)
+                            )
+                            .contentShape(Rectangle())
+                    }
                 }
                 .offset(y: -UIScreen.main.bounds.height * 0.05)
             }

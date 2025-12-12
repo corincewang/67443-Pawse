@@ -292,6 +292,7 @@ struct OtherUserProfileView: View {
 
 struct PetCard: View {
     let pet: Pet
+    @StateObject private var imageLoader = ImageLoader()
     
     var body: some View {
         VStack(spacing: 8) {
@@ -299,9 +300,22 @@ struct PetCard: View {
                 .fill(Color.pawseGolden.opacity(0.3))
                 .frame(width: 80, height: 80)
                 .overlay(
-                    Text(String(pet.name.prefix(1).uppercased()))
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(.pawseOliveGreen)
+                    Group {
+                        if let image = imageLoader.image {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 80, height: 80)
+                                .clipShape(Circle())
+                        } else if imageLoader.isLoading {
+                            ProgressView()
+                                .tint(.pawseOliveGreen)
+                        } else {
+                            Text(String(pet.name.prefix(1).uppercased()))
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundColor(.pawseOliveGreen)
+                        }
+                    }
                 )
             
             Text(pet.name)
@@ -310,6 +324,11 @@ struct PetCard: View {
                 .lineLimit(1)
         }
         .frame(width: 100)
+        .onAppear {
+            if !pet.profile_photo.isEmpty {
+                imageLoader.load(s3Key: pet.profile_photo)
+            }
+        }
     }
 }
 

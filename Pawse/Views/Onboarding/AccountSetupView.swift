@@ -48,7 +48,7 @@ struct AccountSetupView: View {
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.pawseBrown)
                     
-                    TextField("Corince", text: $nickName)
+                    TextField("Enter your name", text: $nickName)
                         .padding()
                         .background(Color.white)
                         .cornerRadius(8)

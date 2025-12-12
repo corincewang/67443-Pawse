@@ -46,7 +46,7 @@ struct LoginView: View {
                 .padding(.top, 20)
                 
                 // Title at top on gradient background
-                Text("Log In To Your Account")
+                Text("Log In")
                     .font(.system(size: 42, weight: .bold))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.leading)
