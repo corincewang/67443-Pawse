@@ -138,11 +138,16 @@ struct ContestTabView: View {
             }
             .refreshable {
                 isRefreshing = true
+                
+                // Refresh contest data first
                 await contestViewModel.fetchActiveContests(force: true)
+                
+                // Then refresh feed data with the current contest
                 if let activeContest = contestViewModel.activeContests.first, let contestId = activeContest.id {
-                    await feedViewModel.fetchContestFeed(contestId: contestId)
-                    await feedViewModel.fetchLeaderboard()
+                    await feedViewModel.fetchContestFeed(contestId: contestId, force: true)
+                    await feedViewModel.fetchLeaderboard(force: true)
                 }
+                
                 isRefreshing = false
             }
             .onChange(of: scrollToTopTrigger) { _ in
